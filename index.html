@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sapataria Zello — Gestão</title>
+
+<!-- ===================================================================
+     ÚNICA LINHA QUE VOCÊ PRECISA TROCAR:
+     Cole abaixo o endereço /exec do sistema (Implantar > Gerenciar
+     implantações > copiar a URL do app da Web). Se um dia esse endereço
+     mudar, troque só aqui: o atalho instalado no celular continua o mesmo.
+     =================================================================== -->
+<script>
+  var LINK_DO_SISTEMA = "https://script.google.com/macros/s/AKfycbxhTrrV7kBp56e1KJCvYu89AsNIjgwlxyi29oXbUXzvzUsGS5IPRYfJidcCcED3gvO_6Q/exec";
+</script>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3d2718">
+<link rel="icon" href="favicon-64.png" sizes="64x64">
+<link rel="apple-touch-icon" href="icone-180-apple.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Zello">
+<meta name="mobile-web-app-capable" content="yes">
+<style>
+  html, body{ height:100%; margin:0; background:#3d2718; overscroll-behavior:none; }
+  body{ font-family:system-ui, -apple-system, 'Segoe UI', sans-serif; }
+  #quadro{
+    position:fixed; inset:0; width:100%; height:100%; border:0; display:block;
+    padding-top:env(safe-area-inset-top); padding-bottom:env(safe-area-inset-bottom);
+    box-sizing:border-box; background:#efe6d3;
+  }
+  #abertura{
+    position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; gap:16px; background:#3d2718; color:#f2e9d8; text-align:center;
+    padding:24px; transition:opacity .35s; z-index:2;
+  }
+  #abertura.sumindo{ opacity:0; pointer-events:none; }
+  #abertura img{ width:120px; height:120px; border-radius:24px; }
+  #abertura .nome{ font-size:17px; font-weight:600; letter-spacing:.02em; }
+  #abertura .aviso{ font-size:13.5px; color:#cbb98f; max-width:300px; line-height:1.5; }
+  #abertura a{ color:#f2e9d8; font-weight:600; }
+  .pontos::after{ content:"…"; animation:pontos 1.2s steps(4, end) infinite; }
+  @keyframes pontos{ 0%{ content:"" } 25%{ content:"." } 50%{ content:".." } 75%{ content:"..." } }
+</style>
+</head>
+<body>
+
+<iframe id="quadro" title="Sistema de gestão" allow="clipboard-write; clipboard-read; fullscreen"></iframe>
+
+<div id="abertura">
+  <img src="icone-192.png" alt="">
+  <div class="nome">SAPATARIA ZELLO</div>
+  <div class="aviso"><span class="pontos">Abrindo o sistema</span></div>
+  <div class="aviso" id="demorou" hidden>
+    Está demorando mais que o normal. Confira a internet ou
+    <a id="linkDireto" href="#" target="_blank" rel="noopener">abra o sistema no navegador</a>.
+  </div>
+</div>
+
+<script>
+  document.getElementById("linkDireto").href = LINK_DO_SISTEMA;
+  var quadro = document.getElementById("quadro");
+  var abertura = document.getElementById("abertura");
+  quadro.addEventListener("load", function(){
+    abertura.classList.add("sumindo");
+    setTimeout(function(){ abertura.hidden = true; }, 400);
+  });
+  setTimeout(function(){
+    if(!abertura.hidden) document.getElementById("demorou").hidden = false;
+  }, 9000);
+  quadro.src = LINK_DO_SISTEMA;
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", function(){
+      navigator.serviceWorker.register("sw.js").catch(function(){});
+    });
+  }
+</script>
+</body>
+</html>
