@@ -9,7 +9,8 @@ Google Apps Script", porque o sistema passa a aparecer dentro da sua página.
 
 | Arquivo | Para que serve |
 | --- | --- |
-| `index.html` | A página. Abre o sistema em tela cheia. **É aqui que fica o link do sistema.** |
+| `index.html` | Abre o sistema de gestão em tela cheia. **É aqui que fica o link do sistema.** |
+| `orcamento.html` | Página pública para divulgar nas redes sociais — o cliente marca um horário de orçamento sem precisar do link do Google. |
 | `manifest.json` | Diz ao navegador o nome, os ícones e que o app abre em tela cheia. |
 | `sw.js` | Faz o app abrir na hora e mostrar um aviso claro quando estiver sem internet. |
 | `icone-192.png`, `icone-512.png`, `icone-512-mascara.png` | Ícones do app. |
@@ -52,11 +53,22 @@ Este é o ganho principal: o endereço que você instalou e divulga é **seu**.
 2. Troque o endereço na linha `var LINK_DO_SISTEMA = "..."`.
 3. Clique em **Commit changes**. Feche e abra o app de novo.
 
-## Para os clientes (opcional)
+## Página pública de Orçamento (para divulgar nas redes sociais)
 
-Dá para publicar, na mesma pasta, uma segunda página apontando para
-`.../exec?page=orcamento-publico`. Aí o link divulgado nas redes sociais também
-passa a ser seu, sem o aviso do Google, e nunca mais precisa mudar.
+O arquivo `orcamento.html` funciona exatamente como o `index.html`, mas abre
+só a página onde qualquer pessoa marca um horário de orçamento — sem cadastro,
+sem senha. Depois de publicar (mesmo passo a passo acima), o link fica:
+
+`https://SEU-USUARIO.github.io/zello/orcamento.html`
+
+É esse link que você divulga no Instagram, no WhatsApp, etc., no lugar do link
+antigo do Google. Ele também não muda mais, mesmo que o link do sistema por
+trás precise ser trocado um dia — nesse caso, edite a mesma linha
+`LINK_DO_SISTEMA`, mas dentro do arquivo `orcamento.html` (ele tem a sua
+própria cópia da linha, com `?page=orcamento-publico` no final).
+
+A faixa superior e a marca d'água configuradas na aba Empresa aparecem
+normalmente nessa página, do mesmo jeito que aparecem no sistema.
 
 ## Bom saber
 
