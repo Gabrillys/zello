@@ -16,7 +16,7 @@
 </script>
 
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#3d2718">
+<meta name="theme-color" id="corDoSistema" content="#3d2718">
 <link rel="icon" href="favicon-64.png" sizes="64x64">
 <link rel="apple-touch-icon" href="icone-180-apple.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -33,7 +33,7 @@
   #abertura{
     position:fixed; inset:0; display:flex; flex-direction:column; align-items:center;
     justify-content:center; gap:16px; background:#3d2718; color:#f2e9d8; text-align:center;
-    padding:24px; transition:opacity .35s; z-index:2;
+    padding:24px; transition:opacity .35s, background .35s; z-index:2;
   }
   #abertura.sumindo{ opacity:0; pointer-events:none; }
   #abertura img{ width:120px; height:120px; border-radius:24px; }
@@ -76,6 +76,51 @@
       navigator.serviceWorker.register("sw.js").catch(function(){});
     });
   }
+
+  /* ===================================================================
+     Tira do sistema acompanhando o tema escolhido dentro do app
+     ===================================================================
+     Esta página (index.html) e o sistema de verdade (dentro do <iframe>
+     acima) são de ORIGENS DIFERENTES (github.io x script.google.com) - o
+     navegador nunca deixa uma ler ou copiar o CSS/tema da outra
+     diretamente, por segurança. A única ponte permitida entre as duas é
+     postMessage: o sistema, sempre que aplica um tema (ao abrir e sempre
+     que a pessoa troca a paleta em Empresa), manda uma mensagem pra cá
+     avisando a cor atual - só a cor, nenhum dado de negócio.
+
+     1) Assim que ela chega, pinta a tira do sistema (meta theme-color) e o
+        fundo desta página/da splash na hora.
+     2) Guarda essa cor no armazenamento deste site (github.io), separado
+        de tudo o mais - assim, na PRÓXIMA vez que o app for aberto, a
+        splash já nasce na cor certa, sem esperar a mensagem chegar de
+        novo (é só isso que fica salvo aqui: uma cor).
+     Se algo impedir a mensagem de chegar (app muito antigo, por exemplo),
+     nada quebra - só continua na cor de fábrica (#3d2718) até a próxima
+     mensagem, exatamente como já era antes desta atualização.
+     =================================================================== */
+  var CHAVE_COR_SALVA = "zelloCorTemaAtual";
+
+  function aplicarCorDoSistema(cor){
+    if(!cor) return;
+    var meta = document.getElementById("corDoSistema");
+    if(meta) meta.setAttribute("content", cor);
+    document.documentElement.style.background = cor;
+    document.body.style.background = cor;
+    if(abertura) abertura.style.background = cor;
+  }
+
+  try{
+    var corSalva = localStorage.getItem(CHAVE_COR_SALVA);
+    if(corSalva) aplicarCorDoSistema(corSalva);
+  }catch(err){}
+
+  window.addEventListener("message", function(ev){
+    if(!ev.data || ev.data.tipoMensagemZello !== "tema") return;
+    var cor = ev.data.corPrincipal;
+    if(!cor) return;
+    aplicarCorDoSistema(cor);
+    try{ localStorage.setItem(CHAVE_COR_SALVA, cor); }catch(err){}
+  });
 </script>
 </body>
 </html>
