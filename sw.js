@@ -1,7 +1,7 @@
 /* Service worker do atalho: guarda só a casca (esta página e os ícones), para
    o app abrir na hora e mostrar um aviso claro quando estiver sem internet.
    O sistema em si continua vindo do Google a cada uso, sempre atualizado. */
-const CACHE = "zello-casca-v1";
+const CACHE = "zello-casca-v2";
 const CASCA = ["./", "./index.html", "./manifest.json", "./icone-192.png", "./icone-512.png", "./favicon-64.png"];
 
 self.addEventListener("install", (ev) => {
