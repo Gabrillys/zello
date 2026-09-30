@@ -1,2 +1,4 @@
 # estado/log do takeout_to_photos.py contém nomes de arquivos pessoais: não versionar
 takeout_state/
+# itens que falharam no envio (fotos pessoais): não versionar
+takeout_falhas/

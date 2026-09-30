@@ -8,7 +8,8 @@ Para cada .zip "takeout" visível para a service account:
   4. detecta duplicatas por SHA-256 do conteúdo (persistido entre zips/execuções);
   5. envia ao Google Fotos (photoslibrary.appendonly) no álbum "AAAA - Fotos" /
      "AAAA - Vídeos", ou "DUPLICATAS-PARA-REVISAR" se for duplicata;
-  6. só apaga o zip do Drive se TODOS os itens foram tratados sem erro;
+  6. item que não sobe é copiado para --failed-dir (análise manual) e não trava o zip;
+     só apaga o zip do Drive se todos os itens foram enviados ou separados;
   7. limpa os temporários locais antes de seguir para o próximo zip.
 
 Progresso persiste em --state-dir (snapshot JSON + journal por item + log +
@@ -494,7 +495,7 @@ def process_zip(f, state: State, photos: Photos, workdir: Path, sess, args):
 
     zpath = workdir / f["name"]
     tmpdir = workdir / "member"
-    stats = {"uploaded": 0, "duplicate": 0, "failed": 0, "skipped": 0, "no_date": 0}
+    stats = {"uploaded": 0, "duplicate": 0, "failed": 0, "failed_saved": 0, "skipped": 0, "no_date": 0}
     try:
         need = int(f["size"])
         free = shutil.disk_usage(workdir).free
@@ -520,7 +521,13 @@ def process_zip(f, state: State, photos: Photos, workdir: Path, sess, args):
                     last_sync = time.monotonic()
                 name = info.filename
                 key = f"{zid}:{name}"
-                if key in state.items and state.items[key]["status"] != "failed":
+                if key in state.items:
+                    if state.items[key]["status"] != "failed":
+                        continue
+                    # falhou numa execução anterior: não reenvia, separa para análise manual
+                    err = state.items[key].get("error", "")
+                    stats["failed_saved"] += 1
+                    state.record_item(key, save_failed(zf, info, f["name"], args.failed_dir, err))
                     continue
                 kind = kind_of(name)
                 if kind is None:
@@ -536,11 +543,14 @@ def process_zip(f, state: State, photos: Photos, workdir: Path, sess, args):
                     raise
                 except Exception as e:  # noqa: BLE001 - um item ruim não pára o zip
                     log.error("FALHA %s: %s", name, e)
-                    stats["failed"] += 1
-                    state.record_item(key, {"status": "failed", "name": name, "error": str(e)[:300]})
+                    stats["failed_saved"] += 1
+                    state.record_item(key, save_failed(zf, info, f["name"], args.failed_dir, str(e)[:300]))
                 if n % 200 == 0:
                     log.info("%s: %d/%d itens", f["name"], n, len(infos))
 
+        for k, v in zrec.get("stats", {}).items():  # soma com rodadas anteriores deste zip
+            if k != "failed":
+                stats[k] = stats.get(k, 0) + v
         zrec["stats"] = stats
         if stats["failed"] == 0:
             if args.no_delete:
@@ -559,6 +569,24 @@ def process_zip(f, state: State, photos: Photos, workdir: Path, sess, args):
         shutil.rmtree(tmpdir, ignore_errors=True)
         zpath.unlink(missing_ok=True)
         state.save()
+
+
+def save_failed(zf, info, zip_name, failed_dir, error):
+    """Item que não subiu: copia o arquivo original para failed_dir/<zip>/ (análise manual)
+    e registra como tratado, para não travar o zip. Retorna o registro de estado."""
+    name = info.filename
+    dest = Path(failed_dir) / Path(zip_name).stem / name.replace("Takeout/Google Fotos/", "")
+    rec = {"status": "failed_saved", "name": name, "error": error}
+    try:
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with zf.open(info) as src, open(dest, "wb") as dst:
+            shutil.copyfileobj(src, dst, CHUNK)
+        rec["saved_to"] = str(dest)
+        log.warning("item com falha separado para análise: %s", dest)
+    except Exception as e:  # noqa: BLE001 - nem a cópia deu certo: fica registrado no relatório
+        rec["save_error"] = str(e)[:300]
+        log.error("não consegui separar %s: %s", name, e)
+    return rec
 
 
 def process_member(zf, info, key, kind, local_idx, state, photos, tmpdir):
@@ -608,7 +636,7 @@ def process_member(zf, info, key, kind, local_idx, state, photos, tmpdir):
 # --------------------------------------------------------------------------
 def write_report(state: State):
     items = state.items.values()
-    by_album, dups, failed, nodate = {}, [], [], []
+    by_album, dups, failed, nodate, saved = {}, [], [], [], []
     for it in items:
         if it["status"] in ("uploaded", "duplicate"):
             by_album[it["album"]] = by_album.get(it["album"], 0) + 1
@@ -616,12 +644,14 @@ def write_report(state: State):
             dups.append(it)
         if it["status"] == "failed":
             failed.append(it)
+        if it["status"] == "failed_saved":
+            saved.append(it)
         if it["status"] == "uploaded" and it.get("ts") is None:
             nodate.append(it)
     up = sum(1 for i in state.items.values() if i["status"] == "uploaded")
     L = [f"# Relatório Takeout → Google Fotos", f"_Atualizado: {datetime.now(timezone.utc):%Y-%m-%d %H:%M} UTC_", "",
          f"- Enviados (únicos): **{up}**", f"- Duplicatas enviadas p/ revisão: **{len(dups)}**",
-         f"- Falhas pendentes: **{len(failed)}**", f"- Sem data (json/EXIF): **{len(nodate)}**", "",
+         f"- Falhas pendentes: **{len(failed)}**", f"- Falhas separadas p/ análise: **{len(saved)}**", f"- Sem data (json/EXIF): **{len(nodate)}**", "",
          "## Zips", "", "| Zip | Status | Enviados | Duplicatas | Falhas |", "|---|---|---|---|---|"]
     for z in state.zips.values():
         s = z.get("stats", {})
@@ -630,6 +660,9 @@ def write_report(state: State):
     L += ["", "## Álbuns (itens)", ""] + [f"- {a}: {n}" for a, n in sorted(by_album.items())]
     if failed:
         L += ["", "## Falhas", ""] + [f"- `{i['name']}`: {i.get('error', '')}" for i in failed[:200]]
+    if saved:
+        L += ["", "## Falhas separadas para análise manual", ""] + [
+            f"- `{i.get('saved_to') or i['name']}`: {i.get('error', '')}" for i in saved]
     if dups:
         L += ["", "## Duplicatas (primeiras 200)", ""] + [
             f"- `{i['name']}` = `{i.get('dup_of')}`" for i in dups[:200]]
@@ -646,6 +679,8 @@ def main():
     ap.add_argument("--folder-id", help="restringe a busca de zips a esta pasta do Drive")
     ap.add_argument("--state-drive-file-id", help="arquivo do Drive (compartilhado com a SA, editor) usado p/ "
                     "guardar o estado entre sessões efêmeras")
+    ap.add_argument("--failed-dir", default="takeout_falhas",
+                    help="onde copiar itens que não subiram (para análise/exclusão manual)")
     ap.add_argument("--max-zips", type=int, help="processa no máximo N zips nesta execução")
     ap.add_argument("--no-delete", action="store_true", help="não apaga o zip do Drive (útil no 1º teste)")
     ap.add_argument("--dry-run", action="store_true", help="só valida credenciais/ferramentas e lista zips")
@@ -675,10 +710,11 @@ def main():
     zips = list_takeout_zips(sess, args.folder_id)
     pending = [z for z in zips if state.zips.get(z["id"], {}).get("status") not in
                ("done_deleted", "done_trashed", "done_not_deleted")]
-    # retoma primeiro o zip interrompido no meio; zips com falhas ("partial") vão para o fim
+    # ordem: zip interrompido no meio, depois zips com falhas ("partial": só separa os itens
+    # que falharam, e o zip fica liberado para apagar), depois os novos
     def _order(z):
         st = state.zips.get(z["id"], {}).get("status")
-        return (st != "in_progress", st == "partial")
+        return (st != "in_progress", st != "partial")
     pending.sort(key=_order)
     log.info("zips takeout no Drive: %d (pendentes: %d)", len(zips), len(pending))
     if args.dry_run or not pending:
