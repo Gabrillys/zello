@@ -675,8 +675,11 @@ def main():
     zips = list_takeout_zips(sess, args.folder_id)
     pending = [z for z in zips if state.zips.get(z["id"], {}).get("status") not in
                ("done_deleted", "done_trashed", "done_not_deleted")]
-    # retoma primeiro o zip interrompido no meio
-    pending.sort(key=lambda z: state.zips.get(z["id"], {}).get("status") != "in_progress")
+    # retoma primeiro o zip interrompido no meio; zips com falhas ("partial") vão para o fim
+    def _order(z):
+        st = state.zips.get(z["id"], {}).get("status")
+        return (st != "in_progress", st == "partial")
+    pending.sort(key=_order)
     log.info("zips takeout no Drive: %d (pendentes: %d)", len(zips), len(pending))
     if args.dry_run or not pending:
         for z in pending:
