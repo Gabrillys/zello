@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
-"""Agrupa vídeos baixados do jw.org numa pasta separada para revisão (nada é apagado).
+"""Agrupa arquivos do jw.org (qualquer tipo) numa pasta separada para revisão (nada é apagado).
 
-Critério: vídeo cujo nome termina com o sufixo de resolução usado nos downloads do
-jw.org, ex.: osg_T_033_r240P.mp4, S-123-23v_T_01_r720P.mp4 (regex _r\\d{3,4}P).
-Nomes que só parecem do jw.org (JW_HINTS) são listados como "possíveis", sem mover.
+Critério: nome com marca do jw.org (ver JW_RES / JW_PUB / JW_TOKEN / EXTRA abaixo).
 
 Padrão: só lista. Com --apply: cria a pasta e move (addParents/removeParents),
 gravando jw_videos_log.csv com o pai original de cada arquivo (reversível).
@@ -19,16 +17,12 @@ from googleapiclient.discovery import build
 from dedup import FOLDER_MIME, SCOPES, walk, write_credentials
 
 DEST = "Vídeos JW.org (para revisar)"
-JW_RE = re.compile(r"_r\d{3,4}P\.[A-Za-z0-9]+$")
-JW_HINTS = re.compile(r"discurso especial|discours publics|watchtower|jw", re.I)
-VIDEO_EXT = {"mp4", "m4v", "mov", "avi", "mkv", "wmv", "3gp", "mpg", "mpeg"}
-
-
-def is_video(f):
-    ext = f["name"].rsplit(".", 1)[-1].lower() if "." in f["name"] else ""
-    return f["mimeType"].startswith("video/") or ext in VIDEO_EXT
-
-
+# Marcas do jw.org: sufixo de resolução (_r480P), código de publicação com idioma
+# (S-34_T_074, w_T_202107, 502017217_T_cnt_1), tokens jw/jwb/jwpub/jwlibrary, jw.org.
+JW_RES = re.compile(r"_r\d{3,4}P\b", re.I)
+JW_PUB = re.compile(r"(^|[\s_-])[A-Za-z0-9-]+[_ ]T[_ .](cnt|\d)|^[A-Za-z0-9-]+_T\.[a-z]+$")
+JW_TOKEN = re.compile(r"(?<![A-Za-z])jw(b|pub|library|\.org)?(?![A-Za-z])", re.I)
+EXTRA = ("Discurso Especial 2023",)
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true")
@@ -41,11 +35,15 @@ def main():
     svc = build("drive", "v3", credentials=creds, cache_discovery=False)
 
     files, _ = walk(svc, root)
-    videos = [f for f in files if is_video(f)]
-    sure = [f for f in videos if JW_RE.search(f["name"])]
-    maybe = [f for f in videos if f not in sure and JW_HINTS.search(f["name"])]
+    def marca(f):
+        n = f["name"]
+        return bool(JW_RES.search(n) or JW_PUB.search(n) or JW_TOKEN.search(n)
+                    or any(x in n for x in EXTRA))
 
-    for titulo, lista in (("JW.org (serão movidos)", sure), ("Possíveis (NÃO movidos)", maybe)):
+    sure = [f for f in files if marca(f) and not f["path"].startswith(f"/{DEST}/")]
+    maybe = []
+
+    for titulo, lista in (("JW.org (serão movidos)", sure),):
         print(f"\n== {titulo}: {len(lista)} ==")
         for f in lista:
             print(f"  {int(f.get('size', 0))/1024**2:8.1f} MB  {f['path']}")
