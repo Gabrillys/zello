@@ -23,6 +23,7 @@ Requisitos: exiftool no PATH; pip install -r tools/requirements.txt
 """
 import argparse
 import base64
+import gzip
 import hashlib
 import json
 import logging
@@ -30,6 +31,7 @@ import mimetypes
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import time
@@ -47,6 +49,10 @@ TOKEN_URI = "https://oauth2.googleapis.com/token"
 DUP_ALBUM = "DUPLICATAS-PARA-REVISAR"
 CHUNK = 8 * 1024 * 1024
 SNAPSHOT_EVERY = 500  # itens entre snapshots completos (o journal cobre o resto)
+STATE_SYNC_SECS = 300  # envia o estado ao Drive no meio do zip (sessões efêmeras somem)
+STATE_PREFIX = "takeout-state-gz-b64:"  # estado no Drive = prefixo + base64(gzip(JSON))
+GDOC_MIME = "application/vnd.google-apps.document"
+GDOC_MAX_CHARS = 1_000_000  # Google Docs aceita ~1,02 milhão de caracteres
 
 PHOTO_EXT = {".jpg", ".jpeg", ".png", ".gif", ".heic", ".heif", ".webp", ".tif",
              ".tiff", ".bmp", ".dng", ".cr2", ".nef", ".arw", ".raw"}
@@ -242,25 +248,60 @@ def delete_from_drive(sess, f):
     return "trashed" if r.status_code == 200 else "failed"
 
 
+def _decode_state(text):
+    """Aceita JSON puro (formato antigo) ou STATE_PREFIX + base64(gzip(JSON))."""
+    text = text.lstrip("﻿").strip()
+    if text.startswith(STATE_PREFIX):
+        raw = base64.b64decode("".join(text[len(STATE_PREFIX):].split()))
+        text = gzip.decompress(raw).decode("utf-8")
+    json.loads(text)  # valida antes de sobrescrever qualquer coisa local
+    return text
+
+
 def sync_state_from_drive(sess, file_id, state_dir: Path):
+    """Restaura o estado do Drive. Estado existente mas ilegível ABORTA: começar do
+    zero reenviaria tudo ao Google Fotos (duplicatas em massa)."""
     r = request_retry(sess, "GET", f"{DRIVE_API}/files/{file_id}",
-                      params={"alt": "media", "supportsAllDrives": "true"})
-    if r.status_code == 200 and r.content:
-        (state_dir / "state.json").write_bytes(r.content)
-        (state_dir / "journal.jsonl").write_text("")
-        log.info("estado restaurado do Drive (%d bytes)", len(r.content))
+                      params={"fields": "mimeType", "supportsAllDrives": "true"})
+    r.raise_for_status()
+    if r.json()["mimeType"] == GDOC_MIME:  # Google Doc não baixa com alt=media (403)
+        r = request_retry(sess, "GET", f"{DRIVE_API}/files/{file_id}/export",
+                          params={"mimeType": "text/plain"})
     else:
-        log.info("nenhum estado no Drive (HTTP %s); começando do zero/local", r.status_code)
+        r = request_retry(sess, "GET", f"{DRIVE_API}/files/{file_id}",
+                          params={"alt": "media", "supportsAllDrives": "true"})
+    r.raise_for_status()
+    text = r.content.decode("utf-8-sig").strip()
+    if not text:
+        log.info("arquivo de estado no Drive vazio; começando do zero")
+        return
+    try:
+        text = _decode_state(text)
+    except Exception as e:  # noqa: BLE001
+        sys.exit(f"estado no Drive ilegível ({e}); abortando para não reenviar tudo")
+    (state_dir / "state.json").write_text(text, encoding="utf-8")
+    (state_dir / "journal.jsonl").write_text("")
+    log.info("estado restaurado do Drive (%d bytes)", len(text))
 
 
 def sync_state_to_drive(sess, file_id, state: State):
     state.save()
-    with open(state.snap, "rb") as fh:
-        r = sess.patch(f"{DRIVE_UPLOAD_API}/files/{file_id}",
-                       params={"uploadType": "media", "supportsAllDrives": "true"},
-                       data=fh, timeout=(30, 300))
+    payload = STATE_PREFIX + base64.b64encode(gzip.compress(state.snap.read_bytes())).decode("ascii")
+    if len(payload) > GDOC_MAX_CHARS:
+        log.error("estado comprimido (%d chars) excede o limite de um Google Doc; "
+                  "use um arquivo comum (não-Docs) em --state-drive-file-id", len(payload))
+    try:
+        r = request_retry(sess, "PATCH", f"{DRIVE_UPLOAD_API}/files/{file_id}",
+                          params={"uploadType": "media", "supportsAllDrives": "true"},
+                          data=payload.encode("ascii"), headers={"Content-Type": "text/plain"})
+    except RuntimeError as e:  # rede fora: o estado local continua valendo
+        log.warning("não consegui salvar estado no Drive: %s", e)
+        return False
     if r.status_code != 200:
         log.warning("não consegui salvar estado no Drive: HTTP %s %s", r.status_code, r.text[:200])
+        return False
+    log.info("estado salvo no Drive (%d chars)", len(payload))
+    return True
 
 
 # --------------------------------------------------------------------------
@@ -458,7 +499,11 @@ def process_zip(f, state: State, photos: Photos, workdir: Path, sess, args):
                 state.meta.setdefault(d, {}).update(m)
             state.save()
 
+            last_sync = time.monotonic()
             for n, info in enumerate(infos, 1):
+                if args.state_drive_file_id and time.monotonic() - last_sync > STATE_SYNC_SECS:
+                    sync_state_to_drive(sess, args.state_drive_file_id, state)
+                    last_sync = time.monotonic()
                 name = info.filename
                 key = f"{zid}:{name}"
                 if key in state.items and state.items[key]["status"] != "failed":
@@ -616,6 +661,8 @@ def main():
     zips = list_takeout_zips(sess, args.folder_id)
     pending = [z for z in zips if state.zips.get(z["id"], {}).get("status") not in
                ("done_deleted", "done_trashed", "done_not_deleted")]
+    # retoma primeiro o zip interrompido no meio
+    pending.sort(key=lambda z: state.zips.get(z["id"], {}).get("status") != "in_progress")
     log.info("zips takeout no Drive: %d (pendentes: %d)", len(zips), len(pending))
     if args.dry_run or not pending:
         for z in pending:
@@ -625,6 +672,11 @@ def main():
 
     workdir = Path(args.workdir)
     workdir.mkdir(parents=True, exist_ok=True)
+
+    def _interrupt(signum, _frame):  # SIGTERM/SIGHUP (fim da sessão) = Ctrl+C: salva e sincroniza
+        raise KeyboardInterrupt(signal.Signals(signum).name)
+    signal.signal(signal.SIGTERM, _interrupt)
+    signal.signal(signal.SIGHUP, _interrupt)
     code = 0
     try:
         for z in pending[:args.max_zips]:
