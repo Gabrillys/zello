@@ -20,7 +20,8 @@ from googleapiclient.discovery import build
 
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 FIELDS = "id,name,mimeType,md5Checksum,size,parents,createdTime,modifiedTime"
-FOLDER_MIME = "application/vnd.google-apps.folder"
+QUARANTINE = "Duplicatas-para-apagar"
+FOLDER_MIME ="application/vnd.google-apps.folder"
 SUFFIX_RE = re.compile(r"\s*\(\d+\)(?=\.[^.]*$|$)|\s*-?\s*(copy|copia|cópia)\b", re.I)
 
 
@@ -74,6 +75,8 @@ def sort_key(f):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="dedup_report.csv")
+    ap.add_argument("--quarantine", action="store_true",
+                    help="MOVE as duplicatas para a pasta 'Duplicatas-para-apagar' (reversível)")
     ap.add_argument("--delete", action="store_true",
                     help="APAGA DEFINITIVAMENTE (sem lixeira) as duplicatas marcadas 'apagar'")
     args = ap.parse_args()
@@ -106,6 +109,30 @@ def main():
                     freed += size
                 w.writerow([gid, f["id"], f["name"], f["path"], size,
                             "sim" if orig else "não", "manter" if orig else "apagar"])
+
+    if args.quarantine:
+        qid = svc.files().create(
+            body={"name": QUARANTINE, "mimeType": FOLDER_MIME,
+                  "parents": [os.environ["DRIVE_FOLDER_ID"]]},
+            fields="id", supportsAllDrives=True).execute()["id"]
+        ok = fail = 0
+        with open(args.out.replace(".csv", "_quarentena_log.csv"), "w",
+                  newline="", encoding="utf-8") as lf:
+            lw = csv.writer(lf)
+            lw.writerow(["arquivo_id", "nome", "pai_original", "status"])
+            for g in dup_groups:
+                for f in g[1:]:  # g[0] é o original: nunca movido
+                    pais = ",".join(f.get("parents", []))
+                    try:
+                        svc.files().update(
+                            fileId=f["id"], addParents=qid, removeParents=pais,
+                            fields="id", supportsAllDrives=True).execute()
+                        ok += 1
+                        lw.writerow([f["id"], f["name"], pais, "ok"])
+                    except Exception as e:  # noqa: BLE001
+                        fail += 1
+                        lw.writerow([f["id"], f["name"], pais, f"falha: {str(e)[:150]}"])
+        print(f"Pasta de quarentena: {qid} | Movidos: {ok} | Falhas: {fail}")
 
     if args.delete:
         ok = fail = 0
