@@ -297,8 +297,13 @@ def sync_state_to_drive(sess, file_id, state: State):
     state.save()
     payload = STATE_PREFIX + base64.b64encode(gzip.compress(state.snap.read_bytes())).decode("ascii")
     if len(payload) > GDOC_MAX_CHARS:
-        log.error("estado comprimido (%d chars) excede o limite de um Google Doc; "
-                  "use um arquivo comum (não-Docs) em --state-drive-file-id", len(payload))
+        m = request_retry(sess, "GET", f"{DRIVE_API}/files/{file_id}",
+                          params={"fields": "mimeType", "supportsAllDrives": "true"})
+        if m.status_code != 200 or m.json().get("mimeType") == GDOC_MIME:
+            # gravar truncaria o Doc; manter a última versão válida no Drive
+            log.error("estado comprimido (%d chars) excede o limite de um Google Doc; NÃO salvo no "
+                      "Drive. Use um arquivo comum (não-Docs) em --state-drive-file-id", len(payload))
+            return False
     try:
         r = request_retry(sess, "PATCH", f"{DRIVE_UPLOAD_API}/files/{file_id}",
                           params={"uploadType": "media", "supportsAllDrives": "true"},
