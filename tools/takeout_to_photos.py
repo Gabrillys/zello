@@ -141,7 +141,9 @@ def request_retry(session, method, url, *, attempts=6, file_path=None, **kw):
     """Retry com backoff em 429/5xx/erros de rede. Se file_path, reabre o arquivo a cada tentativa."""
     import requests
     delay = 2
-    for i in range(attempts):
+    minute_waits = 0
+    i = 0
+    while i < attempts:
         try:
             if file_path is not None:
                 with open(file_path, "rb") as fh:
@@ -155,12 +157,19 @@ def request_retry(session, method, url, *, attempts=6, file_path=None, **kw):
             return r
         if r is not None and r.status_code not in (429, 500, 502, 503, 504):
             return r  # erro definitivo; quem chamou decide
+        if r is not None and r.status_code == 429 and "per minute" in r.text and minute_waits < 30:
+            # limite por minuto não é a cota diária: espera a janela virar e tenta de novo
+            minute_waits += 1
+            log.warning("HTTP 429 (limite por minuto) em %s; aguardando 65s (%d)", url, minute_waits)
+            time.sleep(65)
+            continue
         if r is not None:
             log.warning("HTTP %s em %s (tentativa %d/%d)", r.status_code, url, i + 1, attempts)
             if r.status_code == 429 and i >= 2:
                 raise QuotaExceeded(f"429 em {url}: {r.text[:200]}")
         time.sleep(delay)
         delay = min(delay * 2, 120)
+        i += 1
     raise RuntimeError(f"falhou após {attempts} tentativas: {method} {url}")
 
 
