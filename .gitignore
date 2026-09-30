@@ -2,3 +2,4 @@ dedup_report.csv
 reorg_plan*.csv
 reorg_log.csv
 __pycache__/
+jw_videos_log.csv
