@@ -74,6 +74,8 @@ def sort_key(f):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default="dedup_report.csv")
+    ap.add_argument("--delete", action="store_true",
+                    help="APAGA DEFINITIVAMENTE (sem lixeira) as duplicatas marcadas 'apagar'")
     args = ap.parse_args()
 
     creds = service_account.Credentials.from_service_account_file(
@@ -104,6 +106,18 @@ def main():
                     freed += size
                 w.writerow([gid, f["id"], f["name"], f["path"], size,
                             "sim" if orig else "não", "manter" if orig else "apagar"])
+
+    if args.delete:
+        ok = fail = 0
+        for g in dup_groups:
+            for f in g[1:]:  # g[0] é o original: nunca apagado
+                try:
+                    svc.files().delete(fileId=f["id"], supportsAllDrives=True).execute()
+                    ok += 1
+                except Exception as e:  # noqa: BLE001
+                    fail += 1
+                    print(f"FALHA {f['id']} {f['path']}: {str(e)[:150]}")
+        print(f"Apagados: {ok} | Falhas: {fail}")
 
     print(f"Arquivos totais (não-pasta):        {len(files)}")
     print(f"  com md5 (candidatos):             {len(candidates)}")
