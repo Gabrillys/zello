@@ -1,3 +1,4 @@
 dedup_report.csv
 reorg_plan*.csv
 reorg_log.csv
+__pycache__/
