@@ -140,10 +140,13 @@ def collect(args):
     log.info("itens do app no Google Fotos: %d (já analisados: %d)", len(items), len(done))
     todo = [m for m in items if m["id"] not in done]
     wlock = threading.Lock()
+    blocked = {"streak": 0, "stop": False}  # o Google responde 403 em série quando limita o ritmo
     db = db_path.open("a", encoding="utf-8")
     t0 = time.time()
 
     def work(m):
+        if blocked["stop"]:
+            return
         name, mime = m.get("filename", ""), m.get("mimeType", "")
         kind = kind_of(name, mime)
         rec = {"id": m["id"], "name": name, "mime": mime, "kind": kind,
@@ -153,7 +156,14 @@ def collect(args):
         try:
             size = "=w800-h800" if kind in ("wa", "sticker", "screen") else "=w256-h256"
             r = requests.get(m["baseUrl"] + size, timeout=60)
+            if r.status_code == 403:
+                with wlock:
+                    blocked["streak"] += 1
+                    if blocked["streak"] >= 30:
+                        blocked["stop"] = True
+                return  # não registra: tenta de novo na próxima rodada
             r.raise_for_status()
+            blocked["streak"] = 0
             img = Image.open(io.BytesIO(r.content)).convert("RGB")
             rec["phash"] = str(imagehash.phash(img))
             rec["dhash"] = str(imagehash.dhash(img))
@@ -170,6 +180,9 @@ def collect(args):
             if n % 250 == 0:
                 log.info("%d/%d (%.0fs)", n, len(todo), time.time() - t0)
     db.close()
+    if blocked["stop"]:
+        log.warning("Google limitou os downloads (403 em série); rode de novo em alguns minutos")
+        return 2
     log.info("coleta concluída")
 
 
@@ -270,7 +283,7 @@ def main():
     ap.add_argument("--apply", action="store_true", help="albums: cria de fato (sem isto, só simula)")
     args = ap.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    {"collect": collect, "classify": classify, "albums": albums}[args.step](args)
+    return {"collect": collect, "classify": classify, "albums": albums}[args.step](args)
 
 
 if __name__ == "__main__":
