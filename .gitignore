@@ -2,3 +2,5 @@
 takeout_state/
 # itens que falharam no envio (fotos pessoais): não versionar
 takeout_falhas/
+# análise de revisão do Google Fotos (nomes/textos pessoais): não versionar
+photos_review/
