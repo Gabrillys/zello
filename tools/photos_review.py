@@ -130,7 +130,9 @@ def collect(args):
     if db_path.exists():
         for line in db_path.open(encoding="utf-8"):
             try:
-                done.add(json.loads(line)["id"])
+                r = json.loads(line)
+                if "error" not in r:  # itens com erro são tentados de novo
+                    done.add(r["id"])
             except (json.JSONDecodeError, KeyError):
                 continue
     ph = Photos()
