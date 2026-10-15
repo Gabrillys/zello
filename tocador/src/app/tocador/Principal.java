@@ -201,8 +201,9 @@ public class Principal extends Activity {
                     EqSistema.de(Principal.this).soltar();
                     Controle.modo = "vlc";
                     motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
-                    motor.tocar(r.video, r.agente, r.referer);
+                    motor.tocar(r.video, r.agente, r.referer, r.audioSeparado);
                     motor.definirTitulo(r.titulo);
+                    if (r.semSom) aviso = "Este post do Instagram não tem som (o próprio Instagram removeu o áudio ou ele foi publicado assim).";
                     Servico.iniciar(Principal.this);
                     ajustar();
                 } else {
@@ -474,7 +475,9 @@ public class Principal extends Activity {
                 if (x == null || !permissaoGravar()) return;
                 String u = "audio".equals(tipo) ? x.audio : (x.video != null ? x.video : x.hls);
                 if (u == null) return;
-                Baixador.baixar(Principal.this, u, x.titulo + ("audio".equals(tipo) ? " (áudio)" : ""), x.agente, x.referer, null);
+                boolean soAudio = "audio".equals(tipo);
+                Baixador.baixar(Principal.this, u, x.titulo + (soAudio ? " (áudio)" : ""), x.agente, x.referer, null,
+                        soAudio || u.equals(x.hls) ? null : x.audioSeparado);
             } });
         }
 
@@ -484,13 +487,15 @@ public class Principal extends Activity {
             naTela(new Runnable() { public void run() {
                 Extrator.Resultado x = extra;
                 if (x == null) return;
-                String u = x.audio != null ? x.audio : x.video != null ? x.video : x.hls;
+                // Instagram (imagem e som separados): toca os dois; YouTube: só o som, na melhor qualidade.
+                boolean junto = x.audioSeparado != null && x.video != null;
+                String u = junto ? x.video : x.audio != null ? x.audio : x.video != null ? x.video : x.hls;
                 if (u == null) return;
                 if (Controle.modo.equals("web")) Navegador.comandar("pausar");
                 EqSistema.de(Principal.this).soltar();
                 Controle.modo = "vlc";
                 motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
-                motor.tocar(u, x.agente, x.referer);
+                motor.tocar(u, x.agente, x.referer, junto ? x.audioSeparado : null);
                 motor.definirTitulo(x.titulo);
                 Servico.iniciar(Principal.this);
                 ajustar();

@@ -43,7 +43,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     private AudioFocusRequest pedidoFoco;
 
     private volatile String url = "";
-    private String ua, referer;
+    private String ua, referer, audioExtra;
     private volatile String titulo = "";
     private volatile String tituloFixo;
     private volatile float buffer = 0;
@@ -83,8 +83,11 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
 
     // ------------------------------------------------------------ reprodução
 
-    public void tocar(String u, String userAgent, String ref) {
-        url = u; ua = userAgent; referer = ref;
+    public void tocar(String u, String userAgent, String ref) { tocar(u, userAgent, ref, null); }
+
+    /** @param audio som que vem num arquivo separado do vídeo (Instagram); o VLC toca os dois juntos. */
+    public void tocar(String u, String userAgent, String ref, String audio) {
+        url = u; ua = userAgent; referer = ref; audioExtra = audio;
         titulo = ""; tituloFixo = null; temVideo = false; tentativas = 0;
         querTocando = true;
         iniciarMidia();
@@ -95,6 +98,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         m.setHWDecoderEnabled(true, false);
         if (ua != null && ua.length() > 0) m.addOption(":http-user-agent=" + ua);
         if (referer != null && referer.length() > 0) m.addOption(":http-referrer=" + referer);
+        if (audioExtra != null) m.addSlave(new IMedia.Slave(IMedia.Slave.Type.Audio, 4, audioExtra));
         mp.setMedia(m);
         m.release();
         aplicarEq();

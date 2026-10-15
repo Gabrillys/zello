@@ -304,7 +304,9 @@ function atualizar(){
 function mostrarBaixar(e, vlc, sit){
   var x=e.extra||null, msg='', mostrar=false, acao=false;
   var yt = x && x.fonte==='youtube';
-  $('baixar').classList.toggle('oculto', !e.podeBaixar);
+  var ig = x && x.fonte==='instagram' && x.estado==='pronto' && (x.video||x.audio);
+  // Para o Instagram, os botões próprios (vídeo com som / só áudio) substituem o botão genérico.
+  $('baixar').classList.toggle('oculto', !e.podeBaixar || !!ig);
   if(e.podeBaixar){ mostrar=true; acao=true; }
   else if(vlc && (sit==='tocando'||sit==='pausado'||sit==='carregando') && !(e.duracao>0)){ mostrar=true; msg='Transmissão ao vivo: não há arquivo para baixar.'; }
   var bv=false, ba=false, bt=false;
@@ -313,6 +315,8 @@ function mostrarBaixar(e, vlc, sit){
     if(x.estado==='buscando') msg='Procurando os arquivos deste vídeo do YouTube…';
     else if(x.estado==='erro') msg=(x.erro||'O YouTube não liberou o download deste vídeo.')+' (função experimental)';
     else { bv=!!x.video; ba=!!x.audio; bt=ba&&e.modo==='web'; acao=bv||ba; msg=e.podeBaixar?'':'Vídeo do YouTube (função experimental):'; }
+  } else if(ig){
+    mostrar=true; bv=!!x.video; ba=!!x.audio; acao=true;
   }
   $('bxVideo').classList.toggle('oculto',!bv); $('bxAudio').classList.toggle('oculto',!ba); $('bxTocar').classList.toggle('oculto',!bt);
   $('bxMsg').textContent=msg; $('bxMsg').classList.toggle('oculto',!msg);

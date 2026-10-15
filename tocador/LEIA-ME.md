@@ -22,7 +22,7 @@ No **modo site**, o vídeo é tocado pelo player da própria rede social. O app 
 
 Se o modo automático errar, use *Abrir como: Player VLC / Site*.
 
-**Instagram:** o app busca o vídeo do post ou reel direto no Instagram e toca no **player VLC**, com equalizador completo e download. Se o Instagram exigir login, o app abre a página normal. Entre na sua conta ali uma única vez e toque em **↻ Tentar de novo**. Daí em diante o app usa esse login.
+**Instagram:** o app busca o vídeo do post ou reel direto no Instagram e toca no **player VLC**, com equalizador completo e download. O Instagram costuma mandar imagem e som em arquivos separados: o app toca os dois juntos e, no download (**⬇ Vídeo com som**), junta os dois num único `.mp4`. Se o próprio post não tiver som, o app avisa. Se o Instagram exigir login, o app abre a página normal. Entre na sua conta ali uma única vez e toque em **↻ Tentar de novo**. Daí em diante o app usa esse login.
 
 ## Downloads
 

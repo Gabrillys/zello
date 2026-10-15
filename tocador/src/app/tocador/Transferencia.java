@@ -32,6 +32,8 @@ public abstract class Transferencia {
         public volatile String nome, estado = "na fila", erro = ""; // na fila, baixando, concluido, erro, cancelado
         public volatile long feitos, total; // bytes (direto) ou pedaços (HLS)
         public volatile boolean porPedacos, cancelar;
+        /** Som num arquivo à parte, a ser juntado ao vídeo (Instagram). */
+        public volatile String audioSeparado;
         public Tarefa(int id, String url, String ua, String referer, String cookie, String nome) {
             this.id = id; this.url = url; this.ua = ua; this.referer = referer; this.cookie = cookie; this.nome = nome;
         }
@@ -123,6 +125,7 @@ public abstract class Transferencia {
     static String extensao(String tipo, String url) {
         String caminho = url.toLowerCase(Locale.US).replaceAll("[?#].*$", "");
         Matcher m = Pattern.compile("\\.(mp4|m4a|m4v|mp3|aac|ogg|oga|opus|webm|mkv|mov|flac|wav|3gp|ts)$").matcher(caminho);
+        if (tipo.startsWith("audio/mp4")) return "m4a";
         if (m.find()) return m.group(1);
         if (tipo.contains("audio/mpeg")) return "mp3";
         if (tipo.contains("aac")) return "aac";

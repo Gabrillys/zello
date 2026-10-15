@@ -10,6 +10,10 @@ import android.content.ContentValues;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
+import android.media.MediaCodec;
+import android.media.MediaExtractor;
+import android.media.MediaFormat;
+import android.media.MediaMuxer;
 import android.media.MediaScannerConnection;
 import android.net.Uri;
 import android.os.Build;
@@ -21,7 +25,10 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.ArrayList;
@@ -45,10 +52,16 @@ public class Baixador extends Service {
     // ------------------------------------------------------------ API usada pela tela
 
     public static void baixar(Context c, String url, String titulo, String ua, String referer, String cookie) {
+        baixar(c, url, titulo, ua, referer, cookie, null);
+    }
+
+    /** @param audioSeparado som num arquivo à parte (Instagram): é baixado e juntado ao vídeo num .mp4 só. */
+    public static void baixar(Context c, String url, String titulo, String ua, String referer, String cookie, String audioSeparado) {
         Transferencia.Tarefa t;
         synchronized (tarefas) {
             for (Transferencia.Tarefa x : tarefas) if (x.url.equals(url) && x.ativa()) return; // já está na fila
             t = new Transferencia.Tarefa(proximoId++, url, ua, referer, cookie, nomeArquivo(titulo, url));
+            t.audioSeparado = audioSeparado;
             tarefas.add(t);
         }
         Intent i = new Intent(c, Baixador.class);
@@ -138,7 +151,7 @@ public class Baixador extends Service {
             t.estado = "baixando";
             mostrarProgresso(t);
             try {
-                rede.executar(t);
+                if (t.audioSeparado != null) juntar(t); else rede.executar(t);
                 if (t.cancelar) t.estado = "cancelado";
                 else { t.estado = "concluido"; avisarFim(t, null); }
             } catch (Throwable e) {
@@ -149,6 +162,99 @@ public class Baixador extends Service {
         synchronized (Baixador.class) { trabalhador = null; }
         if (Build.VERSION.SDK_INT >= 24) stopForeground(STOP_FOREGROUND_REMOVE); else stopForeground(true);
         stopSelf();
+    }
+
+    // ------------------------------------------------------------ vídeo + som separados
+
+    /** Baixa a imagem e o som para a pasta temporária e junta os dois num .mp4 (sem reconverter). */
+    private void juntar(final Transferencia.Tarefa t) throws Exception {
+        File dir = getCacheDir();
+        File fv = new File(dir, "v" + t.id + ".mp4"), fa = new File(dir, "a" + t.id + ".mp4"), fm = new File(dir, "m" + t.id + ".mp4");
+        try {
+            baixarPara(t, t.url, fv, "imagem");
+            if (t.cancelar) return;
+            baixarPara(t, t.audioSeparado, fa, "som");
+            if (t.cancelar) return;
+            t.porPedacos = false; t.total = 0; t.feitos = 0;
+            mostrarProgresso(t);
+            juntarMp4(fv, fa, fm);
+            Destino d = new Destino(this, t.nome + ".mp4", "video/mp4");
+            boolean ok = false;
+            InputStream in = new FileInputStream(fm);
+            try {
+                byte[] buf = new byte[131072]; int n;
+                while ((n = in.read(buf)) > 0) d.fluxo().write(buf, 0, n);
+                ok = true;
+            } finally { in.close(); d.fechar(ok); }
+        } finally { fv.delete(); fa.delete(); fm.delete(); }
+    }
+
+    private void baixarPara(final Transferencia.Tarefa t, String url, final File arquivo, final String parte) throws Exception {
+        final Transferencia.Tarefa sub = new Transferencia.Tarefa(t.id, url, t.ua, t.referer, t.cookie, t.nome + " (" + parte + ")");
+        Transferencia r = new Transferencia() {
+            @Override protected Saida abrirSaida(String nome, String mime) throws IOException {
+                final FileOutputStream o = new FileOutputStream(arquivo);
+                return new Saida() {
+                    public OutputStream fluxo() { return o; }
+                    public void fechar(boolean ok) { try { o.close(); } catch (IOException e) { } }
+                };
+            }
+            @Override protected void progresso(Tarefa x) {
+                if (t.cancelar) sub.cancelar = true;
+                t.feitos = sub.feitos; t.total = sub.total; t.porPedacos = sub.porPedacos;
+                Baixador.this.progresso(t);
+            }
+        };
+        r.executar(sub);
+    }
+
+    /** Junta a faixa de vídeo de um arquivo com a faixa de áudio de outro, em ordem de tempo. */
+    static void juntarMp4(File video, File audio, File saida) throws IOException {
+        MediaExtractor ev = new MediaExtractor(), ea = new MediaExtractor();
+        MediaMuxer mx = null;
+        try {
+            ev.setDataSource(video.getPath());
+            ea.setDataSource(audio.getPath());
+            int iv = faixa(ev, "video/"), ia = faixa(ea, "audio/");
+            if (iv < 0) throw new IOException("O arquivo de imagem veio sem vídeo.");
+            if (ia < 0) throw new IOException("O arquivo de som veio sem áudio.");
+            ev.selectTrack(iv); ea.selectTrack(ia);
+            MediaFormat fv = ev.getTrackFormat(iv), fa = ea.getTrackFormat(ia);
+            mx = new MediaMuxer(saida.getPath(), MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
+            if (fv.containsKey("rotation-degrees")) mx.setOrientationHint(fv.getInteger("rotation-degrees"));
+            int tv = mx.addTrack(fv), ta = mx.addTrack(fa);
+            mx.start();
+            int tam = 4 * 1024 * 1024;
+            if (fv.containsKey(MediaFormat.KEY_MAX_INPUT_SIZE)) tam = Math.max(tam, fv.getInteger(MediaFormat.KEY_MAX_INPUT_SIZE));
+            ByteBuffer buf = ByteBuffer.allocate(tam);
+            MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
+            boolean fimV = false, fimA = false;
+            while (!fimV || !fimA) {
+                long tV = fimV ? Long.MAX_VALUE : ev.getSampleTime(), tA = fimA ? Long.MAX_VALUE : ea.getSampleTime();
+                if (!fimV && tV < 0) { fimV = true; continue; }
+                if (!fimA && tA < 0) { fimA = true; continue; }
+                boolean usarVideo = tV <= tA;
+                MediaExtractor ex = usarVideo ? ev : ea;
+                int n = ex.readSampleData(buf, 0);
+                if (n < 0) { if (usarVideo) fimV = true; else fimA = true; continue; }
+                info.offset = 0; info.size = n; info.presentationTimeUs = ex.getSampleTime();
+                info.flags = (ex.getSampleFlags() & MediaExtractor.SAMPLE_FLAG_SYNC) != 0 ? MediaCodec.BUFFER_FLAG_KEY_FRAME : 0;
+                mx.writeSampleData(usarVideo ? tv : ta, buf, info);
+                ex.advance();
+            }
+            mx.stop();
+        } finally {
+            if (mx != null) try { mx.release(); } catch (Exception e) { }
+            ev.release(); ea.release();
+        }
+    }
+
+    private static int faixa(MediaExtractor ex, String prefixo) {
+        for (int i = 0; i < ex.getTrackCount(); i++) {
+            String m = ex.getTrackFormat(i).getString(MediaFormat.KEY_MIME);
+            if (m != null && m.startsWith(prefixo)) return i;
+        }
+        return -1;
     }
 
     private long ultimoAviso;

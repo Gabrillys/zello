@@ -30,6 +30,8 @@ public final class Extrator {
         public String titulo = "";
         public String video;          // vídeo com som (arquivo direto)
         public String audio;          // só áudio (arquivo direto)
+        public String audioSeparado;  // som que vem num arquivo à parte e deve ser juntado ao vídeo
+        public boolean semSom;        // o próprio post não tem som
         public String hls;            // lista .m3u8 (vídeo com som)
         public String agente;         // User-Agent que deve ser usado para baixar/tocar
         public String referer;
@@ -249,16 +251,56 @@ public final class Extrator {
         legenda = legenda.replaceAll("\\s+", " ").trim();
         if (legenda.length() > 60) legenda = legenda.substring(0, 60).trim() + "…";
         r.titulo = (usuario.length() > 0 ? "@" + usuario : "Instagram") + (legenda.length() > 0 ? " — " + legenda : "");
-        if (m.optBoolean("is_video", false) && m.optString("video_url", "").length() > 0) { r.video = m.optString("video_url"); return r; }
+        if (m.optBoolean("is_video", false) && m.optString("video_url", "").length() > 0) { preencherVideoInstagram(r, m); return r; }
         // Carrossel: pega o primeiro vídeo.
         JSONObject filhos = m.optJSONObject("edge_sidecar_to_children");
         JSONArray e = filhos == null ? null : filhos.optJSONArray("edges");
         if (e != null) for (int i = 0; i < e.length(); i++) {
             JSONObject n = e.optJSONObject(i).optJSONObject("node");
-            if (n != null && n.optBoolean("is_video", false) && n.optString("video_url", "").length() > 0) { r.video = n.optString("video_url"); return r; }
+            if (n != null && n.optBoolean("is_video", false) && n.optString("video_url", "").length() > 0) { preencherVideoInstagram(r, n); return r; }
         }
         r.erro = "Este post do Instagram não tem vídeo.";
         return r;
+    }
+
+    /**
+     * O Instagram costuma mandar imagem e som em arquivos separados: o "video_url" pode vir mudo,
+     * e o som fica no manifesto DASH. Quando o manifesto tem os dois, usa a melhor imagem + o melhor som.
+     */
+    static void preencherVideoInstagram(Resultado r, JSONObject m) {
+        r.video = m.optString("video_url");
+        String[] d = melhoresDoDash(m.optString("video_dash_manifest", ""));
+        if (d[1] != null) {
+            if (d[0] != null) r.video = d[0];
+            r.audioSeparado = d[1];
+            r.audio = d[1];
+        } else if (m.has("has_audio") && !m.optBoolean("has_audio", true)) {
+            r.semSom = true;
+        }
+    }
+
+    /** Lê um manifesto MPEG-DASH e devolve {melhor vídeo, melhor áudio} (endereços), ou nulos. */
+    static String[] melhoresDoDash(String mpd) {
+        String[] res = new String[2];
+        if (mpd == null || mpd.indexOf("<MPD") < 0) return res;
+        long[] melhor = { -1, -1 };
+        Matcher conj = Pattern.compile("(?s)<AdaptationSet\\b([^>]*)>(.*?)</AdaptationSet>").matcher(mpd);
+        while (conj.find()) {
+            String attrConj = conj.group(1);
+            Matcher rep = Pattern.compile("(?s)<Representation\\b([^>]*)>(.*?)</Representation>").matcher(conj.group(2));
+            while (rep.find()) {
+                String attr = attrConj + " " + rep.group(1);
+                Matcher base = Pattern.compile("(?s)<BaseURL[^>]*>\\s*([^<]+?)\\s*</BaseURL>").matcher(rep.group(2));
+                if (!base.find()) continue;
+                String tipo = attr.contains("audio") ? "audio" : attr.contains("video") ? "video" : "";
+                int i = tipo.equals("video") ? 0 : tipo.equals("audio") ? 1 : -1;
+                if (i < 0) continue;
+                Matcher bw = Pattern.compile("bandwidth=\"(\\d+)\"").matcher(rep.group(1));
+                long b = bw.find() ? Long.parseLong(bw.group(1)) : 0;
+                if (b > melhor[i]) { melhor[i] = b; res[i] = desescapar(base.group(1).trim()); }
+            }
+        }
+        return res;
     }
 
     static String videoNoHtml(String html) {
