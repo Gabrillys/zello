@@ -371,6 +371,8 @@ function abrirQualidade(){
   else html+='<div class="nota">Este site escolhe a qualidade sozinho. Ligar a versão para computador costuma liberar qualidades maiores.</div>';
   if(Q.fonte==='vlc') html+='<div class="nota">Vale para transmissões e vídeos em lista (.m3u8 / DASH). Em "Máxima", o player não baixa a qualidade quando a internet oscila.</div>';
   else if(Q.fonte==='youtube') html+='<div class="nota">"Máxima disponível" é reaplicada a cada vídeo novo. Qualidades muito altas (4K) podem engasgar em celulares mais simples.</div>';
+  if(Q.relato) html+='<div class="nota" style="color:var(--cor2)">'+esc(Q.relato)+' Tente a <b>versão para computador</b> abaixo.</div>';
+  if(!Q.jw&&Q.jwEstado) html+='<h2 style="margin-top:16px">Vídeo do jw.org</h2><div class="nota">'+esc(Q.jwEstado)+'</div>';
   if(Q.jw){
     html+='<h2 style="margin-top:16px">Vídeo do jw.org</h2><div class="nota">Abre no player VLC na resolução escolhida, que fica fixa'+(Q.jw.legenda?', com a legenda do site':'')+'.</div>'+
       Q.jw.itens.map(function(o){ return '<button class="opcao" data-c="'+esc(o.chave)+'"><span>Assistir em '+esc(o.nome)+'</span><i class="marc"></i></button>'; }).join('');

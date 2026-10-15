@@ -41,6 +41,8 @@ public class Navegador extends WebView {
     static volatile String tituloAgora = "";
     /** Último estado lido da página (tempo, duração, legendas, qualidade…). */
     static volatile JSONObject estadoPagina = new JSONObject();
+    /** Resultado do último pedido de qualidade ao YouTube, para mostrar na gaveta de Qualidade. */
+    static volatile String relatoQualidade = "";
     private static Navegador atual;
 
     // ------------------------------------------------------------ scripts injetados na página
@@ -81,7 +83,7 @@ public class Navegador extends WebView {
             " if(tt.kind!=='subtitles'&&tt.kind!=='captions')continue;l2.push({i:i,nome:tt.label||tt.language||('Faixa '+(i+1)),idioma:tt.language||''});" +
             " if(tt.mode==='showing'){o.legAtual='tt:'+i;if(tt.activeCues)for(var k=0;k<tt.activeCues.length;k++)cap+=(cap?'\\n':'')+String(tt.activeCues[k].text||'').replace(/<[^>]+>/g,'');}}" +
             " o.legs=l2;o.cap=cap;}" +
-            "if(document.documentElement.classList.contains('tocador-cheio')&&(!v||!v.classList.contains('tocador-alvo')))o.reisolar=true;" +
+            "if(document.documentElement.classList.contains('tocador-cheio')&&(!v||!v.classList.contains('tocador-alvo')||document.querySelector('.ytp-caption-window-container:not(.tocador-cap)')))o.reisolar=true;" +
             "return o;})()";
 
     private static String jsComando(String acao) {
@@ -98,17 +100,22 @@ public class Navegador extends WebView {
      */
     private static String jsIsolar(boolean ligar) {
         return "(function(on){" + PRINCIPAL + "var ID='__tocadorCheio';var st=document.getElementById(ID);" +
-                "[].slice.call(document.querySelectorAll('.tocador-anc,.tocador-alvo')).forEach(function(e){e.classList.remove('tocador-anc');e.classList.remove('tocador-alvo');});" +
+                "[].slice.call(document.querySelectorAll('.tocador-anc,.tocador-alvo,.tocador-cap')).forEach(function(e){e.classList.remove('tocador-anc');e.classList.remove('tocador-alvo');e.classList.remove('tocador-cap');});" +
                 "if(!on){if(st)st.remove();document.documentElement.classList.remove('tocador-cheio');return 'off';}" +
                 "var v=principal();if(!v)return 'sem';" +
                 "if(!st){st=document.createElement('style');st.id=ID;st.textContent=" +
                 "'html.tocador-cheio,html.tocador-cheio body{overflow:hidden!important;background:#000!important}'+" +
-                "'html.tocador-cheio body *:not(.tocador-anc):not(.tocador-alvo){visibility:hidden!important}'+" +
+                "'html.tocador-cheio body *:not(.tocador-anc):not(.tocador-alvo):not(.tocador-cap):not(.tocador-cap *){visibility:hidden!important}'+" +
+                // A legenda do próprio YouTube continua visível, por cima do vídeo (uma só legenda, sem duplicar).
+                "'html.tocador-cheio .tocador-cap{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;width:100vw!important;height:100vh!important;z-index:2147483647!important;pointer-events:none!important;transform:none!important}'+" +
+                "'html.tocador-cheio .tocador-cap *{visibility:visible!important}'+" +
                 "'html.tocador-cheio .tocador-anc{visibility:visible!important;transform:none!important;filter:none!important;contain:none!important;will-change:auto!important;clip-path:none!important;opacity:1!important;background:transparent!important}'+" +
                 "'html.tocador-cheio .tocador-alvo{visibility:visible!important;position:fixed!important;left:0!important;top:0!important;right:0!important;bottom:0!important;width:100vw!important;height:100vh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:0!important;z-index:2147483647!important;object-fit:contain!important;background:#000!important;transform:none!important;opacity:1!important}';" +
                 "(document.head||document.documentElement).appendChild(st);}" +
                 "document.documentElement.classList.add('tocador-cheio');window.scrollTo(0,0);" +
                 "v.classList.add('tocador-alvo');for(var e=v.parentElement;e&&e!==document.documentElement;e=e.parentElement)e.classList.add('tocador-anc');" +
+                "[].slice.call(document.querySelectorAll('.ytp-caption-window-container')).forEach(function(c){c.classList.add('tocador-cap');" +
+                "for(var a=c.parentElement;a&&a!==document.documentElement;a=a.parentElement)a.classList.add('tocador-anc');});" +
                 "return 'on';})(" + ligar + ")";
     }
 
@@ -221,6 +228,9 @@ public class Navegador extends WebView {
                 if (cheio) v.evaluateJavascript(jsIsolar(true), null);
             }
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                // Versão para computador: o YouTube não pode voltar para o endereço de celular (m.youtube.com).
+                String ajustado = r.isForMainFrame() ? ajustarEndereco(r.getUrl().toString()) : null;
+                if (ajustado != null && !ajustado.equals(r.getUrl().toString())) { v.loadUrl(ajustado); return true; }
                 String esq = r.getUrl().getScheme();
                 // Links "intent:", "vnd.youtube:" etc. abririam o app oficial; ficamos no navegador.
                 return esq == null || !(esq.equals("http") || esq.equals("https"));
@@ -277,9 +287,14 @@ public class Navegador extends WebView {
 
     /** Versão para computador: alguns sites só liberam a qualidade máxima nela. */
     public void definirComputador(boolean ligar) {
-        String ua = ligar ? "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36" : agenteCelular;
+        java.util.regex.Matcher vm = java.util.regex.Pattern.compile("Chrome/([0-9.]+)").matcher(agenteCelular);
+        String versao = vm.find() ? vm.group(1) : "131.0.0.0";
+        String ua = ligar ? "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/" + versao + " Safari/537.36" : agenteCelular;
         if (ua.equals(getSettings().getUserAgentString())) return;
         getSettings().setUserAgentString(ua);
+        // Também os "Client Hints" (sinal separado de "sou celular") precisam mudar, senão o site continua na versão para celular.
+        String r = AgenteCH.aplicar(getSettings(), ligar, versao);
+        Diagnostico.anotar("Versão para " + (ligar ? "computador" : "celular") + ": User-Agent trocado; Client Hints: " + r);
         String u = getUrl();
         if (u != null && u.length() > 0) {
             // O YouTube manda o celular para m.youtube.com; na versão para computador usa www.
@@ -289,6 +304,12 @@ public class Navegador extends WebView {
     }
 
     public boolean computador() { return !agenteCelular.equals(getSettings().getUserAgentString()); }
+
+    /** Na versão para computador, troca m.youtube.com por www.youtube.com (null se não precisar mudar). */
+    public String ajustarEndereco(String u) {
+        if (u == null || !computador()) return u;
+        return u.replaceFirst("^(https?://)m\\.youtube\\.com/", "$1www.youtube.com/");
+    }
 
     // ------------------------------------------------------------ legendas
 
@@ -372,7 +393,11 @@ public class Navegador extends WebView {
                 Diagnostico.anotar("Qualidade YouTube: pedida=" + pedida + " antes=" + antes + " resposta=" + r + " níveis=" + ultimosNiveis);
                 // Confere depois de alguns segundos se o player realmente mudou.
                 h.postDelayed(new Runnable() { public void run() {
-                    Diagnostico.anotar("Qualidade YouTube 4 s depois: " + estadoPagina.optString("q"));
+                    String agora = estadoPagina.optString("q");
+                    Diagnostico.anotar("Qualidade YouTube 4 s depois: " + agora);
+                    String alvo = r == null ? "" : r.replace("\"", "");
+                    relatoQualidade = alvo.length() == 0 ? "O player do YouTube não respondeu ao pedido de qualidade."
+                            : agora.equals(alvo) ? "" : "O app pediu " + alvo + ", mas o YouTube manteve " + agora + ".";
                 } }, 4000);
             }
         });

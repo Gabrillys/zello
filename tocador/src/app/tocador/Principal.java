@@ -65,6 +65,8 @@ public class Principal extends Activity {
     /** Vídeo do jw.org da página aberta (arquivos em cada resolução e legenda), se houver. */
     private volatile JwOrg.Midia jw;
     private volatile String jwPagina = "";
+    /** Andamento da consulta ao jw.org, mostrado na gaveta de Qualidade. */
+    private volatile String jwEstado = "";
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -192,7 +194,7 @@ public class Principal extends Activity {
             motor.parar();
             Controle.modo = "web";
             if (nav == null) criarNavegador();
-            nav.loadUrl(url);
+            nav.loadUrl(nav.ajustarEndereco(url));
         }
         Servico.iniciar(this);
         ajustar();
@@ -222,18 +224,25 @@ public class Principal extends Activity {
     /** Página de vídeo do jw.org: consulta a API do site para ter as resoluções e a legenda. */
     private void verificarJw(final String url) {
         final String[] id = JwOrg.identificar(url);
-        if (id == null) { if (!JwOrg.ehJwOrg(url)) { jw = null; jwPagina = ""; } return; }
+        if (id == null) {
+            if (!JwOrg.ehJwOrg(url)) { jw = null; jwPagina = ""; jwEstado = ""; }
+            else if (jw == null) jwEstado = "Abra um vídeo do jw.org para escolher a resolução.";
+            return;
+        }
         final String chave = id[0] + "/" + id[1];
         if (chave.equals(jwPagina)) return;
         jwPagina = chave;
         jw = null;
+        jwEstado = "Consultando o jw.org…";
         final String ua = nav.agente();
         new Thread(new Runnable() { public void run() {
             JwOrg.Midia m = null;
-            try { m = JwOrg.buscar(url, ua); } catch (Exception e) { Diagnostico.anotar("jw.org: falha na API: " + e.getMessage()); }
+            String falha = null;
+            try { m = JwOrg.buscar(url, ua); } catch (Exception e) { falha = e.getMessage(); Diagnostico.anotar("jw.org: falha na API: " + falha); }
             final JwOrg.Midia r = m;
+            final String motivo = r != null ? "" : "Não consegui obter as resoluções deste vídeo do jw.org" + (falha != null ? " (" + falha + ")" : "") + ".";
             Diagnostico.anotar("jw.org " + chave + ": " + (r == null ? "sem resultado" : r.arquivos.size() + " resoluções, legenda=" + (r.legenda != null)));
-            runOnUiThread(new Runnable() { public void run() { if (chave.equals(jwPagina)) jw = r; } });
+            runOnUiThread(new Runnable() { public void run() { if (chave.equals(jwPagina)) { jw = r; jwEstado = motivo; } } });
         } }, "tocador-jw").start();
     }
 
@@ -609,9 +618,9 @@ public class Principal extends Activity {
                         o.put("titulo", Navegador.tituloAgora);
                         o.put("tempo", t).put("duracao", d).put("busca", d > 0).put("posicao", d > 0 ? (double) t / d : 0);
                         o.put("video", p.optInt("n") > 0);
-                        // Na tela cheia a legenda do YouTube (que fica fora do vídeo) é desenhada pelo app.
-                        // Nos demais sites a legenda é do próprio vídeo e continua aparecendo sozinha.
-                        o.put("legendaAgora", cheio && p.optBoolean("yt") ? p.optString("cap") : "");
+                        // A legenda é sempre a do próprio site (na tela cheia ela continua visível por cima do vídeo);
+                        // o app não desenha outra, para não aparecer em dobro.
+                        o.put("legendaAgora", "");
                         if (p.optBoolean("yt")) o.put("qualidade", nomeQualidade(p.optString("q")));
                     } else o.put("situacao", "parado");
                 }
@@ -725,6 +734,8 @@ public class Principal extends Activity {
                     o.put("atual", ajustes.getString("qualidade", "max"));
                     o.put("computador", nav != null && nav.computador());
                 }
+                o.put("relato", "web".equals(Controle.modo) ? Navegador.relatoQualidade : "");
+                o.put("jwEstado", jwEstado);
                 JwOrg.Midia m = jw;
                 if (m != null && !m.arquivos.isEmpty()) {
                     JSONArray ji = new JSONArray();
@@ -809,7 +820,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.1 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 2.2 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
