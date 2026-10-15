@@ -220,7 +220,12 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     public boolean temVideoAgora() {
         if (temVideo) return true;
         if (!ativo()) return false;
-        try { return mp.getVideoTracksCount() > 0; } catch (Exception e) { return false; }
+        // A contagem de faixas do VLC inclui a opção "Desativar": rádio (só áudio) também dá 1.
+        // Só é vídeo se houver uma faixa de vídeo de verdade, com tamanho.
+        try {
+            IMedia.VideoTrack v = mp.getCurrentVideoTrack();
+            return v != null && v.width > 0 && v.height > 0;
+        } catch (Exception e) { return false; }
     }
 
     public void buscar(float pos) { if (mp.isSeekable()) mp.setPosition(pos); }

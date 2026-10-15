@@ -450,6 +450,7 @@ public class Principal extends Activity {
     };
 
     void ligarAnimacao(boolean sim) {
+        if (sim != vizQuer) Diagnostico.anotar("Animação da rádio: " + (sim ? "mostrada" : "escondida") + " (vídeo=" + motor.temVideoAgora() + ")");
         vizQuer = sim;
         if (!sim) { visualizador.desligar(); vizLigada = false; h.removeCallbacks(conferirAnimacao); return; }
         if (vizLigada) return;
@@ -1559,7 +1560,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.4 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.5 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
