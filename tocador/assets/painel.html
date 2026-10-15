@@ -5,426 +5,435 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <title>Tocador</title>
 <style>
-:root{--fundo:#0E1116;--cartao:#171B22;--cartao2:#1F2530;--linha:#2A3140;--texto:#ECEFF4;--suave:#9AA4B2;--destaque:#F5A524;--destaque2:#FFCB6B;--verde:#3DD68C;--vermelho:#FF6B6B;}
+:root{--fundo:#0B0D12;--sup:#13161D;--sup2:#1A1E27;--sup3:#232836;--linha:#262C3A;--texto:#EEF1F6;--suave:#98A2B3;--fraco:#667085;--cor:#F5A524;--cor2:#FFCB6B;--corTx:#1A1200;--verde:#3DD68C;--verm:#FF6B6B;--raio:16px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:17px;line-height:1.45}
-body{padding:12px 14px 28px;overflow-x:hidden}
-h1{font-size:22px;margin:0;letter-spacing:.3px}
-h2{font-size:16px;margin:0 0 10px;color:var(--suave);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
-.topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px}
-.chip{font-size:13px;padding:4px 10px;border-radius:99px;background:var(--cartao2);color:var(--suave);white-space:nowrap}
-.chip.on{background:rgba(61,214,140,.15);color:var(--verde)}
-.cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:18px;padding:14px;margin:12px 0}
-textarea{width:100%;min-height:64px;resize:none;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:10px 12px;font-size:16px;font-family:inherit}
-textarea:focus{outline:none;border-color:var(--destaque)}
-.linha{display:flex;gap:8px;align-items:center}
-.linha>*{flex:1}
-button{font-family:inherit;font-size:17px;font-weight:600;border:0;border-radius:14px;padding:13px 10px;background:var(--cartao2);color:var(--texto);cursor:pointer}
-button:active{transform:scale(.97)}
-button.pri{background:var(--destaque);color:#1A1200}
-button.peq{font-size:14px;padding:8px 10px;border-radius:10px}
-button.redondo{width:64px;height:64px;flex:0 0 64px;border-radius:50%;font-size:26px;padding:0;display:flex;align-items:center;justify-content:center}
-button.redondo.grande{width:76px;height:76px;flex-basis:76px;font-size:30px}
-.mt{margin-top:10px}
-.forcar{display:flex;gap:6px;margin-top:8px;font-size:13px;color:var(--suave);align-items:center;flex-wrap:wrap}
-.forcar button{font-size:13px;padding:6px 10px;border-radius:99px;font-weight:500}
-.titulo{font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
-.sit{color:var(--suave);font-size:14px;margin-top:2px}
-.controles{display:flex;align-items:center;gap:14px;margin-top:12px}
-.controles .info{flex:1;min-width:0}
-input[type=range]{width:100%;accent-color:var(--destaque);height:30px}
-.tempo{display:flex;justify-content:space-between;font-size:13px;color:var(--suave)}
+html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-user-select:none;user-select:none}
+body{padding:14px 16px 28px;overflow-x:hidden}
+svg{width:22px;height:22px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button{font:inherit;font-weight:600;color:var(--texto);background:var(--sup2);border:0;border-radius:12px;padding:12px 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .08s,background .15s}
+button:active{transform:scale(.96)}
+button.pri{background:var(--cor);color:var(--corTx)}
+button.fant{background:transparent}
+button.ic{width:44px;height:44px;padding:0;border-radius:50%}
 .oculto{display:none!important}
-.midia{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--linha)}
-.midia:first-of-type{border-top:0}
-.midia .m{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave)}
-.midia .m b{color:var(--texto);font-weight:600}
-.eqtopo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
-select{font-family:inherit;font-size:15px;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:10px;padding:8px;max-width:60%}
-.chave{position:relative;width:52px;height:30px;flex:0 0 52px}
-.chave input{opacity:0;width:0;height:0}
-.chave span{position:absolute;inset:0;background:var(--cartao2);border-radius:99px;transition:.2s}
-.chave span:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-.chave input:checked+span{background:var(--destaque)}
-.chave input:checked+span:before{transform:translateX(22px)}
-#curva{width:100%;height:90px;display:block;margin:4px 0 2px}
-.bandas{display:flex;justify-content:space-between;gap:2px;touch-action:none;user-select:none}
-.banda{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
-.trilho{position:relative;width:100%;height:150px;display:flex;justify-content:center}
-.trilho:before{content:"";position:absolute;top:0;bottom:0;width:4px;border-radius:2px;background:var(--cartao2)}
-.trilho .zero{position:absolute;left:20%;right:20%;height:1px;background:var(--linha);top:50%}
-.trilho .cheio{position:absolute;width:4px;border-radius:2px;background:linear-gradient(var(--destaque2),var(--destaque))}
-.trilho .bola{position:absolute;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(245,165,36,.35)}
-.banda .db{font-size:11px;color:var(--destaque2);margin-bottom:4px;height:14px}
-.banda .hz{font-size:11px;color:var(--suave);margin-top:6px;white-space:nowrap}
-.desligado .trilho .cheio{background:var(--linha)}
-.desligado .trilho .bola{background:var(--suave);box-shadow:none}
-.aviso{font-size:14px;color:var(--suave);margin-top:8px}
-.barra{height:8px;border-radius:4px;background:var(--cartao2);overflow:hidden;margin-top:6px}
-.barra i{display:block;height:100%;background:linear-gradient(90deg,var(--destaque),var(--destaque2));transition:width .4s}
-.barra.indet i{width:35%!important;animation:vai 1.2s linear infinite}
-@keyframes vai{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
-.down{padding:10px 0;border-top:1px solid var(--linha)}
-.down:first-of-type{border-top:0}
-.down .n{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.down .s{font-size:13px;color:var(--suave);display:flex;justify-content:space-between;gap:8px;align-items:center}
-.down .s.erro{color:var(--vermelho)}
-.down .s.ok{color:var(--verde)}
-#toast{position:fixed;left:14px;right:14px;bottom:16px;background:#2A3140;color:var(--texto);padding:12px 14px;border-radius:12px;font-size:15px;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9}
-#toast.on{opacity:1;transform:none}
-.recente{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--linha);font-size:14px}
-.recente:first-of-type{border-top:0}
-.recente .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave)}
-ul{padding-left:20px;margin:6px 0;color:var(--suave);font-size:15px}
-li{margin:6px 0}
-/* barra compacta (quando a página ou o vídeo ocupam a maior parte da tela) */
+.topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
+.marca{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:.2px}
+.marca i{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--cor2),var(--cor));display:flex;align-items:center;justify-content:center;color:var(--corTx)}
+.marca i svg{width:16px;height:16px;fill:currentColor;stroke:none}
+.chip{font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:99px;background:var(--sup2);color:var(--suave);white-space:nowrap}
+.chip.on{background:rgba(61,214,140,.14);color:var(--verde)}
+.cartao{background:var(--sup);border:1px solid var(--linha);border-radius:var(--raio);padding:16px;margin:12px 0}
+h2{font-size:12px;margin:0 0 10px;color:var(--fraco);font-weight:700;text-transform:uppercase;letter-spacing:1px}
+.grande{font-size:21px;font-weight:800;margin:0 0 12px;letter-spacing:.1px}
+textarea{width:100%;min-height:58px;resize:none;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;font:inherit;font-size:15.5px;-webkit-user-select:text;user-select:text}
+textarea:focus{outline:none;border-color:var(--cor)}
+.linha{display:flex;gap:10px;align-items:center}
+.linha>*{flex:1}
+.mt{margin-top:10px}
+.pilulas{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;font-size:13px;color:var(--fraco)}
+.pilulas button{font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px;background:var(--sup2)}
+.atalhos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.atalho{flex-direction:column;gap:6px;padding:12px 4px;font-size:12.5px;font-weight:600;color:var(--suave);background:var(--sup2);border-radius:14px}
+.atalho b{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+.lista-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--linha)}
+.lista-item:first-child{border-top:0}
+.lista-item .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave);font-size:14px}
+.vazio{color:var(--fraco);font-size:14px}
+details summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px}
+details summary::-webkit-details-marker{display:none}
+details ul{padding-left:18px;margin:10px 0 4px;color:var(--suave);font-size:14.5px}
+details li{margin:6px 0}
+/* player */
+.fonte{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--suave);background:var(--sup2);padding:4px 10px;border-radius:99px;margin-bottom:10px}
+.fonte i{width:8px;height:8px;border-radius:50%;background:var(--fraco)}
+.fonte.on i{background:var(--verde);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
+.titulo{font-size:19px;font-weight:800;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.sit{color:var(--suave);font-size:14px;margin-top:4px}
+.progresso{margin-top:14px}
+input[type=range]{width:100%;accent-color:var(--cor);height:28px;margin:0}
+.tempos{display:flex;justify-content:space-between;font-size:12.5px;color:var(--fraco);font-variant-numeric:tabular-nums}
+.transporte{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:12px}
+.transporte .ic{width:52px;height:52px;background:var(--sup2)}
+.transporte .ic svg{width:26px;height:26px}
+.transporte .play{width:72px;height:72px;background:var(--cor);color:var(--corTx)}
+.transporte .play svg{width:32px;height:32px}
+.transporte button:disabled{opacity:.35}
+.grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.acao{flex-direction:column;gap:6px;padding:14px 4px;font-size:13px;font-weight:600;color:var(--suave);border-radius:14px}
+.acao svg{color:var(--texto)}
+.acao:disabled{opacity:.35}
+.vol{display:flex;align-items:center;gap:10px;margin-top:12px;color:var(--suave);font-size:13px}
+/* barra compacta */
 #compacto{display:none}
 body.compacto{padding:8px 12px}
 body.compacto #completo{display:none}
-body.compacto #compacto{display:flex;align-items:center;gap:10px}
+body.compacto #compacto{display:flex;align-items:center;gap:8px;height:100%}
 #compacto .info{flex:1;min-width:0}
-#compacto .titulo{font-size:15px;-webkit-line-clamp:1}
+#compacto .titulo{font-size:14.5px;-webkit-line-clamp:1}
+#compacto .sit{font-size:12.5px;margin-top:0}
+#compacto .ic{width:42px;height:42px;background:var(--sup2)}
+#compacto .play{background:var(--cor);color:var(--corTx)}
+/* gaveta (bottom sheet) */
+#veu{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:5}
+#veu.on{opacity:1;pointer-events:auto}
+#gaveta{position:fixed;left:0;right:0;bottom:0;max-height:92%;overflow:auto;background:var(--sup);border-top:1px solid var(--linha);border-radius:20px 20px 0 0;padding:8px 16px 22px;transform:translateY(105%);transition:transform .22s ease;z-index:6}
+#gaveta.on{transform:none}
+#gaveta .alca{width:40px;height:4px;border-radius:2px;background:var(--sup3);margin:4px auto 10px}
+#gaveta .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+#gaveta .cab b{font-size:17px}
+.opcao{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 14px;margin:6px 0;background:var(--sup2);border-radius:12px;font-weight:600;text-align:left}
+.opcao.sel{background:rgba(245,165,36,.14);color:var(--cor2);box-shadow:inset 0 0 0 1.5px var(--cor)}
+.opcao .marc{width:18px;height:18px;border-radius:50%;border:2px solid var(--fraco);flex:0 0 18px}
+.opcao.sel .marc{border-color:var(--cor);background:radial-gradient(var(--cor) 45%,transparent 50%)}
+.nota{font-size:13.5px;color:var(--suave);margin:10px 0}
+.chave-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px}
+.chave{position:relative;width:50px;height:30px;flex:0 0 50px}
+.chave input{opacity:0;width:0;height:0}
+.chave span{position:absolute;inset:0;background:var(--sup3);border-radius:99px;transition:.2s}
+.chave span:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.chave input:checked+span{background:var(--cor)}
+.chave input:checked+span:before{transform:translateX(20px)}
+/* equalizador */
+select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:10px;padding:8px 10px;max-width:62%}
+#curva{width:100%;height:84px;display:block;margin:8px 0 2px}
+.bandas{display:flex;justify-content:space-between;gap:2px;touch-action:none}
+.banda{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+.trilho{position:relative;width:100%;height:140px;display:flex;justify-content:center}
+.trilho:before{content:"";position:absolute;top:0;bottom:0;width:4px;border-radius:2px;background:var(--sup3)}
+.trilho .zero{position:absolute;left:22%;right:22%;height:1px;background:var(--linha);top:50%}
+.trilho .cheio{position:absolute;width:4px;border-radius:2px;background:linear-gradient(var(--cor2),var(--cor))}
+.trilho .bola{position:absolute;width:20px;height:20px;margin-top:-10px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(245,165,36,.3)}
+.banda .db{font-size:10.5px;color:var(--cor2);margin-bottom:4px;height:14px}
+.banda .hz{font-size:10.5px;color:var(--fraco);margin-top:6px;white-space:nowrap}
+.desligado .trilho .cheio{background:var(--sup3)}
+.desligado .trilho .bola{background:var(--fraco);box-shadow:none}
+#toast{position:fixed;left:14px;right:14px;bottom:16px;background:#2A3140;color:var(--texto);padding:12px 14px;border-radius:12px;font-size:14.5px;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#toast.on{opacity:1;transform:none}
 </style>
 </head>
 <body>
 
 <div id="compacto">
-  <button class="redondo" id="cTp" aria-label="Tocar ou pausar">▶</button>
+  <button class="ic play" id="cTp" aria-label="Tocar ou pausar"></button>
   <div class="info"><div class="titulo" id="cTitulo">Tocador</div><div class="sit" id="cSit"></div></div>
-  <button class="peq" id="cBaixar" style="display:none" aria-label="Baixar">⬇</button>
-  <button class="peq" id="cMidias" style="display:none">🎵 VLC</button>
-  <button class="peq" id="cAbrir" aria-label="Abrir painel">▲ Painel</button>
+  <button class="ic" id="cCheio" aria-label="Tela cheia"></button>
+  <button class="ic" id="cLeg" aria-label="Legendas"></button>
+  <button class="ic" id="cMais" aria-label="Abrir painel"></button>
 </div>
 
 <div id="completo">
   <div class="topo">
-    <h1>Tocador</h1>
+    <div class="marca"><i id="logo"></i>Tocador</div>
     <div class="linha" style="flex:0 0 auto;gap:8px">
-      <span class="chip" id="chip">parado</span>
-      <button class="peq oculto" id="recolher">▼ Recolher</button>
+      <span class="chip" id="chip">pronto</span>
+      <button class="ic fant oculto" id="recolher" aria-label="Recolher painel"></button>
     </div>
   </div>
 
-  <div class="cartao oculto" id="avisoBox" style="border-color:var(--destaque);color:var(--destaque2);font-size:15px">
-    <div id="avisoTxt"></div>
-    <div class="linha" style="margin-top:10px;flex-wrap:wrap"><button class="peq oculto" id="tentar">↻ Tentar de novo</button><button class="peq" id="avDiag">📋 Copiar diagnóstico</button></div>
-  </div>
-
-  <div class="cartao">
-    <h2>Link</h2>
-    <textarea id="link" placeholder="Cole aqui o link do vídeo (YouTube, Instagram, TikTok, Facebook, X…) ou da rádio" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-    <div class="linha mt">
-      <button id="colar">📋 Colar</button>
-      <button class="pri" id="tocar">▶ Tocar</button>
-    </div>
-    <div class="forcar">Abrir como:
-      <button id="forcarVlc">Player VLC</button>
-      <button id="forcarWeb">Site</button>
-    </div>
-  </div>
-
-  <div class="cartao" id="agora">
-    <h2>Tocando agora</h2>
-    <div class="controles">
-      <button class="redondo grande pri" id="tp" aria-label="Tocar ou pausar">▶</button>
-      <div class="info">
-        <div class="titulo" id="titulo">Nada tocando</div>
-        <div class="sit" id="sit">Cole um link acima.</div>
+  <!-- tela de início -->
+  <section id="inicio">
+    <div class="cartao">
+      <div class="grande">O que vamos tocar?</div>
+      <textarea id="link" placeholder="Cole o link de um vídeo (YouTube e outros sites) ou de uma rádio" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+      <div class="linha mt">
+        <button id="colar"></button>
+        <button class="pri" id="tocar"></button>
       </div>
-      <button class="redondo" id="parar" aria-label="Parar">■</button>
+      <div class="pilulas">Abrir como: <button id="forcarWeb">Site</button><button id="forcarVlc">Player VLC</button></div>
     </div>
-    <div id="buscaBox" class="mt oculto">
-      <input type="range" id="busca" min="0" max="1000" value="0">
-      <div class="tempo"><span id="tAgora">0:00</span><span id="tTotal">0:00</span></div>
-    </div>
-    <div id="volBox" class="mt oculto">
-      <div class="tempo"><span>Volume</span><span id="volTxt">100%</span></div>
-      <input type="range" id="vol" min="0" max="200" value="100">
-    </div>
-    <div id="erroBox" class="aviso oculto">Não consegui tocar esse link no player. <button class="peq" id="tentarSite">Abrir como site</button></div>
-    <div id="voltarBox" class="mt oculto"><button class="peq" id="voltar">← Voltar para a página</button></div>
-  </div>
 
-  <div class="cartao oculto" id="baixarCard">
-    <h2>Baixar</h2>
-    <div id="bxMsg" class="aviso" style="margin-top:0"></div>
-    <button id="baixar" class="pri oculto" style="width:100%;margin-top:8px">⬇ Baixar este áudio/vídeo</button>
-    <div class="linha" style="margin-top:8px">
-      <button id="bxVideo" class="pri oculto">⬇ Vídeo com som</button>
-      <button id="bxAudio" class="pri oculto">⬇ Só o áudio</button>
+    <div class="cartao">
+      <h2>Atalhos</h2>
+      <div class="atalhos" id="atalhos"></div>
     </div>
-    <button id="bxTocar" class="oculto" style="width:100%;margin-top:8px">🎚 Ouvir no player VLC (equalizador completo)</button>
-    <div class="linha oculto" id="bxAjuda" style="margin-top:10px">
-      <button class="peq" id="bxCompartilhar">↗ Enviar link a outro app</button>
-      <button class="peq" id="bxDiag">📋 Copiar diagnóstico</button>
+
+    <div class="cartao">
+      <h2>Recentes</h2>
+      <div id="recentes"><div class="vazio">Os links que você tocar aparecem aqui.</div></div>
     </div>
-  </div>
 
-  <div class="cartao oculto" id="midiasBox">
-    <h2>Mídias encontradas nesta página</h2>
-    <div class="aviso" style="margin:0 0 8px">Tocar pelo player VLC dá o equalizador completo de 10 bandas. Se não tocar, continue pelo site.</div>
-    <div id="midias"></div>
-  </div>
-
-  <div class="cartao" id="eqBox">
-    <div class="eqtopo">
-      <h2 style="margin:0">Equalizador</h2>
-      <label class="chave"><input type="checkbox" id="eqLigado" checked><span></span></label>
+    <div class="cartao">
+      <details>
+        <summary>Dicas <span id="setaDicas"></span></summary>
+        <ul>
+          <li>No app do YouTube (ou de outra rede), toque em <b>Compartilhar</b> e escolha <b>Tocador</b>.</li>
+          <li>Pode apagar a tela ou trocar de app: o som continua. Controle pela notificação.</li>
+          <li>Em vídeo, <b>toque duas vezes</b> no lado direito para avançar 10 s e no esquerdo para voltar.</li>
+          <li><b>Tela cheia</b> mostra só o vídeo, sem nada do site em volta.</li>
+          <li>Se o som parar com a tela apagada, libere o app da economia de bateria.</li>
+        </ul>
+        <div class="linha mt"><button id="bateria">Ajuste de bateria</button><button id="diag">Copiar diagnóstico</button></div>
+      </details>
     </div>
-    <div class="eqtopo"><select id="preset"></select><span class="chip" id="eqMotor">VLC</span></div>
-    <canvas id="curva"></canvas>
-    <div class="bandas" id="bandas"></div>
-    <div id="preampBox" class="mt">
-      <div class="tempo"><span>Pré-amplificação</span><span id="preTxt">0 dB</span></div>
-      <input type="range" id="preamp" min="-20" max="20" step="0.5" value="0">
+  </section>
+
+  <!-- tela do player -->
+  <section id="player" class="oculto">
+    <div class="cartao">
+      <div class="fonte" id="fonte"><i></i><span id="fonteTxt">Site</span></div>
+      <div class="titulo" id="titulo">—</div>
+      <div class="sit" id="sit"></div>
+      <div class="progresso oculto" id="progBox">
+        <input type="range" id="busca" min="0" max="1000" value="0" aria-label="Posição">
+        <div class="tempos"><span id="tAgora">0:00</span><span id="tTotal">0:00</span></div>
+      </div>
+      <div class="transporte">
+        <button class="ic" id="voltar10" aria-label="Voltar 10 segundos"></button>
+        <button class="ic play" id="tp" aria-label="Tocar ou pausar"></button>
+        <button class="ic" id="avancar10" aria-label="Avançar 10 segundos"></button>
+      </div>
+      <div class="vol oculto" id="volBox"><span>Volume</span><input type="range" id="vol" min="0" max="200" value="100"><span id="volTxt" style="min-width:42px;text-align:right">100%</span></div>
+      <div class="grade">
+        <button class="acao" id="aCheio"><span></span>Tela cheia</button>
+        <button class="acao" id="aLeg"><span></span>Legendas</button>
+        <button class="acao" id="aQual"><span></span>Qualidade</button>
+        <button class="acao" id="aEq"><span></span>Equalizador</button>
+        <button class="acao" id="aLink"><span></span>Novo link</button>
+        <button class="acao" id="aParar"><span></span>Parar</button>
+      </div>
     </div>
-    <div class="aviso" id="eqAviso"></div>
-  </div>
-
-  <div class="cartao oculto" id="downBox">
-    <div class="eqtopo"><h2 style="margin:0">Downloads</h2><button class="peq" id="limpar">Limpar lista</button></div>
-    <div id="downs"></div>
-    <div class="linha mt"><button class="peq" id="pasta">📁 Abrir pasta de downloads</button></div>
-    <div class="aviso">Os arquivos ficam em <b>Download/Tocador</b>. Vídeos de lista .m3u8 são salvos como <b>.ts</b> (abrem no VLC e na maioria dos players).</div>
-  </div>
-
-  <div class="cartao" id="recBox">
-    <h2>Recentes</h2>
-    <div id="recentes"><div class="aviso" style="margin:0">Os links que você tocar aparecem aqui.</div></div>
-  </div>
-
-  <div class="cartao">
-    <h2>Dicas</h2>
-    <ul>
-      <li>No app da rede social, toque em <b>Compartilhar</b> e escolha <b>Tocador</b>: o vídeo abre direto aqui.</li>
-      <li>Pode apagar a tela ou trocar de app: o som continua. Use a notificação para pausar ou parar.</li>
-      <li>Para sair de vez, toque em <b>■ Parar</b>.</li>
-      <li>Se o som parar sozinho com a tela apagada, libere o app da economia de bateria:</li>
-    </ul>
-    <button class="peq" id="bateria">🔋 Abrir ajuste de bateria</button>
-    <p class="aviso">Algo não funcionou? Toque em <b>Copiar diagnóstico</b> logo depois do problema e cole na conversa de suporte.</p>
-    <button class="peq" id="diag">📋 Copiar diagnóstico</button>
-  </div>
+  </section>
 </div>
 
+<div id="veu"></div>
+<div id="gaveta" role="dialog">
+  <div class="alca"></div>
+  <div class="cab"><b id="gTitulo"></b><button class="ic fant" id="gFechar" aria-label="Fechar"></button></div>
+  <div id="gConteudo"></div>
+</div>
 <div id="toast"></div>
+
 <script>
 var T = window.Tocador || null;
 function $(i){ return document.getElementById(i); }
-function tempo(ms){ if(!(ms>0)) return '0:00'; var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60; return (h?h+':'+(m<10?'0':''):'')+m+':'+(x<10?'0':'')+x; }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function tempo(ms){ if(!(ms>0)) return '0:00'; var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60; return (h?h+':'+(m<10?'0':''):'')+m+':'+(x<10?'0':'')+x; }
 
-// ------------------------------------------------ recentes
+// ------------------------------------------------ ícones
+var IC={
+ play:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none"/></svg>',
+ pausa:'<svg viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/></svg>',
+ voltar:'<svg viewBox="0 0 24 24"><path d="M12 5H8.5M8.5 5l2.5-2.5M8.5 5l2.5 2.5"/><path d="M8.5 5A7.5 7.5 0 1 0 19.5 9"/><text x="12.3" y="15.8" font-size="6.8" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg>',
+ avancar:'<svg viewBox="0 0 24 24"><path d="M12 5h3.5M15.5 5L13 2.5M15.5 5L13 7.5"/><path d="M15.5 5A7.5 7.5 0 1 1 4.5 9"/><text x="11.7" y="15.8" font-size="6.8" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg>',
+ cheio:'<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+ cc:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6"/></svg>',
+ hd:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><text x="12" y="15.3" font-size="7.2" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">HD</text></svg>',
+ eq:'<svg viewBox="0 0 24 24"><path d="M6 4v16M12 4v16M18 4v16"/><circle cx="6" cy="14" r="2.2" fill="currentColor"/><circle cx="12" cy="8" r="2.2" fill="currentColor"/><circle cx="18" cy="15.5" r="2.2" fill="currentColor"/></svg>',
+ link:'<svg viewBox="0 0 24 24"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>',
+ parar:'<svg viewBox="0 0 24 24"><rect x="6.5" y="6.5" width="11" height="11" rx="2" fill="currentColor" stroke="none"/></svg>',
+ cima:'<svg viewBox="0 0 24 24"><path d="M6 15l6-6 6 6"/></svg>',
+ baixo:'<svg viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>',
+ fechar:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+ colar:'<svg viewBox="0 0 24 24"><rect x="6" y="4.5" width="12" height="16" rx="2"/><path d="M9.5 4.5h5v3h-5z"/></svg>',
+ baixar:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/></svg>',
+ logo:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg>'
+};
+function icone(el,nome,texto){ el.innerHTML=IC[nome]+(texto?'<span>'+texto+'</span>':''); }
+$('logo').innerHTML=IC.logo;
+icone($('colar'),'colar','Colar'); icone($('tocar'),'play','Tocar');
+icone($('voltar10'),'voltar'); icone($('avancar10'),'avancar');
+icone($('cCheio'),'cheio'); icone($('cLeg'),'cc'); icone($('cMais'),'cima'); icone($('recolher'),'baixo'); icone($('gFechar'),'fechar');
+[['aCheio','cheio'],['aLeg','cc'],['aQual','hd'],['aEq','eq'],['aLink','link'],['aParar','parar']].forEach(function(p){ $(p[0]).firstChild.outerHTML=IC[p[1]]; });
+$('setaDicas').innerHTML=IC.baixo;
+
+// ------------------------------------------------ atalhos e recentes
+var ATALHOS=[['YouTube','#FF0033','▶','https://m.youtube.com/'],['Vimeo','#1AB7EA','v','https://vimeo.com/'],['Dailymotion','#0A3FFF','d','https://www.dailymotion.com/'],['Twitch','#9146FF','t','https://m.twitch.tv/']];
+$('atalhos').innerHTML=ATALHOS.map(function(a,i){return '<button class="atalho" data-i="'+i+'"><b style="background:'+a[1]+'">'+a[2]+'</b>'+a[0]+'</button>';}).join('');
+[].forEach.call($('atalhos').children,function(b){ b.onclick=function(){ mostrarInicio=false; T&&T.abrir(ATALHOS[+b.dataset.i][3],'web'); }; });
 function lerRecentes(){ try{ return JSON.parse(localStorage.getItem('recentes')||'[]'); }catch(e){ return []; } }
-function guardarRecente(u){
-  var r=lerRecentes().filter(function(x){return x!==u;}); r.unshift(u); r=r.slice(0,10);
-  try{ localStorage.setItem('recentes',JSON.stringify(r)); }catch(e){}
-  mostrarRecentes();
-}
+function guardarRecente(u){ var r=lerRecentes().filter(function(x){return x!==u;}); r.unshift(u); try{ localStorage.setItem('recentes',JSON.stringify(r.slice(0,10))); }catch(e){} mostrarRecentes(); }
 function mostrarRecentes(){
   var r=lerRecentes(); if(!r.length) return;
-  $('recentes').innerHTML=r.map(function(u,i){return '<div class="recente"><span class="u">'+esc(u)+'</span><button class="peq" data-i="'+i+'">▶</button></div>';}).join('');
-  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ var u=lerRecentes()[+b.dataset.i]; $('link').value=u; abrir('auto'); }; });
+  $('recentes').innerHTML=r.map(function(u,i){return '<div class="lista-item"><span class="u">'+esc(u.replace(/^https?:\/\/(www\.|m\.)?/,''))+'</span><button class="ic" data-i="'+i+'" aria-label="Tocar">'+IC.play+'</button></div>';}).join('');
+  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ $('link').value=lerRecentes()[+b.dataset.i]; abrir('auto'); }; });
 }
 
-// ------------------------------------------------ abrir
+// ------------------------------------------------ abrir link
 function abrir(modo){
-  var u=$('link').value.trim(); if(!u) { $('link').focus(); return; }
+  var u=$('link').value.trim(); if(!u){ $('link').focus(); return; }
   var m=u.match(/\b(https?|rtsp|rtmp|mms):\/\/[^\s"'<>]+/i); if(m) u=m[0];
-  $('link').value=u; guardarRecente(u);
+  $('link').value=''; guardarRecente(u); fecharGaveta(); mostrarInicio=false;
   if(T) T.abrir(u,modo);
-  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+  if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
 }
 $('tocar').onclick=function(){ abrir('auto'); };
 $('forcarVlc').onclick=function(){ abrir('vlc'); };
 $('forcarWeb').onclick=function(){ abrir('web'); };
-$('tentarSite').onclick=function(){ abrir('web'); };
 $('colar').onclick=function(){ var t=T?T.colar():''; if(t){ $('link').value=t; abrir('auto'); } else $('link').focus(); };
-$('tp').onclick=$('cTp').onclick=function(){ T&&T.tocarPausar(); };
-$('parar').onclick=function(){ T&&T.parar(); };
-$('voltar').onclick=function(){ T&&T.voltarPagina(); };
 $('bateria').onclick=function(){ T&&T.bateria(); };
-$('baixar').onclick=function(){ T&&T.baixarAtual(); avisar('Download iniciado. Acompanhe em Downloads ou na notificação.'); };
-$('bxVideo').onclick=function(){ T&&T.extraBaixar('video'); avisar('Download do vídeo iniciado.'); };
-$('bxAudio').onclick=function(){ T&&T.extraBaixar('audio'); avisar('Download do áudio iniciado.'); };
-$('bxTocar').onclick=function(){ T&&T.extraTocar(); };
-$('diag').onclick=$('bxDiag').onclick=$('avDiag').onclick=function(){ T&&T.copiarDiagnostico(); avisar('Diagnóstico copiado. Cole na conversa de suporte.'); };
-$('bxCompartilhar').onclick=function(){ T&&T.compartilharLink(); };
-$('tentar').onclick=function(){ if(T&&this.dataset.url) T.abrir(this.dataset.url,'auto'); };
-$('cBaixar').onclick=function(){ T&&T.expandir(true); setTimeout(function(){ $('baixarCard').scrollIntoView({behavior:'smooth',block:'start'}); },350); };
-$('limpar').onclick=function(){ T&&T.limparDownloads(); downAnt=''; atualizar(); };
-$('pasta').onclick=function(){ T&&T.abrirDownloads(); };
-var tToast;
-window.avisar=function(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tToast); tToast=setTimeout(function(){ t.classList.remove('on'); },3200); };
-$('cAbrir').onclick=function(){ T&&T.expandir(true); };
-$('cMidias').onclick=function(){ T&&T.expandir(true); };
+$('diag').onclick=function(){ T&&T.copiarDiagnostico(); avisar('Diagnóstico copiado. Cole na conversa de suporte.'); };
+
+// ------------------------------------------------ transporte
+$('tp').onclick=$('cTp').onclick=function(){ T&&T.tocarPausar(); };
+$('voltar10').onclick=function(){ T&&T.pular(-10); };
+$('avancar10').onclick=function(){ T&&T.pular(10); };
+$('aCheio').onclick=$('cCheio').onclick=function(){ T&&T.telaCheia(true); };
+$('aParar').onclick=function(){ fecharGaveta(); T&&T.parar(); };
+$('cMais').onclick=function(){ T&&T.expandir(true); };
 $('recolher').onclick=function(){ T&&T.expandir(false); };
-window.recolhido=function(){};
+window.recolhido=function(){ fecharGaveta(); };
 var buscando=false;
-$('busca').oninput=function(){ buscando=true; };
+$('busca').oninput=function(){ buscando=true; $('tAgora').textContent=tempo(this.value/1000*ultimo.duracao); };
 $('busca').onchange=function(){ T&&T.buscar(this.value/1000); buscando=false; };
 $('vol').oninput=function(){ $('volTxt').textContent=this.value+'%'; T&&T.volume(+this.value); };
 
-// ------------------------------------------------ estado (atualiza a cada 0,7 s)
-var NOMES={parado:'parado',abrindo:'abrindo…',carregando:'carregando…',tocando:'tocando',pausado:'pausado',erro:'erro'};
-var modoAnterior=null, midiasAnt='';
+// ------------------------------------------------ estado
+var NOMES={parado:'parado',abrindo:'abrindo…',carregando:'carregando…',tocando:'tocando',pausado:'pausado',erro:'não foi possível tocar'};
+var ultimo={}, modoAnt=null, mostrarInicio=false;
 function atualizar(){
   if(!T) return;
   var e; try{ e=JSON.parse(T.estado()); }catch(x){ return; }
-  var tocando=!!e.tocando, sit=e.situacao||'parado';
-  document.body.classList.toggle('compacto', window.innerHeight<260);
-  $('recolher').classList.toggle('oculto', !(e.expandido));
-  var nomeSit=NOMES[sit]||sit;
-  if(sit==='carregando'&&e.buffer>0&&e.buffer<100) nomeSit='carregando '+e.buffer+'%';
-  $('chip').textContent=(e.modo==='web'?'site · ':e.modo==='vlc'?'VLC · ':'')+nomeSit;
-  $('chip').classList.toggle('on',tocando);
-  var titulo=e.titulo||(e.modo==='vlc'?e.url:'')||(e.modo==='nada'?'Nada tocando':'Página aberta');
+  ultimo=e;
+  var nada=e.modo==='nada'||!e.modo, vlc=e.modo==='vlc', tocando=!!e.tocando, sit=e.situacao||'parado';
+  document.body.classList.toggle('compacto', window.innerHeight<200 && !nada);
+  $('recolher').classList.toggle('oculto', !e.expandido);
+  var verInicio=nada||mostrarInicio;
+  $('inicio').classList.toggle('oculto', !verInicio);
+  $('player').classList.toggle('oculto', verInicio);
+  var nomeSit=NOMES[sit]||sit; if(sit==='carregando'&&e.buffer>0&&e.buffer<100) nomeSit='carregando '+e.buffer+'%';
+  $('chip').textContent=nada?'pronto':nomeSit; $('chip').classList.toggle('on',tocando);
+  var titulo=e.titulo||(vlc?e.url:'')||'Página aberta';
   $('titulo').textContent=titulo; $('cTitulo').textContent=titulo;
-  var dica = e.modo==='web' ? (tocando?'Tocando pelo site. Pode apagar a tela.':'Dê play no vídeo da página (ou aqui).')
-           : e.modo==='vlc' ? (tocando?'Tocando no player VLC. Pode apagar a tela.':nomeSit)
-           : 'Cole um link acima.';
-  $('sit').textContent=dica; $('cSit').textContent=nomeSit;
-  $('tp').textContent=$('cTp').textContent=tocando?'❚❚':'▶';
-  var vlc=e.modo==='vlc';
-  $('buscaBox').classList.toggle('oculto', !(vlc&&e.busca&&e.duracao>0));
-  if(vlc&&e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
+  var fonte=vlc?(e.video?'Player VLC · vídeo':'Player VLC · áudio'):(e.qualidade!==undefined?'YouTube':'Site');
+  if(e.qualidade) fonte+=' · '+e.qualidade;
+  $('fonteTxt').textContent=fonte; $('fonte').classList.toggle('on',tocando);
+  $('sit').textContent=tocando?'Pode apagar a tela: o som continua.':(vlc?nomeSit:'Dê play no vídeo (aqui ou na página).');
+  $('cSit').textContent=nomeSit+(e.qualidade?' · '+e.qualidade:'');
+  var ic=tocando?IC.pausa:IC.play; if($('tp').getAttribute('data-ic')!==(tocando?'p':'t')){ $('tp').innerHTML=ic; $('cTp').innerHTML=ic; $('tp').setAttribute('data-ic',tocando?'p':'t'); }
+  $('progBox').classList.toggle('oculto', !(e.busca&&e.duracao>0));
+  if(e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
   $('volBox').classList.toggle('oculto', !vlc);
   if(vlc&&e.volume>=0&&document.activeElement!==$('vol')){ $('vol').value=e.volume; $('volTxt').textContent=e.volume+'%'; }
-  $('erroBox').classList.toggle('oculto', !(vlc&&sit==='erro'));
-  $('voltarBox').classList.toggle('oculto', !(vlc&&e.temPagina));
-  var md=e.midias||[], mk=JSON.stringify(md);
-  $('midiasBox').classList.toggle('oculto', !(e.modo==='web'&&md.length));
-  $('cMidias').style.display=(e.modo==='web'&&md.length)?'':'none';
-  if(mk!==midiasAnt){ midiasAnt=mk;
-    $('midias').innerHTML=md.map(function(m,i){return '<div class="midia"><div class="m"><b>'+esc(m.host)+'</b><br>'+esc(m.arquivo)+'</div><button class="peq" data-b="'+i+'" aria-label="Baixar">⬇</button><button class="peq pri" data-i="'+i+'">▶ VLC</button></div>';}).join('');
-    [].forEach.call($('midias').querySelectorAll('button[data-i]'),function(b){ b.onclick=function(){ T.tocarMidia(+b.dataset.i); }; });
-    [].forEach.call($('midias').querySelectorAll('button[data-b]'),function(b){ b.onclick=function(){ T.baixarMidia(+b.dataset.b); avisar('Download iniciado. Se for ao vivo, o app avisa.'); }; });
-  }
-  mostrarBaixar(e, vlc, sit);
-  $('avisoTxt').textContent=e.aviso||''; $('avisoBox').classList.toggle('oculto', !e.aviso);
-  var urlIg=(e.extra&&e.extra.fonte==='instagram'&&e.extra.estado==='erro')?e.extra.url:'';
-  $('tentar').classList.toggle('oculto', !urlIg); $('tentar').dataset.url=urlIg||'';
-  mostrarDownloads(e.downloads||[]);
-  if(e.modo!==modoAnterior){ modoAnterior=e.modo; carregarEq(); }
+  $('aCheio').disabled=!e.podeCheio; $('cCheio').classList.toggle('oculto',!e.podeCheio);
+  $('voltar10').disabled=$('avancar10').disabled=!(e.busca&&e.duracao>0);
+  if(e.modo!==modoAnt){ modoAnt=e.modo; mostrarInicio=false; if(gavetaAberta) fecharGaveta(); }
+  if(gavetaAberta==='leg') atualizarLegendas();
 }
+$('aLink').onclick=function(){ mostrarInicio=true; atualizar(); setTimeout(function(){ $('link').focus(); },50); };
 
-// ------------------------------------------------ cartão "Baixar"
-function mostrarBaixar(e, vlc, sit){
-  var x=e.extra||null, msg='', mostrar=false, acao=false;
-  var yt = x && x.fonte==='youtube';
-  var ig = x && x.fonte==='instagram' && x.estado==='pronto' && (x.video||x.audio);
-  // Para o Instagram, os botões próprios (vídeo com som / só áudio) substituem o botão genérico.
-  $('baixar').classList.toggle('oculto', !e.podeBaixar || !!ig);
-  if(e.podeBaixar){ mostrar=true; acao=true; }
-  else if(vlc && (sit==='tocando'||sit==='pausado'||sit==='carregando') && !(e.duracao>0)){ mostrar=true; msg='Transmissão ao vivo: não há arquivo para baixar.'; }
-  var bv=false, ba=false, bt=false;
-  if(yt){
-    mostrar=true;
-    if(x.estado==='buscando') msg='Procurando os arquivos deste vídeo do YouTube…';
-    else if(x.estado==='erro'){ var er=x.erro||'O YouTube não liberou o download deste vídeo.'; msg=er+(/[.!?]$/.test(er)?' ':'. ')+'Você pode enviar o link a um app de download (NewPipe, Seal…).'; }
-    else { bv=!!x.video; ba=!!x.audio; bt=ba&&e.modo==='web'; acao=bv||ba; msg=x.obs||(e.podeBaixar?'':'Vídeo do YouTube (função experimental):'); }
-  } else if(ig){
-    mostrar=true; bv=!!x.video; ba=!!x.audio; acao=true;
-  }
-  $('bxVideo').classList.toggle('oculto',!bv); $('bxAudio').classList.toggle('oculto',!ba); $('bxTocar').classList.toggle('oculto',!bt);
-  $('bxMsg').textContent=msg; $('bxMsg').classList.toggle('oculto',!msg);
-  $('bxAjuda').classList.toggle('oculto', !(yt && (x.estado==='erro' || x.obs)));
-  $('baixarCard').classList.toggle('oculto',!mostrar);
-  $('cBaixar').style.display=acao?'':'none';
+// ------------------------------------------------ gaveta
+var gavetaAberta=null, expandiuParaGaveta=false;
+function abrirGaveta(tipo,titulo,html){
+  gavetaAberta=tipo; $('gTitulo').textContent=titulo; $('gConteudo').innerHTML=html;
+  $('veu').classList.add('on'); $('gaveta').classList.add('on');
+  if(!ultimo.expandido&&ultimo.modo==='web'){ expandiuParaGaveta=true; T&&T.expandir(true); }
 }
-
-// ------------------------------------------------ downloads
-var downAnt='';
-function mb(b){ return (b/1048576).toFixed(1)+' MB'; }
-function mostrarDownloads(l){
-  var k=JSON.stringify(l); if(k===downAnt) return; downAnt=k;
-  $('downBox').classList.toggle('oculto',!l.length);
-  $('downs').innerHTML=l.slice().reverse().map(function(d){
-    var pct=d.total>0?Math.floor(d.feitos*100/d.total):0, txt, cls='';
-    if(d.estado==='baixando') txt=d.total>0?(pct+'%'+(d.pedacos?' · '+d.feitos+'/'+d.total+' partes':' · '+mb(d.feitos)+' de '+mb(d.total))):(d.feitos>0?mb(d.feitos):'iniciando…');
-    else if(d.estado==='concluido'){ txt='✓ concluído'; cls='ok'; }
-    else if(d.estado==='erro'){ txt=d.erro||'falhou'; cls='erro'; }
-    else txt=d.estado;
-    var ativo=d.estado==='baixando'||d.estado==='na fila';
-    return '<div class="down"><div class="n">'+esc(d.nome)+'</div>'+(d.estado==='baixando'?'<div class="barra'+(d.total>0?'':' indet')+'"><i style="width:'+pct+'%"></i></div>':'')+
-      '<div class="s '+cls+'"><span>'+esc(txt)+'</span>'+(ativo?'<button class="peq" data-c="'+d.id+'">Cancelar</button>':'')+'</div></div>';
-  }).join('');
-  [].forEach.call($('downs').querySelectorAll('button[data-c]'),function(b){ b.onclick=function(){ T.cancelarDownload(+b.dataset.c); }; });
+function fecharGaveta(){
+  if(!gavetaAberta) return; gavetaAberta=null;
+  $('veu').classList.remove('on'); $('gaveta').classList.remove('on');
+  if(expandiuParaGaveta){ expandiuParaGaveta=false; T&&T.expandir(false); }
 }
+$('veu').onclick=$('gFechar').onclick=fecharGaveta;
+function opcoes(itens,sel){ return itens.map(function(o){ return '<button class="opcao'+(o.chave===sel?' sel':'')+'" data-c="'+esc(o.chave)+'"><span>'+esc(o.nome)+'</span><i class="marc"></i></button>'; }).join(''); }
 
-// ------------------------------------------------ equalizador
-var EQ=null;
-function rotuloHz(f){ return f>=1000?(Math.round(f/100)/10+'k').replace('.0k','k'):Math.round(f)+''; }
+// ---- legendas
+var legChaveSel='', legTraduzir=false, legAnt='';
+function abrirLegendas(){
+  abrirGaveta('leg','Legendas','<div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
+    '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
+    '<button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
+  legAnt=''; atualizarLegendas();
+  $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
+  $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
+  $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
+}
+window.legendaSalva=function(podeAbrir){ var b=$('legAbrir'); if(b) b.classList.toggle('oculto',!podeAbrir); };
+function atualizarLegendas(){
+  if(!T||!$('legLista')) return;
+  var L; try{ L=JSON.parse(T.legendas()); }catch(x){ return; }
+  var k=JSON.stringify(L); if(k===legAnt) return; legAnt=k;
+  var itens=[{chave:'off',nome:'Desligada'}].concat(L.itens||[]);
+  if(L.atual) legChaveSel=L.atual; else if(!legChaveSel) legChaveSel='off';
+  if(L.traducao) legTraduzir=true;
+  $('legLista').innerHTML=opcoes(itens,legChaveSel);
+  [].forEach.call($('legLista').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ legChaveSel=b.dataset.c; T.escolherLegenda(legChaveSel,legTraduzir); [].forEach.call($('legLista').children,function(x){ x.classList.toggle('sel',x===b); }); }; });
+  $('legTrad').classList.toggle('oculto',!L.podeTraduzir); $('legTradChk').checked=legTraduzir;
+  $('legBaixar').classList.toggle('oculto',!L.podeBaixar||!(L.itens||[]).length);
+  var nota='';
+  if(!(L.itens||[]).length) nota=L.fonte==='vlc'?'Este arquivo ou transmissão não tem legendas embutidas.':'Nenhuma legenda encontrada ainda. Dê play no vídeo; se ele tiver legendas, elas aparecem aqui.';
+  else if(L.fonte==='vlc') nota='Legendas embutidas no arquivo. Elas aparecem no vídeo, mas não podem ser baixadas como texto.';
+  else if(L.fonte==='youtube') nota='O arquivo de texto traz a legenda inteira do vídeo, sem horários.';
+  $('legNota').textContent=nota;
+}
+$('aLeg').onclick=$('cLeg').onclick=abrirLegendas;
+
+// ---- qualidade
+function abrirQualidade(){
+  var Q; try{ Q=JSON.parse(T.qualidades()); }catch(x){ Q={}; }
+  var html='';
+  if(Q.fonte==='youtube'&&Q.emUso) html+='<div class="nota">Em uso agora: <b>'+esc(Q.emUso)+'</b></div>';
+  if((Q.itens||[]).length) html+=opcoes(Q.itens,Q.atual);
+  else html+='<div class="nota">Este site escolhe a qualidade sozinho. Ligar a versão para computador costuma liberar qualidades maiores.</div>';
+  if(Q.fonte==='vlc') html+='<div class="nota">Vale para transmissões e vídeos em lista (.m3u8 / DASH). Em "Máxima", o player não baixa a qualidade quando a internet oscila.</div>';
+  else if(Q.fonte==='youtube') html+='<div class="nota">"Máxima disponível" é reaplicada a cada vídeo novo. Qualidades muito altas (4K) podem engasgar em celulares mais simples.</div>';
+  if(Q.fonte!=='vlc') html+='<div class="chave-linha"><span>Versão para computador<br><small style="color:var(--fraco);font-weight:400">Recarrega a página</small></span><label class="chave"><input type="checkbox" id="qComp"'+(Q.computador?' checked':'')+'><span></span></label></div>';
+  abrirGaveta('qual','Qualidade',html);
+  [].forEach.call($('gConteudo').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ T.escolherQualidade(b.dataset.c); [].forEach.call($('gConteudo').querySelectorAll('.opcao'),function(x){ x.classList.toggle('sel',x===b); }); avisar('Qualidade: '+b.textContent); }; });
+  if($('qComp')) $('qComp').onchange=function(){ T.modoComputador(this.checked); avisar(this.checked?'Abrindo a versão para computador…':'Voltando à versão para celular…'); };
+}
+$('aQual').onclick=abrirQualidade;
+
+// ---- equalizador
+var EQ=null, espera={};
+function abrirEq(){
+  abrirGaveta('eq','Equalizador','<div class="chave-linha"><select id="preset"></select><label class="chave"><input type="checkbox" id="eqLigado"><span></span></label></div>'+
+    '<canvas id="curva"></canvas><div class="bandas" id="bandas"></div><div id="preampBox" class="mt"><div class="tempos"><span>Pré-amplificação</span><span id="preTxt">0 dB</span></div>'+
+    '<input type="range" id="preamp" min="-20" max="20" step="0.5" value="0"></div><div class="nota" id="eqNota"></div>');
+  $('eqLigado').onchange=function(){ if(!EQ) return; EQ.ligado=this.checked; T.eqLigar(EQ.ligado); $('bandas').classList.toggle('desligado',!EQ.ligado); curva(); };
+  $('preset').onchange=function(){ var p=+this.value; if(p<0) return; T.eqPreset(p); setTimeout(carregarEq,150); };
+  $('preamp').oninput=function(){ $('preTxt').textContent=(this.value>0?'+':'')+(+this.value).toFixed(1)+' dB'; var v=+this.value; clearTimeout(espera.p); espera.p=setTimeout(function(){ T.eqPreamp(v); },60); };
+  setTimeout(carregarEq,30);
+}
+$('aEq').onclick=abrirEq;
+function hz(f){ return f>=1000?(Math.round(f/100)/10+'k').replace('.0k','k'):Math.round(f)+''; }
 function carregarEq(){
-  if(!T) return;
   try{ EQ=JSON.parse(T.eqInfo()); }catch(x){ EQ=null; }
-  var semEq=!EQ||EQ.motor==='nenhum';
-  ['preset','curva','bandas'].forEach(function(i){ $(i).classList.toggle('oculto',semEq); });
-  document.querySelector('.chave').classList.toggle('oculto',semEq);
-  if(semEq){
-    $('bandas').innerHTML=''; $('preset').innerHTML=''; $('preampBox').classList.add('oculto');
-    $('eqMotor').textContent='indisponível';
-    $('eqAviso').textContent=(EQ&&EQ.erro)||'Equalizador indisponível.'; desenharCurva(); return;
-  }
-  $('eqMotor').textContent=EQ.motor==='vlc'?'VLC · 10 bandas':'sistema · '+EQ.bandas.length+' bandas';
-  $('eqAviso').textContent=EQ.motor==='sistema'?'No modo site o equalizador é o do Android. Para o completo, toque a mídia pelo player VLC.':'';
+  if(!$('bandas')) return;
+  var sem=!EQ||EQ.motor==='nenhum';
+  ['preset','curva','bandas','preampBox'].forEach(function(i){ $(i).classList.toggle('oculto',sem); });
+  $('eqLigado').parentNode.classList.toggle('oculto',sem);
+  if(sem){ $('eqNota').textContent=(EQ&&EQ.erro)||'Equalizador indisponível neste aparelho.'; return; }
+  $('eqNota').textContent=EQ.motor==='sistema'?'No modo site o equalizador é o do Android ('+EQ.bandas.length+' bandas). No player VLC são 10 bandas.':'Player VLC · 10 bandas.';
   $('eqLigado').checked=!!EQ.ligado;
   $('preset').innerHTML='<option value="-1">Personalizado</option>'+EQ.presets.map(function(p,i){return '<option value="'+i+'">'+esc(p)+'</option>';}).join('');
   $('preset').value=String(EQ.preset);
   $('preampBox').classList.toggle('oculto',!EQ.temPreamp);
   if(EQ.temPreamp){ $('preamp').value=EQ.preamp; $('preTxt').textContent=(EQ.preamp>0?'+':'')+(+EQ.preamp).toFixed(1)+' dB'; }
-  montarBandas(); desenharCurva();
-}
-function montarBandas(){
-  var box=$('bandas'); box.innerHTML='';
-  box.classList.toggle('desligado',!EQ.ligado);
+  var box=$('bandas'); box.innerHTML=''; box.classList.toggle('desligado',!EQ.ligado);
   EQ.bandas.forEach(function(f,i){
     var d=document.createElement('div'); d.className='banda';
-    d.innerHTML='<div class="db"></div><div class="trilho"><div class="zero"></div><div class="cheio"></div><div class="bola"></div></div><div class="hz">'+rotuloHz(f)+'</div>';
-    box.appendChild(d); pintarBanda(i);
-    var trilho=d.querySelector('.trilho');
-    function mover(ev){
-      var r=trilho.getBoundingClientRect(); var y=Math.max(0,Math.min(r.height,ev.clientY-r.top));
-      var v=EQ.max-(y/r.height)*(EQ.max-EQ.min); v=Math.round(v*2)/2;
-      if(v!==EQ.niveis[i]){ EQ.niveis[i]=v; pintarBanda(i); desenharCurva(); enviarBanda(i,v); $('preset').value='-1'; }
-    }
-    trilho.addEventListener('pointerdown',function(ev){ trilho.setPointerCapture(ev.pointerId); mover(ev); });
-    trilho.addEventListener('pointermove',function(ev){ if(ev.buttons||ev.pressure>0) mover(ev); });
-    trilho.addEventListener('dblclick',function(){ EQ.niveis[i]=0; pintarBanda(i); desenharCurva(); enviarBanda(i,0); });
+    d.innerHTML='<div class="db"></div><div class="trilho"><div class="zero"></div><div class="cheio"></div><div class="bola"></div></div><div class="hz">'+hz(f)+'</div>';
+    box.appendChild(d); pintar(i);
+    var tr=d.querySelector('.trilho');
+    function mover(ev){ var r=tr.getBoundingClientRect(); var y=Math.max(0,Math.min(r.height,ev.clientY-r.top)); var v=Math.round((EQ.max-(y/r.height)*(EQ.max-EQ.min))*2)/2;
+      if(v!==EQ.niveis[i]){ EQ.niveis[i]=v; pintar(i); curva(); clearTimeout(espera[i]); espera[i]=setTimeout(function(){ T.eqBanda(i,v); },40); $('preset').value='-1'; } }
+    tr.addEventListener('pointerdown',function(ev){ tr.setPointerCapture(ev.pointerId); mover(ev); });
+    tr.addEventListener('pointermove',function(ev){ if(ev.buttons||ev.pressure>0) mover(ev); });
   });
+  curva();
 }
-var esperas={};
-function enviarBanda(i,v){ clearTimeout(esperas[i]); esperas[i]=setTimeout(function(){ T.eqBanda(i,v); },40); }
-function pintarBanda(i){
-  var d=$('bandas').children[i]; if(!d) return; var v=EQ.niveis[i];
-  var p=(EQ.max-v)/(EQ.max-EQ.min)*100, z=EQ.max/(EQ.max-EQ.min)*100;
-  d.querySelector('.bola').style.top=p+'%';
-  var c=d.querySelector('.cheio'); c.style.top=Math.min(p,z)+'%'; c.style.height=Math.abs(p-z)+'%';
-  d.querySelector('.db').textContent=(v>0?'+':'')+(Math.round(v*10)/10);
-}
-function desenharCurva(){
-  var cv=$('curva'), dpr=window.devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight;
-  cv.width=w*dpr; cv.height=h*dpr; var x=cv.getContext('2d'); x.scale(dpr,dpr); x.clearRect(0,0,w,h);
-  x.strokeStyle='#2A3140'; x.lineWidth=1; x.beginPath(); x.moveTo(0,h/2); x.lineTo(w,h/2); x.stroke();
-  if(!EQ||!EQ.bandas||!EQ.bandas.length) return;
-  var n=EQ.bandas.length, pts=EQ.niveis.map(function(v,i){ return [ (i+.5)*w/n, h/2 - v/(EQ.max-EQ.min)*h*.9 ]; });
-  var g=x.createLinearGradient(0,0,0,h); g.addColorStop(0,'rgba(255,203,107,.45)'); g.addColorStop(1,'rgba(245,165,36,0)');
+function pintar(i){ var d=$('bandas').children[i]; if(!d) return; var v=EQ.niveis[i], p=(EQ.max-v)/(EQ.max-EQ.min)*100, z=EQ.max/(EQ.max-EQ.min)*100;
+  d.querySelector('.bola').style.top=p+'%'; var c=d.querySelector('.cheio'); c.style.top=Math.min(p,z)+'%'; c.style.height=Math.abs(p-z)+'%';
+  d.querySelector('.db').textContent=(v>0?'+':'')+(Math.round(v*10)/10); }
+function curva(){
+  var cv=$('curva'); if(!cv||!EQ||!EQ.bandas) return; var dpr=window.devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight; if(!w) return;
+  cv.width=w*dpr; cv.height=h*dpr; var x=cv.getContext('2d'); x.scale(dpr,dpr);
+  x.strokeStyle='#262C3A'; x.lineWidth=1; x.beginPath(); x.moveTo(0,h/2); x.lineTo(w,h/2); x.stroke();
+  var n=EQ.bandas.length, pts=EQ.niveis.map(function(v,i){ return [(i+.5)*w/n, h/2-v/(EQ.max-EQ.min)*h*.9]; });
   x.beginPath(); x.moveTo(0,pts[0][1]); x.lineTo(pts[0][0],pts[0][1]);
   for(var i=0;i<n-1;i++){ var mx=(pts[i][0]+pts[i+1][0])/2; x.bezierCurveTo(mx,pts[i][1],mx,pts[i+1][1],pts[i+1][0],pts[i+1][1]); }
-  x.lineTo(w,pts[n-1][1]);
-  var cor=EQ.ligado?'#F5A524':'#5B6572';
-  x.strokeStyle=cor; x.lineWidth=2.5; x.stroke();
-  x.lineTo(w,h); x.lineTo(0,h); x.closePath(); if(EQ.ligado){ x.fillStyle=g; x.fill(); }
+  x.lineTo(w,pts[n-1][1]); x.strokeStyle=EQ.ligado?'#F5A524':'#667085'; x.lineWidth=2.5; x.stroke();
+  if(EQ.ligado){ var g=x.createLinearGradient(0,0,0,h); g.addColorStop(0,'rgba(255,203,107,.4)'); g.addColorStop(1,'rgba(245,165,36,0)'); x.lineTo(w,h); x.lineTo(0,h); x.closePath(); x.fillStyle=g; x.fill(); }
 }
-$('eqLigado').onchange=function(){ if(!EQ) return; EQ.ligado=this.checked; T.eqLigar(EQ.ligado); $('bandas').classList.toggle('desligado',!EQ.ligado); desenharCurva(); };
-$('preset').onchange=function(){ var p=+this.value; if(p<0) return; T.eqPreset(p); setTimeout(carregarEq,150); };
-$('preamp').oninput=function(){ $('preTxt').textContent=(this.value>0?'+':'')+(+this.value).toFixed(1)+' dB'; clearTimeout(esperas.p); var v=+this.value; esperas.p=setTimeout(function(){ T.eqPreamp(v); },60); };
-window.addEventListener('resize',function(){ desenharCurva(); atualizar(); });
 
+// ------------------------------------------------ aviso
+var tToast;
+window.avisar=function(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tToast); tToast=setTimeout(function(){ t.classList.remove('on'); },3800); };
+
+window.addEventListener('resize',function(){ atualizar(); curva(); });
 mostrarRecentes();
-carregarEq();
 atualizar();
-setInterval(atualizar,700);
+setInterval(atualizar,600);
 </script>
 </body>
 </html>

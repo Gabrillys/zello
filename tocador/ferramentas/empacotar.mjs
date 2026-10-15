@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 5,
-  versionName: '1.4',
+  versionCode: 6,
+  versionName: '2.0',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -67,8 +67,7 @@ function manifesto(o) {
     perm('android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'),
     perm('android.permission.POST_NOTIFICATIONS'),
     perm('android.permission.MODIFY_AUDIO_SETTINGS'),
-    perm('android.permission.FOREGROUND_SERVICE_DATA_SYNC'),
-    // Só Android 9 ou anterior precisa disto para salvar na pasta Download.
+    // Só Android 9 ou anterior precisa disto para salvar legendas na pasta Download.
     el('uses-permission', [A('name', 'str', 'android.permission.WRITE_EXTERNAL_STORAGE'), A('maxSdkVersion', 'int', 28)]),
     el('application', [A('label', 'str', o.nome), A('icon', 'ref', 0x7f010000), A('hardwareAccelerated', 'bool', true),
       A('extractNativeLibs', 'bool', true), A('usesCleartextTraffic', 'bool', true)], [
@@ -83,8 +82,6 @@ function manifesto(o) {
       ]),
       // foregroundServiceType 0x2 = mediaPlayback
       el('service', [A('name', 'str', 'app.tocador.Servico'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x2)]),
-      // foregroundServiceType 0x1 = dataSync (downloads)
-      el('service', [A('name', 'str', 'app.tocador.Baixador'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x1)]),
     ]),
   ]);
 

@@ -1,48 +1,45 @@
 # Tocador
 
-Aplicativo Android que toca **vídeos de redes sociais e rádios em segundo plano, com a tela apagada**, com **equalizador visual**. Usa o libVLC (código aberto) para links diretos de áudio e vídeo.
+Aplicativo Android para assistir e ouvir **vídeos do YouTube e de outros sites**, além de **rádios e links diretos**. Ele continua tocando **em segundo plano e com a tela apagada**, tem **tela cheia só com o vídeo**, **qualidade máxima**, **toque duplo para voltar e avançar**, **legendas** (com download em texto puro) e **equalizador**.
 
-Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celulares arm64 e arm32 com Android 7 ou mais novo.
+Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celulares arm64 e arm32 com Android 7 ou mais novo. As versões novas instalam por cima das antigas.
 
 ## Como usar
 
-- **Pelo Compartilhar (mais prático):** no YouTube, Instagram, TikTok, Facebook, X etc., toque em *Compartilhar* e escolha **Tocador**.
-- **Colando o link:** abra o Tocador, toque em *Colar* e depois em *Tocar*.
-- Depois disso pode **apagar a tela** ou trocar de app, que o som continua. A notificação tem os botões *Pausar* e *Parar*, e os fones e a tela de bloqueio também controlam a reprodução.
-- O botão **voltar** não fecha o app, só manda para segundo plano. Para encerrar, toque em **■ Parar**.
+- **Pelo Compartilhar:** no app do YouTube (ou de outro site), toque em *Compartilhar* e escolha **Tocador**.
+- **Colando o link:** abra o Tocador, toque em *Colar* e depois em *Tocar*. Os atalhos levam direto ao YouTube, Vimeo, Dailymotion e Twitch.
+- Pode **apagar a tela** ou trocar de app: o som continua. A notificação, os fones e a tela de bloqueio controlam a reprodução.
+- O botão **voltar** não fecha o app. Para encerrar, use **Parar**.
+
+## Tela do player
+
+- **Barra de progresso** e botões de **voltar e avançar 10 s**.
+- **Tela cheia**: mostra **só o vídeo**, sem menus, comentários ou botões do site. O celular gira sozinho conforme o formato do vídeo, e as barras do Android somem. Para sair, use o botão voltar ou o ícone de sair da tela cheia.
+- **Toque duplo** sobre o vídeo, no lado direito, avança 10 s; no lado esquerdo, volta 10 s. Toques seguidos somam (20 s, 30 s…). Toque duplo no meio pausa ou continua. Um toque simples mostra ou esconde os controles. No YouTube fora da tela cheia, vale o toque duplo do próprio YouTube.
+- **Qualidade**: no YouTube, "Máxima disponível" (padrão, reaplicada a cada vídeo) ou um nível fixo (4K, 1440p, 1080p…). Em outros sites, a chave **Versão para computador** costuma liberar qualidades maiores. No player VLC, "Máxima" impede que streams `.m3u8`/DASH baixem a qualidade quando a internet oscila.
+- **Legendas**:
+  - **YouTube**: escolha o idioma (inclusive as legendas automáticas) e, se quiser, **Traduzir para português**.
+  - **Baixar legenda como texto (.txt)**: salva a legenda inteira do vídeo, sem horários, em **Download/Tocador**. Funciona no YouTube e em sites que usam legendas padrão da web.
+  - **Player VLC**: escolhe as legendas embutidas no arquivo ou transmissão. Elas não podem ser baixadas como texto.
+  - Na tela cheia do YouTube, o app desenha a legenda sobre o vídeo.
+- **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
 
 ## Os dois modos
 
-| Link | Modo | Equalizador |
-|---|---|---|
-| Rádio online, `.mp3`, `.aac`, `.m3u8`, `.mp4`, `rtsp://` … | **Player VLC** | completo: 10 bandas, pré-amplificação e presets |
-| YouTube, Instagram, TikTok, Facebook, X, Kwai, Vimeo … | **Site** (navegador interno) | o do Android, quando o aparelho permite |
+| Link | Modo |
+|---|---|
+| YouTube, Vimeo, Dailymotion, Twitch e outros sites | **Site** (navegador interno, com o player do próprio site) |
+| Rádio online, `.mp3`, `.aac`, `.m3u8`, `.mp4`, `rtsp://` … | **Player VLC** |
 
-No **modo site**, o vídeo é tocado pelo player da própria rede social. O app impede que o site perceba que a tela apagou, e por isso o som continua. Se a página carregar um arquivo de mídia direto, ele aparece em *Mídias encontradas nesta página*. Aí dá para tocar pelo **player VLC**, com o equalizador completo.
-
-Se o modo automático errar, use *Abrir como: Player VLC / Site*.
-
-**Instagram:** o app busca o vídeo do post ou reel direto no Instagram e toca no **player VLC**, com equalizador completo e download. O Instagram costuma mandar imagem e som em arquivos separados: o app toca os dois juntos e, no download (**⬇ Vídeo com som**), junta os dois num único `.mp4`. Se o próprio post não tiver som, o app avisa. Se o Instagram exigir login, o app abre a página normal. Entre na sua conta ali uma única vez e toque em **↻ Tentar de novo**. Daí em diante o app usa esse login.
-
-## Downloads
-
-Todos os downloads ficam no cartão **Baixar**, logo abaixo de *Tocando agora*. Com o painel recolhido, toque no **⬇** da barra de baixo.
-
-- **YouTube (experimental):** ao abrir um vídeo, o app procura os arquivos dele. Se encontrar, aparecem **⬇ Vídeo com som** (até 360p), **⬇ Só o áudio** (m4a) e **🎚 Ouvir no player VLC**. Se o YouTube recusar, o cartão mostra o motivo. Vídeos ao vivo não são baixados.
-- Para baixar o que está tocando no **player VLC**, use **⬇ Baixar este áudio/vídeo**. O botão só aparece quando a mídia tem duração, ou seja, quando não é ao vivo.
-- Para baixar uma **mídia encontrada** numa página de rede social, toque no **⬇** dela.
-- Os arquivos ficam em **Download/Tocador**. O download continua com a tela apagada e mostra o progresso na notificação e no painel.
-- Arquivos diretos (`.mp4`, `.mp3`…) são baixados como estão. Listas `.m3u8` gravadas são juntadas em um arquivo `.ts` (ou `.mp4`, quando a lista é fMP4). Também funcionam listas com criptografia AES-128 e com áudio separado (aí saem dois arquivos).
-- O app recusa, com aviso, **transmissões ao vivo** (rádios, TVs `.m3u8` sem fim) e vídeos com DRM. 
+Se o modo automático errar, use *Abrir como: Site / Player VLC*.
 
 ## Limitações conhecidas
 
-- Redes sociais mudam com frequência e podem bloquear a reprodução em segundo plano a qualquer momento.
-- Em alguns aparelhos (Xiaomi, Samsung, Motorola…), a economia de bateria pode cortar o som com a tela apagada. Use *Abrir ajuste de bateria* no app e deixe o Tocador **sem restrição**.
-- O equalizador do modo site depende do aparelho. Alguns não permitem.
+- Os sites mudam com frequência e podem bloquear a reprodução em segundo plano a qualquer momento.
+- Em alguns aparelhos (Xiaomi, Samsung, Motorola…), a economia de bateria pode cortar o som com a tela apagada. Em *Dicas → Ajuste de bateria*, deixe o Tocador **sem restrição**.
+- Qualidades muito altas (4K) dependem do celular conseguir decodificar o vídeo.
 - Se você arrastar o app para fora da lista de recentes, o modo site para. O modo VLC continua tocando.
-- Instagram: stories e posts de contas privadas só abrem com login.
-- O download do YouTube e a busca do Instagram dependem de como essas redes respondem hoje e podem parar de funcionar quando elas mudarem.
+- Algo não funcionou? Em *Dicas*, toque em **Copiar diagnóstico** e envie o texto.
 
 ## Como compilar
 
@@ -52,7 +49,16 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
 ./construir.sh        # gera dist/Tocador.apk
 ```
 
-- `src/app/tocador/`: código Java (`Principal`: tela; `Motor`: libVLC; `Navegador`: modo site; `Servico`: segundo plano; `EqSistema`: equalizador do Android; `Baixador` + `Transferencia`: downloads; `Extrator`: YouTube e Instagram).
-- `assets/painel.html`: painel de controle e equalizador.
+- `src/app/tocador/`:
+  - `Principal`: telas, tela cheia e legendas;
+  - `Navegador`: modo site, qualidade, isolamento do vídeo e legendas da página;
+  - `Motor`: player VLC;
+  - `Servico`: segundo plano;
+  - `Legendas`: conversão de legendas para texto puro;
+  - `Arquivos`: salvar na pasta Download;
+  - `EqSistema`: equalizador do Android;
+  - `Diagnostico`: registro para suporte.
+- `assets/painel.html`: painel (início, player, gavetas de legendas, qualidade e equalizador).
+- `assets/controles.html`: controles sobre o vídeo (toque duplo, progresso, legenda na tela cheia).
 - `ferramentas/empacotar.mjs`: monta o manifesto, compacta e assina o APK (assinatura v2).
-- `chave-assinatura.json`: chave que assina o app. **Guarde-a**: sem ela, uma versão nova não instala por cima da antiga, e é preciso desinstalar antes. Qualquer pessoa com acesso a esta chave consegue assinar versões que instalam por cima da sua.
+- `chave-assinatura.json`: chave que assina o app. **Guarde-a**: sem ela, uma versão nova não instala por cima da antiga. Qualquer pessoa com acesso a esta chave consegue assinar versões que instalam por cima da sua.

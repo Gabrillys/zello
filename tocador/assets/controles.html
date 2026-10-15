@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Controles</title>
+<style>
+:root{--cor:#F5A524;--cor2:#FFCB6B;--texto:#F4F6FA}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:transparent;color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none}
+svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+button{font:inherit;color:var(--texto);background:transparent;border:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border-radius:50%}
+button:active{transform:scale(.92)}
+.oculto{display:none!important}
+#toque{position:fixed;inset:0}
+#ui{position:fixed;inset:0;opacity:0;transition:opacity .2s;pointer-events:none;
+  background:linear-gradient(rgba(0,0,0,.6),transparent 22%,transparent 70%,rgba(0,0,0,.7))}
+#ui.on{opacity:1}
+/* Só os botões e a barra recebem toque; o resto passa para a camada de gestos (toque duplo). */
+#ui.on button,#ui.on input{pointer-events:auto}
+.topo{position:absolute;left:0;right:0;top:0;display:flex;align-items:center;gap:6px;padding:10px 12px}
+.topo .tit{flex:1;min-width:0;font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 3px rgba(0,0,0,.6)}
+.topo button{width:44px;height:44px}
+.meio{position:absolute;left:0;right:0;top:50%;transform:translateY(-50%);display:flex;align-items:center;justify-content:center;gap:12vw}
+.meio button{width:56px;height:56px;background:rgba(0,0,0,.35)}
+.meio button svg{width:30px;height:30px}
+.meio .play{width:72px;height:72px;background:rgba(0,0,0,.45)}
+.meio .play svg{width:38px;height:38px}
+.base{position:absolute;left:0;right:0;bottom:0;padding:4px 14px 10px}
+.tempos{display:flex;justify-content:space-between;font-size:12.5px;font-variant-numeric:tabular-nums;text-shadow:0 1px 3px rgba(0,0,0,.7)}
+input[type=range]{width:100%;accent-color:var(--cor);height:26px;margin:0}
+/* toque duplo */
+.onda{position:fixed;top:0;bottom:0;width:42%;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:6px;opacity:0;transition:opacity .25s;pointer-events:none;font-weight:800;font-size:15px}
+.onda.esq{left:0;border-radius:0 50% 50% 0/0 50% 50% 0;background:radial-gradient(circle at 30% 50%,rgba(255,255,255,.18),rgba(255,255,255,.06) 60%,transparent 70%)}
+.onda.dir{right:0;border-radius:50% 0 0 50%/50% 0 0 50%;background:radial-gradient(circle at 70% 50%,rgba(255,255,255,.18),rgba(255,255,255,.06) 60%,transparent 70%)}
+.onda.on{opacity:1}
+.onda svg{width:34px;height:34px}
+/* legenda desenhada pelo app (tela cheia de sites) */
+#cap{position:fixed;left:6%;right:6%;bottom:10%;text-align:center;pointer-events:none;transition:bottom .2s}
+#cap span{display:inline;background:rgba(0,0,0,.72);color:#fff;font-size:clamp(15px,4.4vmin,26px);line-height:1.5;padding:2px 8px;border-radius:4px;box-decoration-break:clone;-webkit-box-decoration-break:clone;white-space:pre-line}
+#ui.on~#cap{bottom:22%}
+/* menus */
+#menu{position:fixed;right:10px;top:58px;max-height:70%;overflow:auto;min-width:230px;max-width:80%;background:rgba(19,22,29,.97);border:1px solid #262C3A;border-radius:14px;padding:8px;z-index:5;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+#menu b{display:block;font-size:12px;letter-spacing:1px;text-transform:uppercase;color:#98A2B3;padding:6px 10px}
+#menu .op{display:flex;width:100%;justify-content:space-between;align-items:center;border-radius:10px;padding:11px 10px;font-size:15px;font-weight:600;text-align:left}
+#menu .op.sel{color:var(--cor2);background:rgba(245,165,36,.12)}
+#menu .op.sel:after{content:"✓";font-weight:800}
+#menu .nota{font-size:12.5px;color:#98A2B3;padding:6px 10px}
+#toast{position:fixed;left:50%;bottom:18%;transform:translate(-50%,10px);background:rgba(30,35,46,.95);padding:10px 14px;border-radius:12px;font-size:14px;max-width:86%;text-align:center;opacity:0;transition:.2s;pointer-events:none}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+</style>
+</head>
+<body>
+<div id="toque"></div>
+<div class="onda esq" id="ondaE"><span id="ondaEi"></span><span id="ondaEt">10 s</span></div>
+<div class="onda dir" id="ondaD"><span id="ondaDi"></span><span id="ondaDt">10 s</span></div>
+<div id="ui">
+  <div class="topo">
+    <div class="tit" id="tit"></div>
+    <button id="bLeg" aria-label="Legendas"></button>
+    <button id="bQual" aria-label="Qualidade"></button>
+    <button id="bCheio" aria-label="Tela cheia"></button>
+  </div>
+  <div class="meio">
+    <button id="bVoltar" aria-label="Voltar 10 segundos"></button>
+    <button class="play" id="bPlay" aria-label="Tocar ou pausar"></button>
+    <button id="bAvancar" aria-label="Avançar 10 segundos"></button>
+  </div>
+  <div class="base" id="base">
+    <input type="range" id="busca" min="0" max="1000" value="0" aria-label="Posição">
+    <div class="tempos"><span id="tA">0:00</span><span id="tT">0:00</span></div>
+  </div>
+</div>
+<div id="cap"></div>
+<div id="menu" class="oculto"></div>
+<div id="toast"></div>
+
+<script>
+var T=window.Tocador||null;
+function $(i){ return document.getElementById(i); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+function tempo(ms){ if(!(ms>0)) return '0:00'; var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60; return (h?h+':'+(m<10?'0':''):'')+m+':'+(x<10?'0':'')+x; }
+var IC={
+ play:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z" fill="currentColor" stroke="none"/></svg>',
+ pausa:'<svg viewBox="0 0 24 24"><rect x="6.5" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/><rect x="13.5" y="5" width="4" height="14" rx="1" fill="currentColor" stroke="none"/></svg>',
+ voltar:'<svg viewBox="0 0 24 24"><path d="M12 5H8.5M8.5 5l2.5-2.5M8.5 5l2.5 2.5"/><path d="M8.5 5A7.5 7.5 0 1 0 19.5 9"/><text x="12.3" y="15.8" font-size="6.8" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg>',
+ avancar:'<svg viewBox="0 0 24 24"><path d="M12 5h3.5M15.5 5L13 2.5M15.5 5L13 7.5"/><path d="M15.5 5A7.5 7.5 0 1 1 4.5 9"/><text x="11.7" y="15.8" font-size="6.8" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">10</text></svg>',
+ cheio:'<svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg>',
+ sair:'<svg viewBox="0 0 24 24"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5"/></svg>',
+ cc:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10.5 10.2a2.2 2.2 0 1 0 0 3.6M17 10.2a2.2 2.2 0 1 0 0 3.6"/></svg>',
+ hd:'<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><text x="12" y="15.3" font-size="7.2" font-weight="800" text-anchor="middle" fill="currentColor" stroke="none">HD</text></svg>',
+ recuar:'<svg viewBox="0 0 24 24"><path d="M11 6L5 12l6 6M19 6l-6 6 6 6"/></svg>',
+ adiantar:'<svg viewBox="0 0 24 24"><path d="M13 6l6 6-6 6M5 6l6 6-6 6"/></svg>'
+};
+$('bVoltar').innerHTML=IC.voltar; $('bAvancar').innerHTML=IC.avancar; $('bLeg').innerHTML=IC.cc; $('bQual').innerHTML=IC.hd;
+$('ondaEi').innerHTML=IC.recuar; $('ondaDi').innerHTML=IC.adiantar;
+
+var E={}, visivel=false, tEsconder=null, buscando=false;
+function mostrarUi(sim){
+  visivel=sim; $('ui').classList.toggle('on',sim);
+  clearTimeout(tEsconder);
+  if(sim&&E.tocando&&$('menu').classList.contains('oculto')) tEsconder=setTimeout(function(){ mostrarUi(false); },3500);
+}
+function adiarEsconder(){ if(visivel) mostrarUi(true); }
+
+// ---- toque simples (mostra/esconde) e toque duplo (volta/avança)
+var ultimoToque=0, ultimoX=0, tSimples=null, acumulado=0, tAcum=null;
+$('toque').addEventListener('pointerup',function(ev){
+  if(!$('menu').classList.contains('oculto')){ fecharMenu(); return; }
+  var agora=Date.now(), w=window.innerWidth, x=ev.clientX, lado=x<w*0.4?-1:(x>w*0.6?1:0);
+  var emSequencia=acumulado!==0&&lado!==0&&Math.sign(acumulado)===lado&&agora-ultimoToque<700;
+  if(emSequencia||(agora-ultimoToque<300&&Math.abs(x-ultimoX)<w*0.3)){
+    clearTimeout(tSimples);
+    if(lado===0){ T&&T.tocarPausar(); ultimoToque=0; return; }
+    pular(lado);
+  } else {
+    tSimples=setTimeout(function(){ mostrarUi(!visivel); },280);
+  }
+  ultimoToque=agora; ultimoX=x;
+});
+function pular(lado){
+  if(!(E.busca&&E.duracao>0)) return;
+  T&&T.pular(10*lado);
+  acumulado=(Math.sign(acumulado)===lado?acumulado:0)+10*lado;
+  var el=lado<0?$('ondaE'):$('ondaD'); $(lado<0?'ondaEt':'ondaDt').textContent=Math.abs(acumulado)+' s';
+  $('ondaE').classList.remove('on'); $('ondaD').classList.remove('on'); el.classList.add('on');
+  clearTimeout(tAcum); tAcum=setTimeout(function(){ el.classList.remove('on'); acumulado=0; },700);
+}
+
+// ---- botões
+$('bPlay').onclick=function(){ T&&T.tocarPausar(); adiarEsconder(); };
+$('bVoltar').onclick=function(){ T&&T.pular(-10); adiarEsconder(); };
+$('bAvancar').onclick=function(){ T&&T.pular(10); adiarEsconder(); };
+$('bCheio').onclick=function(){ T&&T.telaCheia(!E.cheio); };
+$('busca').oninput=function(){ buscando=true; $('tA').textContent=tempo(this.value/1000*E.duracao); adiarEsconder(); };
+$('busca').onchange=function(){ T&&T.buscar(this.value/1000); buscando=false; };
+
+// ---- menus de legenda e qualidade
+function fecharMenu(){ $('menu').classList.add('oculto'); adiarEsconder(); }
+function abrirMenu(html, ao){
+  $('menu').innerHTML=html; $('menu').classList.remove('oculto'); clearTimeout(tEsconder);
+  [].forEach.call($('menu').querySelectorAll('.op'),function(b){ b.onclick=function(){ ao(b.dataset.c); fecharMenu(); }; });
+}
+$('bLeg').onclick=function(){
+  var L; try{ L=JSON.parse(T.legendas()); }catch(x){ L={}; }
+  var itens=[{chave:'off',nome:'Desligada'}].concat(L.itens||[]);
+  var html='<b>Legendas</b>'+itens.map(function(o){ return '<button class="op'+(o.chave===(L.atual||'off')?' sel':'')+'" data-c="'+esc(o.chave)+'">'+esc(o.nome)+'</button>'; }).join('');
+  if(!(L.itens||[]).length) html+='<div class="nota">Nenhuma legenda neste vídeo (ou ainda carregando).</div>';
+  if(L.podeTraduzir) html+='<div class="nota">Tradução e download da legenda: pelo painel, em Legendas.</div>';
+  abrirMenu(html,function(c){ T.escolherLegenda(c,!!L.traducao); });
+};
+$('bQual').onclick=function(){
+  var Q; try{ Q=JSON.parse(T.qualidades()); }catch(x){ Q={}; }
+  var html='<b>Qualidade</b>';
+  if((Q.itens||[]).length) html+=(Q.emUso?'<div class="nota">Em uso: '+esc(Q.emUso)+'</div>':'')+Q.itens.map(function(o){ return '<button class="op'+(o.chave===Q.atual?' sel':'')+'" data-c="'+esc(o.chave)+'">'+esc(o.nome)+'</button>'; }).join('');
+  else html+='<div class="nota">Este site escolhe a qualidade sozinho.</div>';
+  abrirMenu(html,function(c){ T.escolherQualidade(c); });
+};
+
+// ---- estado
+function atualizar(){
+  if(!T) return;
+  try{ E=JSON.parse(T.estado()); }catch(x){ return; }
+  $('tit').textContent=E.titulo||'';
+  var ic=E.tocando?IC.pausa:IC.play; if($('bPlay').getAttribute('data-ic')!==(E.tocando?'p':'t')){ $('bPlay').innerHTML=ic; $('bPlay').setAttribute('data-ic',E.tocando?'p':'t'); if(!E.tocando) mostrarUi(true); }
+  var ic2=E.cheio?IC.sair:IC.cheio; if($('bCheio').getAttribute('data-ic')!==(E.cheio?'s':'c')){ $('bCheio').innerHTML=ic2; $('bCheio').setAttribute('data-ic',E.cheio?'s':'c'); }
+  var temBusca=E.busca&&E.duracao>0;
+  $('base').classList.toggle('oculto',!temBusca); $('bVoltar').classList.toggle('oculto',!temBusca); $('bAvancar').classList.toggle('oculto',!temBusca);
+  if(temBusca&&!buscando){ $('busca').value=Math.round((E.posicao||0)*1000); $('tA').textContent=tempo(E.tempo); $('tT').textContent=tempo(E.duracao); }
+  var cap=E.legendaAgora||'';
+  $('cap').innerHTML=cap?'<span>'+esc(cap)+'</span>':'';
+}
+var tToast;
+window.avisar=function(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tToast); tToast=setTimeout(function(){ t.classList.remove('on'); },3500); };
+atualizar();
+setInterval(atualizar,350);
+</script>
+</body>
+</html>

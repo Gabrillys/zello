@@ -54,6 +54,8 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     private boolean eqLigado;
     private int preset;
     private SurfaceView superficie;
+    /** Streams adaptativos (m3u8/DASH): sempre a maior qualidade, em vez de variar com a conexão. */
+    private boolean qualidadeMaxima;
 
     private Motor(Context c) {
         ctx = c;
@@ -78,6 +80,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
             }
             eq.setPreAmp(prefs.getFloat("preamp", eq.getPreAmp()));
         }
+        qualidadeMaxima = prefs.getBoolean("qualidadeMaxima", true);
         aplicarEq();
     }
 
@@ -100,6 +103,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         if (ua != null && ua.length() > 0) m.addOption(":http-user-agent=" + ua);
         if (referer != null && referer.length() > 0) m.addOption(":http-referrer=" + referer);
         if (audioExtra != null) m.addSlave(new IMedia.Slave(IMedia.Slave.Type.Audio, 4, audioExtra));
+        if (qualidadeMaxima) m.addOption(":adaptive-logic=highest");
         mp.setMedia(m);
         m.release();
         aplicarEq();
@@ -151,15 +155,69 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     }
 
     public void buscar(float pos) { if (mp.isSeekable()) mp.setPosition(pos); }
+
+    /** Avança (positivo) ou volta (negativo) alguns milissegundos. */
+    public void pular(long ms) {
+        if (!mp.isSeekable()) return;
+        long t = Math.max(0, mp.getTime() + ms);
+        if (mp.getLength() > 0) t = Math.min(t, mp.getLength() - 500);
+        mp.setTime(t);
+    }
+
+    public boolean qualidadeMaxima() { return qualidadeMaxima; }
+
+    /** Muda a política de qualidade; num vídeo gravado, reabre do mesmo ponto para aplicar. */
+    public void definirQualidadeMaxima(boolean max) {
+        if (max == qualidadeMaxima) return;
+        qualidadeMaxima = max;
+        prefs.edit().putBoolean("qualidadeMaxima", max).apply();
+        if (ativo() && querTocando) {
+            final long t = mp.getTime();
+            final boolean gravado = mp.getLength() > 0;
+            iniciarMidia();
+            if (gravado && t > 0) h.postDelayed(new Runnable() { public void run() { mp.setTime(t); } }, 800);
+        }
+    }
+
+    /** Proporção largura/altura do vídeo (0 se ainda não se sabe). */
+    public double proporcao() {
+        try {
+            IMedia.VideoTrack v = mp.getCurrentVideoTrack();
+            if (v == null || v.height == 0) return 0;
+            boolean deitado = v.orientation == 5 || v.orientation == 6; // vídeo gravado com o celular de pé, girado
+            return deitado ? (double) v.height / v.width : (double) v.width / v.height;
+        } catch (Exception e) { return 0; }
+    }
+
+    // ------------------------------------------------------------ legendas embutidas no arquivo/stream
+
+    public JSONObject legendas() {
+        JSONObject o = new JSONObject();
+        try {
+            JSONArray itens = new JSONArray();
+            MediaPlayer.TrackDescription[] ts = mp.getSpuTracks();
+            if (ts != null) for (MediaPlayer.TrackDescription t : ts) {
+                if (t.id < 0) continue; // "Desativar"
+                itens.put(new JSONObject().put("chave", "vlc:" + t.id).put("nome", t.name == null ? "Legenda " + t.id : t.name));
+            }
+            int atual = mp.getSpuTrack();
+            o.put("fonte", "vlc").put("itens", itens).put("atual", atual >= 0 ? "vlc:" + atual : "")
+                    .put("podeBaixar", false).put("podeTraduzir", false);
+        } catch (Exception e) { }
+        return o;
+    }
+
+    public void escolherLegenda(int id) { mp.setSpuTrack(id); }
     public void volume(int v) { mp.setVolume(Math.max(0, Math.min(200, v))); }
 
     // ------------------------------------------------------------ vídeo
 
-    public void anexar(SurfaceView sv, int largura, int altura) {
+    public void anexar(SurfaceView sv, SurfaceView legendas, int largura, int altura) {
         superficie = sv;
         IVLCVout vo = mp.getVLCVout();
         if (vo.areViewsAttached()) vo.detachViews();
         vo.setVideoView(sv);
+        if (legendas != null) vo.setSubtitlesView(legendas);
         vo.attachViews();
         if (largura > 0 && altura > 0) vo.setWindowSize(largura, altura);
         mp.setVideoTrackEnabled(true);
@@ -256,6 +314,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
             o.put("busca", mp.isSeekable());
             o.put("video", temVideoAgora());
             o.put("volume", mp.getVolume());
+            o.put("proporcao", proporcao());
         } catch (Exception e) { }
         return o;
     }

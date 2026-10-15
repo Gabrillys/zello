@@ -2,13 +2,15 @@ package app.tocador;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.DownloadManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.PixelFormat;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -22,6 +24,7 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebView;
@@ -29,6 +32,7 @@ import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.regex.Matcher;
@@ -49,35 +53,30 @@ public class Principal extends Activity {
 
     private final Handler h = new Handler(Looper.getMainLooper());
     private Motor motor;
+    private SharedPreferences ajustes;
     private FrameLayout raiz, area, telaCheiaBox;
     private LinearLayout coluna;
-    private SurfaceView superficie;
+    private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
-    private WebView painel;
+    private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
-    private volatile boolean expandido;
+    private volatile boolean expandido, cheio;
     private String layoutAtual = "";
-
-    // Vídeo do YouTube/Instagram descoberto pelo Extrator (para tocar no VLC e baixar).
-    private volatile Extrator.Resultado extra;
-    private volatile String extraEstado = "";   // "", buscando, pronto, erro
-    private volatile String extraFonte = "";
-    private volatile String extraChave = "";
-    private volatile String aviso = "";
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setStatusBarColor(0xFF0E1116);
-        getWindow().setNavigationBarColor(0xFF0E1116);
+        getWindow().setStatusBarColor(0xFF0B0D12);
+        getWindow().setNavigationBarColor(0xFF0B0D12);
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
 
         motor = Motor.de(this);
+        ajustes = getSharedPreferences("ajustes", MODE_PRIVATE);
 
         raiz = new FrameLayout(this);
-        raiz.setBackgroundColor(0xFF0E1116);
+        raiz.setBackgroundColor(0xFF0B0D12);
         coluna = new LinearLayout(this);
         coluna.setOrientation(LinearLayout.VERTICAL);
         raiz.addView(coluna, new FrameLayout.LayoutParams(-1, -1));
@@ -86,25 +85,23 @@ public class Principal extends Activity {
         area.setBackgroundColor(0xFF000000);
         superficie = new SurfaceView(this);
         area.addView(superficie, new FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER));
+        // Legendas do VLC: superfície transparente sobre o vídeo.
+        superficieLegendas = new SurfaceView(this);
+        superficieLegendas.setZOrderMediaOverlay(true);
+        superficieLegendas.getHolder().setFormat(PixelFormat.TRANSLUCENT);
+        area.addView(superficieLegendas, new FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER));
         superficie.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            public void onLayoutChange(View v, int l, int t, int r, int bo, int ol, int ot, int or, int ob) {
-                motor.tamanho(r - l, bo - t);
-            }
+            public void onLayoutChange(View v, int l, int t, int r, int bo, int ol, int ot, int or, int ob) { motor.tamanho(r - l, bo - t); }
         });
         coluna.addView(area, new LinearLayout.LayoutParams(-1, 0));
 
-        painel = new WebView(this);
-        painel.setBackgroundColor(0xFF0E1116);
-        painel.getSettings().setJavaScriptEnabled(true);
-        painel.getSettings().setDomStorageEnabled(true);
-        painel.addJavascriptInterface(new Ponte(), "Tocador");
-        painel.setWebViewClient(new WebViewClient() {
-            @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
-                return !r.getUrl().toString().startsWith("file:///android_asset/");
-            }
-        });
+        painel = criarPainelWeb("file:///android_asset/painel.html", 0xFF0B0D12);
         coluna.addView(painel, new LinearLayout.LayoutParams(-1, 0, 1f));
-        painel.loadUrl("file:///android_asset/painel.html");
+
+        // Camada de controles sobre o vídeo: toque duplo para voltar/avançar, barra de progresso, legendas.
+        controles = criarPainelWeb("file:///android_asset/controles.html", 0x00000000);
+        controles.setVisibility(View.GONE);
+        area.addView(controles, new FrameLayout.LayoutParams(-1, -1));
 
         telaCheiaBox = new FrameLayout(this);
         telaCheiaBox.setBackgroundColor(0xFF000000);
@@ -120,6 +117,22 @@ public class Principal extends Activity {
         ajustar();
         h.post(ciclo);
         tratar(getIntent());
+    }
+
+    @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
+    private WebView criarPainelWeb(String endereco, int fundo) {
+        WebView w = new WebView(this);
+        w.setBackgroundColor(fundo);
+        w.getSettings().setJavaScriptEnabled(true);
+        w.getSettings().setDomStorageEnabled(true);
+        w.addJavascriptInterface(new Ponte(), "Tocador");
+        w.setWebViewClient(new WebViewClient() {
+            @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                return !r.getUrl().toString().startsWith("file:///android_asset/");
+            }
+        });
+        w.loadUrl(endereco);
+        return w;
     }
 
     @Override
@@ -165,137 +178,135 @@ public class Principal extends Activity {
     void abrir(String url, String modo) {
         url = url.trim();
         if (url.length() == 0) return;
-        aviso = "";
-        // Instagram: o site pede login; busca o vídeo direto e toca no player VLC.
-        if (!"web".equals(modo) && Extrator.ehInstagram(url)) { abrirInstagram(url); return; }
         if ("auto".equals(modo)) modo = decidirModo(url);
         if ("vlc".equals(modo)) {
             if (Controle.modo.equals("web")) Navegador.comandar("pausar");
             EqSistema.de(this).soltar();
             Controle.modo = "vlc";
-            motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
+            motor.anexar(superficie, superficieLegendas, superficie.getWidth(), superficie.getHeight());
             motor.tocar(url, null, null);
         } else {
             motor.parar();
             Controle.modo = "web";
             if (nav == null) criarNavegador();
             nav.loadUrl(url);
-            verificarYoutube(url);
         }
         Servico.iniciar(this);
         ajustar();
     }
 
-    private void abrirInstagram(final String url) {
-        extra = null; extraFonte = "instagram"; extraEstado = "buscando"; extraChave = url;
-        aviso = "Buscando o vídeo do Instagram…";
-        final String cookies = CookieManager.getInstance().getCookie("https://www.instagram.com");
-        new Thread(new Runnable() { public void run() {
-            final Extrator.Resultado r = Extrator.instagram(url, cookies);
-            runOnUiThread(new Runnable() { public void run() {
-                if (!url.equals(extraChave)) return; // a pessoa já abriu outro link
-                extra = r;
-                if (r.ok()) {
-                    extraEstado = "pronto"; aviso = "";
-                    if (Controle.modo.equals("web")) Navegador.comandar("pausar");
-                    EqSistema.de(Principal.this).soltar();
-                    Controle.modo = "vlc";
-                    motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
-                    motor.tocar(r.video, r.agente, r.referer, r.audioSeparado);
-                    motor.definirTitulo(r.titulo);
-                    if (r.semSom) aviso = "Este post do Instagram não tem som (o próprio Instagram removeu o áudio ou ele foi publicado assim).";
-                    Servico.iniciar(Principal.this);
-                    ajustar();
-                } else {
-                    extraEstado = "erro";
-                    // Abre a página normal: se for preciso, a pessoa entra na conta uma vez e o app passa a usar esse login.
-                    abrir(url, "web");
-                    aviso = r.erro + (r.precisaLogin ? " Entre na sua conta do Instagram aqui na página (só uma vez) e depois toque em Tentar de novo." : "");
-                }
-            } });
-        } }, "tocador-instagram").start();
-    }
-
-    /** Ao abrir um vídeo do YouTube, procura em segundo plano os arquivos para baixar/tocar no VLC. */
-    private void verificarYoutube(final String url) {
-        final String id = Extrator.idYoutube(url);
-        if (id == null) {
-            if ("youtube".equals(extraFonte)) { extra = null; extraEstado = ""; extraFonte = ""; extraChave = ""; }
-            return;
-        }
-        if (id.equals(extraChave) && !"erro".equals(extraEstado)) return;
-        extra = null; extraFonte = "youtube"; extraEstado = "buscando"; extraChave = id;
-        new Thread(new Runnable() { public void run() {
-            final Extrator.Resultado r = Extrator.youtube(url);
-            runOnUiThread(new Runnable() { public void run() {
-                if (!id.equals(extraChave)) return;
-                extra = r;
-                extraEstado = r.ok() ? "pronto" : "erro";
-            } });
-        } }, "tocador-youtube").start();
-    }
-
     private void criarNavegador() {
         nav = new Navegador(this);
-        nav.definirAoMudar(new Navegador.AoMudar() {
-            public void pagina(final String url) { runOnUiThread(new Runnable() { public void run() { verificarYoutube(url); } }); }
-        });
+        nav.definirQualidade(ajustes.getString("qualidade", "max"));
+        if (ajustes.getBoolean("computador", false)) nav.definirComputador(true);
         nav.definirTelaCheia(new Navegador.TelaCheia() {
             public void mostrar(View v, WebChromeClient.CustomViewCallback cb) {
+                // Tela cheia pedida pelo próprio site (botão de tela cheia do YouTube, por exemplo).
                 cbTelaCheia = cb;
                 telaCheiaBox.addView(v, new FrameLayout.LayoutParams(-1, -1));
                 telaCheiaBox.setVisibility(View.VISIBLE);
-                telaCheiaBox.setSystemUiVisibility(View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+                girarConformeVideo(proporcaoAtual());
+                imersivo(true);
             }
-            public void esconder() { sairTelaCheia(); }
+            public void esconder() { sairTelaCheiaDoSite(); }
         });
-        area.addView(nav, new FrameLayout.LayoutParams(-1, -1));
+        area.addView(nav, 2, new FrameLayout.LayoutParams(-1, -1)); // abaixo da camada de controles
     }
 
-    private void sairTelaCheia() {
+    private void sairTelaCheiaDoSite() {
         if (telaCheiaBox.getVisibility() != View.VISIBLE) return;
         telaCheiaBox.removeAllViews();
         telaCheiaBox.setVisibility(View.GONE);
-        telaCheiaBox.setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+        if (!cheio) { imersivo(false); setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED); }
         if (cbTelaCheia != null) { cbTelaCheia.onCustomViewHidden(); cbTelaCheia = null; }
+    }
+
+    // ------------------------------------------------------------ tela cheia do app (só o vídeo)
+
+    private double proporcaoAtual() {
+        if ("vlc".equals(Controle.modo)) return motor.proporcao();
+        JSONObject e = Navegador.estadoPagina;
+        int w = e.optInt("vw"), hh = e.optInt("vh");
+        return hh > 0 ? (double) w / hh : 0;
+    }
+
+    private void girarConformeVideo(double p) {
+        if (p > 1.05) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+        else if (p > 0 && p < 0.95) setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT);
+        else setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+    }
+
+    private void imersivo(boolean sim) {
+        View d = getWindow().getDecorView();
+        d.setSystemUiVisibility(sim ? View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+                | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION : 0);
+        if (Build.VERSION.SDK_INT >= 28) getWindow().getAttributes().layoutInDisplayCutoutMode = sim
+                ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+    }
+
+    void telaCheia(boolean sim) {
+        if (sim == cheio) return;
+        if (sim && "nada".equals(Controle.modo)) return;
+        if (sim && "vlc".equals(Controle.modo) && !motor.temVideoAgora()) return; // rádio: não há imagem
+        cheio = sim;
+        if ("web".equals(Controle.modo) && nav != null) nav.isolar(sim);
+        if (sim) { girarConformeVideo(proporcaoAtual()); imersivo(true); }
+        else { setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED); imersivo(false); }
+        layoutAtual = "";
+        ajustar();
     }
 
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
-    /** Distribui a tela entre vídeo/página e o painel de controle. */
+    /** Distribui a tela entre vídeo/página, a camada de controles e o painel. */
     private void ajustar() {
         boolean deitado = getResources().getConfiguration().orientation == Configuration.ORIENTATION_LANDSCAPE;
         String modo = Controle.modo;
-        boolean video = "vlc".equals(modo) && motor.temVideoAgora();
-        String chave = modo + video + expandido + deitado + raiz.getWidth();
+        boolean videoVlc = "vlc".equals(modo) && motor.temVideoAgora();
+        if (cheio && ("nada".equals(modo) || ("vlc".equals(modo) && !videoVlc))) { telaCheia(false); return; }
+        String chave = modo + videoVlc + expandido + deitado + cheio + raiz.getWidth();
         if (chave.equals(layoutAtual)) return;
         layoutAtual = chave;
 
         int largura = raiz.getWidth() > 0 ? raiz.getWidth() : getResources().getDisplayMetrics().widthPixels;
         int altura = raiz.getHeight() > 0 ? raiz.getHeight() : getResources().getDisplayMetrics().heightPixels;
-        LinearLayout.LayoutParams pa, pp;
-        superficie.setVisibility("vlc".equals(modo) ? View.VISIBLE : View.GONE);
+        boolean vlc = "vlc".equals(modo);
+        superficie.setVisibility(vlc ? View.VISIBLE : View.GONE);
+        superficieLegendas.setVisibility(vlc ? View.VISIBLE : View.GONE);
         if (nav != null) nav.setVisibility("web".equals(modo) ? View.VISIBLE : View.GONE);
 
-        if ("web".equals(modo)) {
+        LinearLayout.LayoutParams pa, pp;
+        if (cheio) {
             area.setVisibility(View.VISIBLE);
             pa = new LinearLayout.LayoutParams(-1, 0, 1f);
-            pp = new LinearLayout.LayoutParams(-1, expandido ? (int) (altura * 0.62) : dp(deitado ? 84 : 96));
-        } else if (video) {
-            area.setVisibility(View.VISIBLE);
-            if (deitado && !expandido) {
-                pa = new LinearLayout.LayoutParams(-1, 0, 1f);
-                pp = new LinearLayout.LayoutParams(-1, dp(84));
-            } else {
-                pa = new LinearLayout.LayoutParams(-1, largura * 9 / 16);
-                pp = new LinearLayout.LayoutParams(-1, 0, 1f);
-            }
+            pp = new LinearLayout.LayoutParams(-1, 0);
+            painel.setVisibility(View.GONE);
+            controles.setVisibility(View.VISIBLE);
         } else {
-            // Só áudio (rádio, música) ou nada aberto: o painel ocupa tudo.
-            // A superfície fica com 1px para o VLC poder detectar vídeo quando ele aparecer.
-            area.setVisibility(View.VISIBLE);
-            pa = new LinearLayout.LayoutParams(-1, 1);
-            pp = new LinearLayout.LayoutParams(-1, 0, 1f);
+            painel.setVisibility(View.VISIBLE);
+            if ("web".equals(modo)) {
+                area.setVisibility(View.VISIBLE);
+                pa = new LinearLayout.LayoutParams(-1, 0, 1f);
+                pp = new LinearLayout.LayoutParams(-1, expandido ? (int) (altura * 0.62) : dp(deitado ? 76 : 88));
+                controles.setVisibility(View.GONE);
+            } else if (videoVlc) {
+                area.setVisibility(View.VISIBLE);
+                if (deitado && !expandido) {
+                    pa = new LinearLayout.LayoutParams(-1, 0, 1f);
+                    pp = new LinearLayout.LayoutParams(-1, dp(76));
+                } else {
+                    pa = new LinearLayout.LayoutParams(-1, largura * 9 / 16);
+                    pp = new LinearLayout.LayoutParams(-1, 0, 1f);
+                }
+                controles.setVisibility(View.VISIBLE);
+            } else {
+                // Só áudio (rádio, música) ou nada aberto: o painel ocupa tudo.
+                // A superfície fica com 1px para o VLC poder detectar vídeo quando ele aparecer.
+                area.setVisibility(View.VISIBLE);
+                pa = new LinearLayout.LayoutParams(-1, 1);
+                pp = new LinearLayout.LayoutParams(-1, 0, 1f);
+                controles.setVisibility(View.GONE);
+            }
         }
         area.setLayoutParams(pa);
         painel.setLayoutParams(pp);
@@ -304,7 +315,9 @@ public class Principal extends Activity {
     private final Runnable ciclo = new Runnable() {
         public void run() {
             ajustar();
-            boolean telaLigada = "vlc".equals(Controle.modo) && motor.temVideoAgora() && motor.tocando();
+            boolean tocando = Controle.tocando(Principal.this);
+            boolean telaLigada = tocando && (cheio || telaCheiaBox.getVisibility() == View.VISIBLE
+                    || ("vlc".equals(Controle.modo) && motor.temVideoAgora()) || "web".equals(Controle.modo));
             if (telaLigada) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             h.postDelayed(this, 1000);
@@ -316,12 +329,13 @@ public class Principal extends Activity {
         super.onConfigurationChanged(c);
         layoutAtual = "";
         ajustar();
+        if (cheio || telaCheiaBox.getVisibility() == View.VISIBLE) imersivo(true);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        if ("vlc".equals(Controle.modo)) motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
+        if ("vlc".equals(Controle.modo)) motor.anexar(superficie, superficieLegendas, superficie.getWidth(), superficie.getHeight());
     }
 
     @Override
@@ -334,8 +348,9 @@ public class Principal extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (telaCheiaBox.getVisibility() == View.VISIBLE) { sairTelaCheia(); return; }
-        if (expandido) { expandido = false; ajustar(); painel.evaluateJavascript("window.recolhido&&recolhido()", null); return; }
+        if (telaCheiaBox.getVisibility() == View.VISIBLE) { sairTelaCheiaDoSite(); return; }
+        if (cheio) { telaCheia(false); return; }
+        if (expandido) { expandido = false; ajustar(); js(painel, "window.recolhido&&recolhido()"); return; }
         if ("web".equals(Controle.modo) && nav != null && nav.canGoBack()) { nav.goBack(); return; }
         // Não fecha: vai para segundo plano e continua tocando.
         moveTaskToBack(true);
@@ -347,21 +362,139 @@ public class Principal extends Activity {
         if ("web".equals(Controle.modo)) { Controle.parar(this); Controle.modo = "nada"; }
         if (nav != null) { ((ViewGroup) nav.getParent()).removeView(nav); nav.destroy(); nav = null; }
         painel.destroy();
+        controles.destroy();
         super.onDestroy();
     }
 
-    // ------------------------------------------------------------ ponte com o painel (assets/painel.html)
+    // ------------------------------------------------------------ legendas: baixar como texto
 
-    private void naTela(Runnable r) { runOnUiThread(r); }
+    private void js(WebView w, String codigo) { if (w != null) w.evaluateJavascript(codigo, null); }
+
+    private void avisar(String msg) {
+        String c = "window.avisar&&avisar(" + JSONObject.quote(msg) + ")";
+        js(painel, c);
+        js(controles, c);
+    }
 
     /** Android 9 ou anterior precisa de permissão para gravar na pasta Download. */
     private boolean permissaoGravar() {
         if (Build.VERSION.SDK_INT >= 29) return true;
         if (checkSelfPermission("android.permission.WRITE_EXTERNAL_STORAGE") == PackageManager.PERMISSION_GRANTED) return true;
         requestPermissions(new String[] { "android.permission.WRITE_EXTERNAL_STORAGE" }, 2);
-        painel.evaluateJavascript("window.avisar&&avisar('Permita o acesso aos arquivos e toque em baixar de novo.')", null);
+        avisar("Permita o acesso aos arquivos e toque em baixar de novo.");
         return false;
     }
+
+    private void baixarLegenda(String chave, final boolean traduzir) {
+        if (!permissaoGravar()) return;
+        if (chave.startsWith("tt:")) {
+            avisar("Lendo a legenda…");
+            lerFaixa(Integer.parseInt(chave.substring(3)), 0);
+            return;
+        }
+        if (!chave.startsWith("yt:") || nav == null) { avisar("Esta legenda não pode ser baixada como texto."); return; }
+        String[] p = chave.substring(3).split(":");
+        final String idioma = p[0];
+        final boolean auto = p.length > 1;
+        final String vid = Navegador.estadoPagina.optString("vid");
+        avisar("Preparando a legenda…");
+        String u = Navegador.legendaPedida(vid, idioma, auto);
+        if (u != null) { buscarLegendaYoutube(u, idioma, traduzir); return; }
+        // O player só busca a legenda quando ela é ligada: liga e espera o pedido passar.
+        js(nav, Navegador.jsLegendaYoutube(idioma, auto, ""));
+        esperarLegenda(vid, idioma, auto, traduzir, 0);
+    }
+
+    private void esperarLegenda(final String vid, final String idioma, final boolean auto, final boolean traduzir, final int tentativa) {
+        h.postDelayed(new Runnable() { public void run() {
+            String u = Navegador.legendaPedida(vid, idioma, auto);
+            if (u != null) { buscarLegendaYoutube(u, idioma, traduzir); return; }
+            if (tentativa == 3 && nav != null) js(nav, Navegador.jsLegendaYoutube(idioma, auto, ""));
+            if (tentativa < 20) esperarLegenda(vid, idioma, auto, traduzir, tentativa + 1);
+            else {
+                Diagnostico.anotar("Legenda: o player não pediu o arquivo de " + idioma);
+                avisar("O YouTube não entregou esta legenda. Ligue a legenda no vídeo, espere aparecer o texto e tente de novo.");
+            }
+        } }, 500);
+    }
+
+    private void buscarLegendaYoutube(final String url, final String idioma, final boolean traduzir) {
+        final String ua = nav.agente();
+        final String cookie = CookieManager.getInstance().getCookie("https://www.youtube.com");
+        final String titulo = Navegador.tituloAgora.replaceAll("\\s*-\\s*YouTube\\s*$", "");
+        new Thread(new Runnable() { public void run() {
+            String texto = "";
+            String erro = null;
+            try {
+                texto = Legendas.paraTexto(Legendas.baixar(Legendas.urlYoutube(url, traduzir ? "pt" : null), ua, cookie, "https://www.youtube.com/"));
+                if (texto.length() == 0) {
+                    // Formato json3 vazio: tenta no formato original que o player pediu.
+                    String original = traduzir ? url.replaceAll("[&?]tlang=[^&]*", "") + "&tlang=pt" : url;
+                    texto = Legendas.paraTexto(Legendas.baixar(original, ua, cookie, "https://www.youtube.com/"));
+                }
+            } catch (Exception e) { erro = e.getMessage(); }
+            salvarLegenda(titulo, idioma + (traduzir ? " traduzida para pt" : ""), texto, erro);
+        } }, "tocador-legenda").start();
+    }
+
+    private void lerFaixa(final int i, final int tentativa) {
+        if (nav == null) return;
+        nav.evaluateJavascript(Navegador.jsTextoFaixa(i), new ValueCallback<String>() {
+            public void onReceiveValue(String v) {
+                try {
+                    final JSONObject o = new JSONObject(v);
+                    if (o.has("texto")) {
+                        final String titulo = Navegador.tituloAgora;
+                        new Thread(new Runnable() { public void run() {
+                            salvarLegenda(titulo, o.optString("nome"), Legendas.limpar(o.optString("texto").split("\n")), null);
+                        } }).start();
+                    } else if (o.optBoolean("carregando") && tentativa < 12) {
+                        h.postDelayed(new Runnable() { public void run() { lerFaixa(i, tentativa + 1); } }, 500);
+                    } else avisar("Não consegui ler esta legenda.");
+                } catch (Exception e) { avisar("Não consegui ler esta legenda."); }
+            }
+        });
+    }
+
+    /** Roda fora da tela principal: grava o arquivo e avisa. */
+    private void salvarLegenda(String titulo, String idioma, String texto, String erro) {
+        String msg;
+        boolean ok = false;
+        if (erro != null) msg = "Não consegui baixar a legenda: " + erro;
+        else if (texto == null || texto.length() == 0) msg = "A legenda veio vazia. Ligue a legenda no vídeo e tente de novo.";
+        else {
+            try {
+                String caminho = Arquivos.salvarTexto(this, (titulo.length() > 0 ? titulo : "Legenda") + " (legenda " + idioma + ")", texto + "\n");
+                msg = "Legenda salva em " + caminho;
+                ok = true;
+            } catch (Exception e) { msg = "Não consegui salvar: " + e.getMessage(); }
+        }
+        Diagnostico.anotar("Legenda: " + msg);
+        final String m = msg;
+        final boolean salvo = ok;
+        runOnUiThread(new Runnable() { public void run() {
+            avisar(m);
+            if (salvo) js(painel, "window.legendaSalva&&legendaSalva(" + (Arquivos.ultimo != null) + ")");
+        } });
+    }
+
+    private static String nomeQualidade(String q) {
+        if ("highres".equals(q)) return "Original (8K)";
+        if ("hd2880".equals(q)) return "2880p (5K)";
+        if ("hd2160".equals(q)) return "2160p (4K)";
+        if ("hd1440".equals(q)) return "1440p";
+        if ("hd1080".equals(q)) return "1080p";
+        if ("hd720".equals(q)) return "720p";
+        if ("large".equals(q)) return "480p";
+        if ("medium".equals(q)) return "360p";
+        if ("small".equals(q)) return "240p";
+        if ("tiny".equals(q)) return "144p";
+        return q;
+    }
+
+    // ------------------------------------------------------------ ponte com o painel e com a camada de controles
+
+    private void naTela(Runnable r) { runOnUiThread(r); }
 
     final class Ponte {
 
@@ -371,24 +504,37 @@ public class Principal extends Activity {
         }
 
         @JavascriptInterface
-        public void tocarPausar() {
-            naTela(new Runnable() { public void run() { Controle.tocarPausar(Principal.this); } });
-        }
+        public void tocarPausar() { naTela(new Runnable() { public void run() { Controle.tocarPausar(Principal.this); } }); }
 
         @JavascriptInterface
         public void parar() {
-            naTela(new Runnable() { public void run() { Controle.parar(Principal.this); } });
+            naTela(new Runnable() { public void run() { telaCheia(false); Controle.parar(Principal.this); Controle.modo = "nada"; ajustar(); } });
         }
 
+        /** Vai para um ponto (0 a 1) do vídeo. */
         @JavascriptInterface
         public void buscar(final float pos) {
-            naTela(new Runnable() { public void run() { motor.buscar(pos); } });
+            naTela(new Runnable() { public void run() {
+                if ("vlc".equals(Controle.modo)) motor.buscar(pos); else js(nav, Navegador.jsIrPara(pos));
+            } });
+        }
+
+        /** Avança (positivo) ou volta (negativo) alguns segundos: usado pelo toque duplo. */
+        @JavascriptInterface
+        public void pular(final int segundos) {
+            naTela(new Runnable() { public void run() {
+                if ("vlc".equals(Controle.modo)) motor.pular(segundos * 1000L); else js(nav, Navegador.jsPular(segundos));
+            } });
         }
 
         @JavascriptInterface
-        public void volume(final int v) {
-            naTela(new Runnable() { public void run() { motor.volume(v); } });
-        }
+        public void volume(final int v) { naTela(new Runnable() { public void run() { motor.volume(v); } }); }
+
+        @JavascriptInterface
+        public void telaCheia(final boolean sim) { naTela(new Runnable() { public void run() { Principal.this.telaCheia(sim); } }); }
+
+        @JavascriptInterface
+        public void expandir(final boolean e) { naTela(new Runnable() { public void run() { expandido = e; ajustar(); } }); }
 
         @JavascriptInterface
         public String estado() {
@@ -398,164 +544,132 @@ public class Principal extends Activity {
                 else {
                     o = new JSONObject();
                     if ("web".equals(Controle.modo)) {
+                        JSONObject p = Navegador.estadoPagina;
+                        long t = p.optLong("tempo"), d = p.optLong("dur");
                         o.put("situacao", Navegador.tocandoAgora ? "tocando" : "pausado");
                         o.put("tocando", Navegador.tocandoAgora);
                         o.put("titulo", Navegador.tituloAgora);
+                        o.put("tempo", t).put("duracao", d).put("busca", d > 0).put("posicao", d > 0 ? (double) t / d : 0);
+                        o.put("video", p.optInt("n") > 0);
+                        // Na tela cheia a legenda do YouTube (que fica fora do vídeo) é desenhada pelo app.
+                        // Nos demais sites a legenda é do próprio vídeo e continua aparecendo sozinha.
+                        o.put("legendaAgora", cheio && p.optBoolean("yt") ? p.optString("cap") : "");
+                        if (p.optBoolean("yt")) o.put("qualidade", nomeQualidade(p.optString("q")));
                     } else o.put("situacao", "parado");
                 }
                 o.put("modo", Controle.modo);
                 o.put("expandido", expandido);
-                o.put("podeBaixar", "vlc".equals(Controle.modo) && motor.temDuracao() && motor.url().matches("(?i)^https?://.*"));
-                o.put("downloads", Baixador.lista());
-                o.put("aviso", aviso);
-                Extrator.Resultado x = extra;
-                if (extraEstado.length() > 0) {
-                    JSONObject e = new JSONObject();
-                    e.put("fonte", extraFonte);
-                    e.put("estado", extraEstado);
-                    if ("instagram".equals(extraFonte)) e.put("url", extraChave);
-                    if (x != null) {
-                        e.put("titulo", x.titulo); e.put("erro", x.erro == null ? "" : x.erro);
-                        e.put("video", x.video != null || x.hls != null); e.put("audio", x.audio != null);
-                        e.put("obs", x.obs == null ? "" : x.obs);
-                    }
-                    o.put("extra", e);
-                }
-                o.put("temPagina", nav != null);
-                Navegador n = nav;
-                if (n != null) o.put("midias", n.listaMidias());
+                o.put("cheio", cheio);
+                o.put("podeCheio", "web".equals(Controle.modo) || ("vlc".equals(Controle.modo) && motor.temVideoAgora()));
             } catch (Exception e) { o = new JSONObject(); }
             return o.toString();
         }
 
+        /** Faixas de legenda disponíveis agora. */
         @JavascriptInterface
-        public void tocarMidia(final int i) {
-            naTela(new Runnable() {
-                public void run() {
-                    if (nav == null) return;
-                    String[] m = nav.midia(i);
-                    if (m == null) return;
-                    Navegador.comandar("pausar");
-                    EqSistema.de(Principal.this).soltar();
-                    Controle.modo = "vlc";
-                    motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
-                    motor.tocar(m[0], nav.agente(), m[1]);
-                    Servico.iniciar(Principal.this);
-                    ajustar();
+        public String legendas() {
+            try {
+                if ("vlc".equals(Controle.modo)) return motor.legendas().toString();
+                JSONObject p = Navegador.estadoPagina, o = new JSONObject();
+                JSONArray itens = new JSONArray(), legs = p.optJSONArray("legs");
+                boolean yt = p.optBoolean("yt");
+                if (legs != null) for (int i = 0; i < legs.length(); i++) {
+                    JSONObject l = legs.optJSONObject(i);
+                    if (l == null) continue;
+                    if (yt) itens.put(new JSONObject().put("chave", "yt:" + l.optString("idioma") + (l.optBoolean("auto") ? ":asr" : ""))
+                            .put("nome", l.optString("nome") + (l.optBoolean("auto") && !l.optString("nome").contains("(") ? " (automática)" : "")));
+                    else itens.put(new JSONObject().put("chave", "tt:" + l.optInt("i")).put("nome", l.optString("nome")));
                 }
-            });
+                o.put("fonte", "web".equals(Controle.modo) ? (yt ? "youtube" : "site") : "").put("itens", itens)
+                        .put("atual", p.optString("legAtual")).put("traducao", p.optString("legTrad"))
+                        .put("podeBaixar", "web".equals(Controle.modo)).put("podeTraduzir", yt);
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
         }
 
-        /** Baixa o que está tocando no player VLC (só se não for ao vivo). */
+        /** chave: "off", "yt:idioma[:asr]", "tt:índice" ou "vlc:id". */
         @JavascriptInterface
-        public void baixarAtual() {
+        public void escolherLegenda(final String chave, final boolean traduzir) {
             naTela(new Runnable() { public void run() {
-                if (!"vlc".equals(Controle.modo) || !motor.temDuracao()) return;
-                if (!permissaoGravar()) return;
-                String u = motor.url();
-                Baixador.baixar(Principal.this, u, motor.titulo(), motor.agente(), motor.referer(), CookieManager.getInstance().getCookie(u));
-            } });
-        }
-
-        /** Baixa a mídia número i encontrada na página aberta. */
-        @JavascriptInterface
-        public void baixarMidia(final int i) {
-            naTela(new Runnable() { public void run() {
-                if (nav == null) return;
-                String[] m = nav.midia(i);
-                if (m == null || !permissaoGravar()) return;
-                Baixador.baixar(Principal.this, m[0], Navegador.tituloAgora, nav.agente(), m[1], CookieManager.getInstance().getCookie(m[0]));
-            } });
-        }
-
-        /** Baixa o vídeo (com som) ou só o áudio encontrado pelo Extrator. */
-        @JavascriptInterface
-        public void extraBaixar(final String tipo) {
-            naTela(new Runnable() { public void run() {
-                Extrator.Resultado x = extra;
-                if (x == null || !permissaoGravar()) return;
-                String u = "audio".equals(tipo) ? x.audio : (x.video != null ? x.video : x.hls);
-                if (u == null) return;
-                boolean soAudio = "audio".equals(tipo);
-                String ua = soAudio && x.agenteAudio != null ? x.agenteAudio : u.equals(x.hls) && x.agenteHls != null ? x.agenteHls : x.agente;
-                Diagnostico.anotar("Download pedido: " + (soAudio ? "áudio " : "vídeo ") + Diagnostico.curto(u));
-                Baixador.baixar(Principal.this, u, x.titulo + (soAudio ? " (áudio)" : ""), ua, x.referer, null,
-                        soAudio || u.equals(x.hls) ? null : x.audioSeparado);
-            } });
-        }
-
-        /** Toca o áudio do vídeo do YouTube no player VLC (equalizador completo). */
-        @JavascriptInterface
-        public void extraTocar() {
-            naTela(new Runnable() { public void run() {
-                Extrator.Resultado x = extra;
-                if (x == null) return;
-                // Instagram (imagem e som separados): toca os dois; YouTube: só o som, na melhor qualidade.
-                boolean junto = x.audioSeparado != null && x.video != null;
-                String u = junto ? x.video : x.audio != null ? x.audio : x.video != null ? x.video : x.hls;
-                if (u == null) return;
-                if (Controle.modo.equals("web")) Navegador.comandar("pausar");
-                EqSistema.de(Principal.this).soltar();
-                Controle.modo = "vlc";
-                motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
-                String ua = u.equals(x.audio) && x.agenteAudio != null ? x.agenteAudio : u.equals(x.hls) && x.agenteHls != null ? x.agenteHls : x.agente;
-                motor.tocar(u, ua, x.referer, junto ? x.audioSeparado : null);
-                motor.definirTitulo(x.titulo);
-                Servico.iniciar(Principal.this);
-                ajustar();
-            } });
-        }
-
-        /** Copia o diagnóstico para a área de transferência (para colar na conversa de suporte). */
-        @JavascriptInterface
-        public void copiarDiagnostico() {
-            naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 1.4 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
-                ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
-            } });
-        }
-
-        /** Manda o link atual para outro app (ex.: NewPipe ou Seal, para baixar do YouTube). */
-        @JavascriptInterface
-        public void compartilharLink() {
-            naTela(new Runnable() { public void run() {
-                String u = "web".equals(Controle.modo) && nav != null ? nav.getUrl() : motor.url();
-                if (u == null || u.length() == 0) return;
-                Intent i = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, u);
-                startActivity(Intent.createChooser(i, "Enviar o link para…"));
-            } });
-        }
-
-        @JavascriptInterface
-        public void cancelarDownload(int id) { Baixador.cancelar(id); }
-
-        @JavascriptInterface
-        public void limparDownloads() { Baixador.limparConcluidos(); }
-
-        @JavascriptInterface
-        public void abrirDownloads() {
-            naTela(new Runnable() { public void run() {
-                try { startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
-                catch (Exception e) { }
-            } });
-        }
-
-        @JavascriptInterface
-        public void voltarPagina() {
-            naTela(new Runnable() {
-                public void run() {
-                    if (nav == null) return;
-                    motor.parar();
-                    Controle.modo = "web";
-                    Servico.iniciar(Principal.this);
-                    ajustar();
+                if (chave.startsWith("vlc:")) { motor.escolherLegenda(Integer.parseInt(chave.substring(4))); return; }
+                if ("off".equals(chave)) {
+                    if ("vlc".equals(Controle.modo)) motor.escolherLegenda(-1);
+                    else if (Navegador.estadoPagina.optBoolean("yt")) js(nav, Navegador.jsLegendaYoutube("", false, ""));
+                    else js(nav, Navegador.jsLegendaFaixa(-1));
+                    return;
                 }
-            });
+                if (chave.startsWith("tt:")) { js(nav, Navegador.jsLegendaFaixa(Integer.parseInt(chave.substring(3)))); return; }
+                if (chave.startsWith("yt:")) {
+                    String[] p = chave.substring(3).split(":");
+                    final String c = Navegador.jsLegendaYoutube(p[0], p.length > 1, traduzir ? "pt" : "");
+                    js(nav, c);
+                    // Na primeira vez o módulo de legendas ainda está carregando: repete logo depois.
+                    h.postDelayed(new Runnable() { public void run() { js(nav, c); } }, 800);
+                }
+            } });
         }
 
         @JavascriptInterface
-        public void expandir(final boolean e) {
-            naTela(new Runnable() { public void run() { expandido = e; ajustar(); } });
+        public void baixarLegenda(final String chave, final boolean traduzir) {
+            naTela(new Runnable() { public void run() { Principal.this.baixarLegenda(chave, traduzir); } });
+        }
+
+        @JavascriptInterface
+        public void abrirLegendaSalva() {
+            naTela(new Runnable() { public void run() {
+                Uri u = Arquivos.ultimo;
+                if (u == null) return;
+                try {
+                    startActivity(Intent.createChooser(new Intent(Intent.ACTION_VIEW).setDataAndType(u, "text/plain")
+                            .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION), "Abrir a legenda com…"));
+                } catch (Exception e) { avisar("Nenhum app para abrir texto foi encontrado."); }
+            } });
+        }
+
+        @JavascriptInterface
+        public String qualidades() {
+            try {
+                JSONObject o = new JSONObject();
+                JSONArray itens = new JSONArray();
+                if ("vlc".equals(Controle.modo)) {
+                    itens.put(new JSONObject().put("chave", "max").put("nome", "Máxima"));
+                    itens.put(new JSONObject().put("chave", "auto").put("nome", "Automática (conforme a conexão)"));
+                    o.put("fonte", "vlc").put("atual", motor.qualidadeMaxima() ? "max" : "auto");
+                } else {
+                    JSONObject p = Navegador.estadoPagina;
+                    o.put("fonte", p.optBoolean("yt") ? "youtube" : "site");
+                    if (p.optBoolean("yt")) {
+                        itens.put(new JSONObject().put("chave", "max").put("nome", "Máxima disponível"));
+                        itens.put(new JSONObject().put("chave", "auto").put("nome", "Automática (conforme a conexão)"));
+                        JSONArray qs = p.optJSONArray("qs");
+                        if (qs != null) for (int i = 0; i < qs.length(); i++) {
+                            String q = qs.optString(i);
+                            if (!"auto".equals(q)) itens.put(new JSONObject().put("chave", q).put("nome", nomeQualidade(q)));
+                        }
+                        o.put("emUso", nomeQualidade(p.optString("q")));
+                    }
+                    o.put("atual", ajustes.getString("qualidade", "max"));
+                    o.put("computador", nav != null && nav.computador());
+                }
+                return o.put("itens", itens).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void escolherQualidade(final String q) {
+            naTela(new Runnable() { public void run() {
+                if ("vlc".equals(Controle.modo)) { motor.definirQualidadeMaxima("max".equals(q)); return; }
+                ajustes.edit().putString("qualidade", q).apply();
+                if (nav != null) nav.definirQualidade(q);
+            } });
+        }
+
+        @JavascriptInterface
+        public void modoComputador(final boolean sim) {
+            naTela(new Runnable() { public void run() {
+                ajustes.edit().putBoolean("computador", sim).apply();
+                if (nav != null) nav.definirComputador(sim);
+            } });
         }
 
         @JavascriptInterface
@@ -607,6 +721,15 @@ public class Principal extends Activity {
             naTela(new Runnable() { public void run() {
                 try { startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); }
                 catch (Exception e) { try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (Exception x) { } }
+            } });
+        }
+
+        /** Copia o diagnóstico para a área de transferência (para colar na conversa de suporte). */
+        @JavascriptInterface
+        public void copiarDiagnostico() {
+            naTela(new Runnable() { public void run() {
+                String t = Diagnostico.texto() + "\nVersão: 2.0 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
     }
