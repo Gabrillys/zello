@@ -5,7 +5,10 @@ import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.media.AudioFocusRequest;
 import android.media.AudioManager;
+import android.database.Cursor;
 import android.net.Uri;
+import android.os.ParcelFileDescriptor;
+import android.provider.OpenableColumns;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -52,6 +55,11 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     private boolean querTocando, pausadoPorFoco, jaTocou;
     private int tentativas;
     private boolean eqLigado;
+    /** Arquivo do aparelho (content://) aberto pelo seletor: o VLC lê pelo descritor. */
+    private ParcelFileDescriptor arquivo;
+    /** Tamanho do vídeo informado pelo VLC, para a tela não esticar (vídeo em pé, 4:3, 21:9…). */
+    private volatile int vLarg, vAlt, visLarg, visAlt, sarNum = 1, sarDen = 1;
+    private Runnable aoMudarLayout, aoTerminar;
     private int preset;
     private SurfaceView superficie;
     /** Streams adaptativos (m3u8/DASH): sempre a maior qualidade, em vez de variar com a conexão. */
@@ -101,7 +109,21 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     }
 
     private void iniciarMidia() {
-        Media m = new Media(vlc, Uri.parse(url));
+        Media m;
+        if (url.startsWith("content://")) {
+            try {
+                if (arquivo != null) arquivo.close();
+                Uri u = Uri.parse(url);
+                arquivo = ctx.getContentResolver().openFileDescriptor(u, "r");
+                m = new Media(vlc, arquivo.getFileDescriptor());
+                if (tituloFixo == null) tituloFixo = nomeArquivo(ctx, u);
+            } catch (Exception e) {
+                Diagnostico.anotar("VLC: não abri o arquivo: " + e);
+                situacao = "erro";
+                querTocando = false;
+                return;
+            }
+        } else m = new Media(vlc, Uri.parse(url));
         m.setHWDecoderEnabled(true, false);
         if (ua != null && ua.length() > 0) m.addOption(":http-user-agent=" + ua);
         if (referer != null && referer.length() > 0) m.addOption(":http-referrer=" + referer);
@@ -115,6 +137,40 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         pedirFoco();
         mp.play();
         Servico.atualizar(ctx);
+    }
+
+    /** Nome do arquivo escolhido no aparelho (para o título). */
+    static String nomeArquivo(Context c, Uri u) {
+        Cursor k = null;
+        try {
+            k = c.getContentResolver().query(u, new String[] { OpenableColumns.DISPLAY_NAME }, null, null, null);
+            if (k != null && k.moveToFirst()) return k.getString(0);
+        } catch (Exception e) { } finally { if (k != null) k.close(); }
+        String s = u.getLastPathSegment();
+        return s == null ? "Arquivo" : s;
+    }
+
+    public void aoMudarLayout(Runnable r) { aoMudarLayout = r; }
+    /** Chamado quando um arquivo/música chega ao fim (para tocar o próximo da lista). */
+    public void aoTerminar(Runnable r) { aoTerminar = r; }
+
+    /** Mostra uma legenda gerada (arquivo .srt) junto com o vídeo que está tocando. */
+    public boolean adicionarLegenda(String arquivoSrt) {
+        try { return mp.addSlave(IMedia.Slave.Type.Subtitle, Uri.fromFile(new java.io.File(arquivoSrt)), true); }
+        catch (Exception e) { return false; }
+    }
+
+    /**
+     * Tamanho da superfície para o vídeo caber inteiro na área, sem esticar (barras pretas onde sobrar).
+     * Devolve null enquanto o VLC ainda não informou o tamanho do vídeo.
+     */
+    public int[] encaixar(int areaLarg, int areaAlt) {
+        if (vLarg * vAlt == 0 || visLarg * visAlt == 0 || areaLarg * areaAlt == 0) return null;
+        double larguraVisivel = visLarg * (sarDen > 0 ? (double) sarNum / sarDen : 1.0);
+        double prop = larguraVisivel / visAlt;
+        double w = areaLarg, hh = areaAlt;
+        if (w / hh < prop) hh = w / prop; else w = hh * prop;
+        return new int[] { (int) Math.ceil(w * vLarg / visLarg), (int) Math.ceil(hh * vAlt / visAlt) };
     }
 
     public void tocarPausar() {
@@ -222,7 +278,12 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         if (vo.areViewsAttached()) vo.detachViews();
         vo.setVideoView(sv);
         if (legendas != null) vo.setSubtitlesView(legendas);
-        vo.attachViews();
+        vo.attachViews(new IVLCVout.OnNewVideoLayoutListener() {
+            @Override public void onNewVideoLayout(IVLCVout v, int w, int hh, int vw, int vh, int sn, int sd) {
+                vLarg = w; vAlt = hh; visLarg = vw; visAlt = vh; sarNum = sn; sarDen = sd;
+                if (aoMudarLayout != null) h.post(aoMudarLayout);
+            }
+        });
         if (largura > 0 && altura > 0) vo.setWindowSize(largura, altura);
         mp.setVideoTrackEnabled(true);
     }
@@ -283,6 +344,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
                     situacao = e.type == MediaPlayer.Event.EncounteredError ? "erro" : "parado";
                     querTocando = false;
                     Servico.atualizar(ctx);
+                    if (aoTerminar != null) h.post(aoTerminar);
                 }
                 break;
             case MediaPlayer.Event.Stopped:

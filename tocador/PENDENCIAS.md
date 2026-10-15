@@ -26,3 +26,17 @@ Não deu para testar aqui, porque a rede do ambiente bloqueia huggingface.co, sp
 3. voz neural de verdade e tradução de verdade;
 4. velocidade do Whisper no Snapdragon 8 Gen 1.
 Se algo falhar, o usuário vai mandar o texto de **Copiar diagnóstico**. As linhas que começam com `Whisper`, `Voz neural`, `Tradução`, `Ouvir o vídeo` e `Dublagem` dizem o que aconteceu.
+
+## Versão 3.0: falta testar no celular
+
+Testado aqui no computador:
+- leitor de listas (M3U de IPTV com vírgula no nome, grupos e logotipos, PLS, lista simples, endereços relativos, transmissão × lista, estilos, busca sem acento, grupos, salvar e recarregar);
+- legenda .srt (horários e quebra de linha) e conversão 48 kHz → 16 kHz;
+- script de bloqueio de anúncios no Chromium: lista de anúncios apagada (JSON.parse, fetch e ytInitialPlayerResponse), anúncio mudo, adiantado e "Pular" tocado, som de volta depois, banners escondidos;
+- telas no Chromium em retrato, paisagem e barra compacta, sem nenhum elemento passando da largura da tela.
+
+Falta no celular:
+- vídeo em pé sem esticar (encaixe pelo tamanho que o VLC informa) e arquivos do aparelho (content://) no VLC;
+- legendador: decodificação com o MediaCodec e desempenho do Whisper;
+- bloqueio de anúncios no YouTube real (script de início do WebView) e o contador;
+- recorte da câmera na horizontal (agora o app nunca desenha embaixo dele fora da tela cheia).

@@ -2,40 +2,46 @@
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Tocador</title>
 <style>
-:root{--fundo:#0B0D12;--sup:#13161D;--sup2:#1A1E27;--sup3:#232836;--linha:#262C3A;--texto:#EEF1F6;--suave:#98A2B3;--fraco:#667085;--cor:#F5A524;--cor2:#FFCB6B;--corTx:#1A1200;--verde:#3DD68C;--verm:#FF6B6B;--raio:16px}
+:root{--fundo:#08090D;--sup:#12141B;--sup2:#1A1D27;--sup3:#252A37;--linha:#242937;--brilho:rgba(255,203,107,.10);--texto:#EEF1F6;--suave:#98A2B3;--fraco:#667085;--cor:#F5A524;--cor2:#FFCB6B;--corTx:#1A1200;--verde:#3DD68C;--verm:#FF6B6B;--raio:16px}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-user-select:none;user-select:none}
-body{padding:14px 16px 28px;overflow-x:hidden}
+body{padding:14px max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left));overflow-x:hidden;
+ background:radial-gradient(120% 60% at 50% -10%,rgba(245,165,36,.13),transparent 60%),var(--fundo);background-attachment:fixed;-webkit-font-smoothing:antialiased}
+#completo{max-width:1180px;margin:0 auto}
 svg{width:22px;height:22px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-button{font:inherit;font-weight:600;color:var(--texto);background:var(--sup2);border:0;border-radius:12px;padding:12px 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .08s,background .15s}
+button{font:inherit;font-weight:650;color:var(--texto);background:var(--sup2);border:0;border-radius:13px;padding:12px 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+button>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
 button:active{transform:scale(.96)}
-button.pri{background:var(--cor);color:var(--corTx)}
+button.pri{background:linear-gradient(180deg,#FFC14D,var(--cor));color:var(--corTx);box-shadow:0 6px 18px rgba(245,165,36,.25),inset 0 1px 0 rgba(255,255,255,.35)}
 button.fant{background:transparent}
 button.ic{width:44px;height:44px;padding:0;border-radius:50%}
 .oculto{display:none!important}
-.topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px}
-.marca{display:flex;align-items:center;gap:10px;font-weight:800;font-size:20px;letter-spacing:.2px}
-.marca i{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--cor2),var(--cor));display:flex;align-items:center;justify-content:center;color:var(--corTx)}
+.topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;min-width:0}
+.marca{display:flex;align-items:center;gap:10px;font-weight:850;font-size:21px;letter-spacing:-.2px;white-space:nowrap;min-width:0}
+.marca em{font-style:normal;font-size:10px;font-weight:800;letter-spacing:1.2px;color:var(--corTx);background:linear-gradient(135deg,var(--cor2),var(--cor));padding:3px 6px;border-radius:6px;margin-left:2px}
+.marca i{width:32px;height:32px;border-radius:10px;box-shadow:0 4px 14px rgba(245,165,36,.35);flex:0 0 32px;background:linear-gradient(135deg,var(--cor2),var(--cor));display:flex;align-items:center;justify-content:center;color:var(--corTx)}
 .marca i svg{width:16px;height:16px;fill:currentColor;stroke:none}
-.chip{font-size:12.5px;font-weight:600;padding:5px 10px;border-radius:99px;background:var(--sup2);color:var(--suave);white-space:nowrap}
+.chip{font-size:12.5px;font-weight:650;padding:5px 10px;border-radius:99px;background:var(--sup2);color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
 .chip.on{background:rgba(61,214,140,.14);color:var(--verde)}
-.cartao{background:var(--sup);border:1px solid var(--linha);border-radius:var(--raio);padding:16px;margin:12px 0}
-h2{font-size:12px;margin:0 0 10px;color:var(--fraco);font-weight:700;text-transform:uppercase;letter-spacing:1px}
-.grande{font-size:21px;font-weight:800;margin:0 0 12px;letter-spacing:.1px}
+.cartao{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--sup);border:1px solid var(--linha);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 10px 30px rgba(0,0,0,.25);min-width:0}
+h2{font-size:11.5px;margin:0 0 10px;color:var(--fraco);font-weight:750;text-transform:uppercase;letter-spacing:1.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cab2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.cab2 h2{margin:0}
+.cab2 button{padding:7px 12px;font-size:13px;border-radius:99px}
+.grande{font-size:22px;font-weight:850;margin:0 0 12px;letter-spacing:-.3px}
 textarea{width:100%;min-height:58px;resize:none;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;font:inherit;font-size:15.5px;-webkit-user-select:text;user-select:text}
 textarea:focus{outline:none;border-color:var(--cor)}
 .linha{display:flex;gap:10px;align-items:center}
-.linha>*{flex:1}
+.linha>*{flex:1;min-width:0}
 .mt{margin-top:10px}
 .pilulas{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;font-size:13px;color:var(--fraco)}
 .pilulas button{font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px;background:var(--sup2)}
-.atalhos{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.atalhos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
 .atalho{flex-direction:column;gap:6px;padding:12px 4px;font-size:12.5px;font-weight:600;color:var(--suave);background:var(--sup2);border-radius:14px}
 .atalho b{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
-.lista-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--linha)}
+.lista-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--linha);min-width:0}
 .lista-item:first-child{border-top:0}
 .lista-item .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave);font-size:14px}
 .vazio{color:var(--fraco);font-size:14px}
@@ -47,7 +53,7 @@ details li{margin:6px 0}
 .fonte{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--suave);background:var(--sup2);padding:4px 10px;border-radius:99px;margin-bottom:10px}
 .fonte i{width:8px;height:8px;border-radius:50%;background:var(--fraco)}
 .fonte.on i{background:var(--verde);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
-.titulo{font-size:19px;font-weight:800;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.titulo{font-size:19px;font-weight:800;letter-spacing:-.2px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
 .sit{color:var(--suave);font-size:14px;margin-top:4px}
 .progresso{margin-top:14px}
 input[type=range]{width:100%;accent-color:var(--cor);height:28px;margin:0}
@@ -58,17 +64,20 @@ input[type=range]{width:100%;accent-color:var(--cor);height:28px;margin:0}
 .transporte .play{width:72px;height:72px;background:var(--cor);color:var(--corTx)}
 .transporte .play svg{width:32px;height:32px}
 .transporte button:disabled{opacity:.35}
-.grade{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px}
+.grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
 .acao{flex-direction:column;gap:6px;padding:14px 4px;font-size:13px;font-weight:600;color:var(--suave);border-radius:14px}
 .acao svg{color:var(--texto)}
 .acao:disabled{opacity:.35}
 .vol{display:flex;align-items:center;gap:10px;margin-top:12px;color:var(--suave);font-size:13px}
 /* barra compacta */
 #compacto{display:none}
-body.compacto{padding:8px 12px}
+body.compacto{padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));overflow:hidden}
 body.compacto #completo{display:none}
 body.compacto #compacto{display:flex;align-items:center;gap:8px;height:100%}
-#compacto .info{flex:1;min-width:0}
+#compacto .info{flex:1;min-width:0;overflow:hidden}
+#compacto .titulo{display:block;white-space:nowrap;text-overflow:ellipsis}
+#compacto .sit{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#compacto .ic{flex:0 0 42px}
 #compacto .titulo{font-size:14.5px;-webkit-line-clamp:1}
 #compacto .sit{font-size:12.5px;margin-top:0}
 #compacto .ic{width:42px;height:42px;background:var(--sup2)}
@@ -76,12 +85,13 @@ body.compacto #compacto{display:flex;align-items:center;gap:8px;height:100%}
 /* gaveta (bottom sheet) */
 #veu{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:5}
 #veu.on{opacity:1;pointer-events:auto}
-#gaveta{position:fixed;left:0;right:0;bottom:0;max-height:92%;overflow:auto;background:var(--sup);border-top:1px solid var(--linha);border-radius:20px 20px 0 0;padding:8px 16px 22px;transform:translateY(105%);transition:transform .22s ease;z-index:6}
+#gaveta{position:fixed;left:0;right:0;bottom:0;max-height:92%;max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left))!important;padding-right:max(16px,env(safe-area-inset-right))!important;box-shadow:0 -12px 40px rgba(0,0,0,.45);overflow:auto;background:var(--sup);border-top:1px solid var(--linha);border-radius:20px 20px 0 0;padding:8px 16px 22px;transform:translateY(105%);transition:transform .22s ease;z-index:6}
 #gaveta.on{transform:none}
 #gaveta .alca{width:40px;height:4px;border-radius:2px;background:var(--sup3);margin:4px auto 10px}
 #gaveta .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-#gaveta .cab b{font-size:17px}
-.opcao{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 14px;margin:6px 0;background:var(--sup2);border-radius:12px;font-weight:600;text-align:left}
+#gaveta .cab b{font-size:18px;font-weight:800;letter-spacing:-.2px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.opcao{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 14px;margin:6px 0;background:var(--sup2);border-radius:12px;font-weight:600;text-align:left;white-space:normal}
+.opcao span{flex:1}
 .opcao.sel{background:rgba(245,165,36,.14);color:var(--cor2);box-shadow:inset 0 0 0 1.5px var(--cor)}
 .opcao .marc{width:18px;height:18px;border-radius:50%;border:2px solid var(--fraco);flex:0 0 18px}
 .opcao.sel .marc{border-color:var(--cor);background:radial-gradient(var(--cor) 45%,transparent 50%)}
@@ -111,8 +121,41 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
 .banda .hz{font-size:10.5px;color:var(--fraco);margin-top:6px;white-space:nowrap}
 .desligado .trilho .cheio{background:var(--sup3)}
 .desligado .trilho .bola{background:var(--fraco);box-shadow:none}
-#toast{position:fixed;left:14px;right:14px;bottom:16px;background:#2A3140;color:var(--texto);padding:12px 14px;border-radius:12px;font-size:14.5px;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#toast{position:fixed;left:14px;right:14px;max-width:560px;margin:0 auto;bottom:16px;background:#2A3140;color:var(--texto);padding:12px 14px;border-radius:12px;font-size:14.5px;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.4)}
 #toast.on{opacity:1;transform:none}
+/* biblioteca de listas, arquivos, ajustes */
+.acoes-inicio{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
+.acoes-inicio button{justify-content:flex-start;padding:12px;font-size:14px}
+.acoes-inicio svg{color:var(--cor2)}
+.lst{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;margin:4px 0;background:var(--sup2);border-radius:14px;text-align:left;white-space:normal}
+.lst .ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:0 0 40px;color:#fff;font-size:18px}
+.lst .txt{flex:1;min-width:0}
+.lst .txt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
+.lst .txt small{display:block;color:var(--fraco);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.lst img{width:40px;height:40px;border-radius:10px;object-fit:contain;background:#0d0f14;flex:0 0 40px}
+.t-musica{background:linear-gradient(135deg,#FF5E8A,#B23A9B)}.t-radio{background:linear-gradient(135deg,#FFB547,#F06A2B)}
+.t-tv{background:linear-gradient(135deg,#4F8BFF,#3A4FD8)}.t-camera{background:linear-gradient(135deg,#3DD68C,#17936A)}.t-outro{background:linear-gradient(135deg,#8C97AB,#4A5366)}
+input.campo{width:100%;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;-webkit-user-select:text;user-select:text;margin:6px 0}
+input.campo:focus{outline:none;border-color:var(--cor)}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
+.chips button{padding:7px 12px;border-radius:99px;font-size:13px;background:var(--sup2)}
+.chips button.sel{background:rgba(245,165,36,.16);color:var(--cor2);box-shadow:inset 0 0 0 1.5px var(--cor)}
+.grupos{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:6px 0;scrollbar-width:none}
+.grupos::-webkit-scrollbar{display:none}
+.grupos button{flex:0 0 auto;padding:7px 12px;border-radius:99px;font-size:13px}
+.grupos button.sel{background:var(--cor);color:var(--corTx)}
+.fila{display:flex;align-items:center;gap:8px;margin-top:12px;padding:8px 10px;background:var(--sup2);border-radius:14px;min-width:0}
+.fila .txt{flex:1;min-width:0;font-size:13px;color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fila button{width:40px;height:40px;padding:0;border-radius:50%;flex:0 0 40px;background:var(--sup3)}
+.selo{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--verde);background:rgba(61,214,140,.12);padding:4px 9px;border-radius:99px}
+.menu-lista{display:flex;gap:8px;margin:4px 0 10px}
+.menu-lista button{flex:1;padding:9px;font-size:13px}
+@media (orientation:landscape) and (min-width:720px){
+ #inicio{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0 14px;align-items:start}
+ #inicio>.cartao{margin:6px 0}
+ #inicio>.cartao:first-child{grid-row:span 2}
+ #player .cartao{max-width:760px;margin-left:auto;margin-right:auto}
+}
 </style>
 </head>
 <body>
@@ -127,7 +170,7 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
 
 <div id="completo">
   <div class="topo">
-    <div class="marca"><i id="logo"></i>Tocador</div>
+    <div class="marca"><i id="logo"></i><span>Tocador</span><em>PRO</em></div>
     <div class="linha" style="flex:0 0 auto;gap:8px">
       <span class="chip" id="chip">pronto</span>
       <button class="ic fant oculto" id="recolher" aria-label="Recolher painel"></button>
@@ -144,6 +187,15 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
         <button class="pri" id="tocar"></button>
       </div>
       <div class="pilulas">Abrir como: <button id="forcarWeb">Site</button><button id="forcarVlc">Player VLC</button></div>
+      <div class="acoes-inicio">
+        <button id="abrirArq"></button>
+        <button id="novaLista"></button>
+      </div>
+    </div>
+
+    <div class="cartao">
+      <div class="cab2"><h2>Biblioteca</h2><button id="novaLista2">+ Importar</button></div>
+      <div id="biblioteca"><div class="vazio">Importe listas .m3u, .m3u8 ou .pls da internet ou do aparelho: músicas, rádios, TVs, câmeras…</div></div>
     </div>
 
     <div class="cartao">
@@ -169,6 +221,11 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
         <div class="linha mt"><button id="bateria">Ajuste de bateria</button><button id="diag">Copiar diagnóstico</button></div>
       </details>
     </div>
+
+    <div class="cartao">
+      <h2>Ajustes</h2>
+      <div class="chave-linha" style="padding-top:2px"><span>Bloquear anúncios<br><small style="color:var(--fraco);font-weight:400" id="adInfo">YouTube e outros sites</small></span><label class="chave"><input type="checkbox" id="adChk"><span></span></label></div>
+    </div>
   </section>
 
   <!-- tela do player -->
@@ -186,6 +243,7 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
         <button class="ic play" id="tp" aria-label="Tocar ou pausar"></button>
         <button class="ic" id="avancar10" aria-label="Avançar 10 segundos"></button>
       </div>
+      <div class="fila oculto" id="filaBox"><button id="filaAnt" aria-label="Anterior"></button><div class="txt" id="filaTxt"></div><button id="filaProx" aria-label="Próximo"></button></div>
       <div class="vol oculto" id="volBox"><span>Volume</span><input type="range" id="vol" min="0" max="200" value="100"><span id="volTxt" style="min-width:42px;text-align:right">100%</span></div>
       <div class="grade">
         <button class="acao" id="aCheio"><span></span>Tela cheia</button>
@@ -230,7 +288,17 @@ var IC={
  fechar:'<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>',
  colar:'<svg viewBox="0 0 24 24"><rect x="6" y="4.5" width="12" height="16" rx="2"/><path d="M9.5 4.5h5v3h-5z"/></svg>',
  baixar:'<svg viewBox="0 0 24 24"><path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14"/></svg>',
- logo:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg>'
+ logo:'<svg viewBox="0 0 24 24"><path d="M8 5.5v13l10.5-6.5z"/></svg>',
+ pasta:'<svg viewBox="0 0 24 24"><path d="M3.5 7.5a2 2 0 0 1 2-2h4l2 2h7a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg>',
+ lista:'<svg viewBox="0 0 24 24"><path d="M4 6h12M4 11h12M4 16h7"/><path d="M15 14.5v5.5l4.5-2.75z" fill="currentColor"/></svg>',
+ ant:'<svg viewBox="0 0 24 24"><path d="M7 6v12" /><path d="M18 6.5v11L9.5 12z" fill="currentColor" stroke="none"/></svg>',
+ prox:'<svg viewBox="0 0 24 24"><path d="M17 6v12" /><path d="M6 6.5v11l8.5-5.5z" fill="currentColor" stroke="none"/></svg>',
+ musica:'<svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
+ radio:'<svg viewBox="0 0 24 24"><rect x="3" y="8" width="18" height="12" rx="2.5"/><path d="M7 8l9-4"/><circle cx="15.5" cy="14" r="2.5"/><path d="M6.5 12.5h3M6.5 15.5h3"/></svg>',
+ tv:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M8 21h8M9 3l3 3 3-3"/></svg>',
+ camera:'<svg viewBox="0 0 24 24"><path d="M3.5 9.5l13-4 2 6-13 4z"/><path d="M7 15l1 5h3M18.5 11.5l2-.6"/></svg>',
+ outro:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>',
+ escudo:'<svg viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M8.8 12l2.2 2.2 4.4-4.4"/></svg>'
 };
 function icone(el,nome,texto){ el.innerHTML=IC[nome]+(texto?'<span>'+texto+'</span>':''); }
 $('logo').innerHTML=IC.logo;
@@ -239,6 +307,8 @@ icone($('voltar10'),'voltar'); icone($('avancar10'),'avancar');
 icone($('cCheio'),'cheio'); icone($('cLeg'),'cc'); icone($('cMais'),'cima'); icone($('recolher'),'baixo'); icone($('gFechar'),'fechar');
 [['aCheio','cheio'],['aLeg','cc'],['aQual','hd'],['aEq','eq'],['aLink','link'],['aParar','parar']].forEach(function(p){ $(p[0]).firstChild.outerHTML=IC[p[1]]; });
 $('setaDicas').innerHTML=IC.baixo;
+icone($('abrirArq'),'pasta','Abrir arquivo'); icone($('novaLista'),'lista','Importar lista');
+icone($('filaAnt'),'ant'); icone($('filaProx'),'prox');
 
 // ------------------------------------------------ atalhos e recentes
 var ATALHOS=[['YouTube','#FF0033','▶','https://m.youtube.com/'],['Vimeo','#1AB7EA','v','https://vimeo.com/'],['Dailymotion','#0A3FFF','d','https://www.dailymotion.com/'],['Twitch','#9146FF','t','https://m.twitch.tv/']];
@@ -248,9 +318,77 @@ function lerRecentes(){ try{ return JSON.parse(localStorage.getItem('recentes')|
 function guardarRecente(u){ var r=lerRecentes().filter(function(x){return x!==u;}); r.unshift(u); try{ localStorage.setItem('recentes',JSON.stringify(r.slice(0,10))); }catch(e){} mostrarRecentes(); }
 function mostrarRecentes(){
   var r=lerRecentes(); if(!r.length) return;
-  $('recentes').innerHTML=r.map(function(u,i){return '<div class="lista-item"><span class="u">'+esc(u.replace(/^https?:\/\/(www\.|m\.)?/,''))+'</span><button class="ic" data-i="'+i+'" aria-label="Tocar">'+IC.play+'</button></div>';}).join('');
-  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ $('link').value=lerRecentes()[+b.dataset.i]; abrir('auto'); }; });
+  $('recentes').innerHTML=r.map(function(u,i){return '<div class="lista-item"><span class="u">'+esc(/^content:/.test(u)?'Arquivo do aparelho · '+decodeURIComponent(u.split('%2F').pop().split('/').pop()):u.replace(/^https?:\/\/(www\.|m\.)?/,''))+'</span><button class="ic" data-i="'+i+'" aria-label="Tocar">'+IC.play+'</button></div>';}).join('');
+  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ var u=lerRecentes()[+b.dataset.i]; if(/^content:/.test(u)){ mostrarInicio=false; T&&T.abrir(u,'vlc'); } else { $('link').value=u; abrir('auto'); } }; });
 }
+window.guardarRecente=guardarRecente;
+
+// ------------------------------------------------ biblioteca (listas m3u/m3u8/pls)
+var TIPOS_LISTA=[['musica','Músicas'],['radio','Rádios'],['tv','TVs'],['camera','Câmeras'],['outro','Outros']];
+function nomeTipo(t){ for(var i=0;i<TIPOS_LISTA.length;i++) if(TIPOS_LISTA[i][0]===t) return TIPOS_LISTA[i][1]; return 'Outros'; }
+function mostrarBiblioteca(){
+  if(!T) return; var B; try{ B=JSON.parse(T.listas()); }catch(x){ return; }
+  var ls=B.listas||[];
+  if(!ls.length){ $('biblioteca').innerHTML='<div class="vazio">Importe listas .m3u, .m3u8 ou .pls da internet ou do aparelho: músicas, rádios, TVs, câmeras…</div>'; return; }
+  $('biblioteca').innerHTML=ls.map(function(l){ return '<button class="lst" data-id="'+esc(l.id)+'"><span class="ico t-'+esc(l.tipo)+'">'+(IC[l.tipo]||IC.outro)+'</span><span class="txt"><b>'+esc(l.nome)+'</b><small>'+nomeTipo(l.tipo)+' · '+l.n+' itens</small></span></button>'; }).join('');
+  [].forEach.call($('biblioteca').querySelectorAll('.lst'),function(b){ b.onclick=function(){ abrirLista(b.dataset.id); }; });
+}
+window.listaImportada=function(id){ mostrarBiblioteca(); if(gavetaAberta==='importar') abrirLista(id); };
+function abrirImportar(){
+  var tipo='auto';
+  abrirGaveta('importar','Importar lista','<div class="nota" style="margin-top:0">Listas M3U, M3U8 (inclusive de IPTV, com logotipos e grupos) e PLS.</div>'+
+    '<input class="campo" id="impUrl" placeholder="Endereço da lista (http…)" autocapitalize="off" autocorrect="off" spellcheck="false">'+
+    '<input class="campo" id="impNome" placeholder="Nome (opcional)">'+
+    '<h2 style="margin-top:12px">Estilo</h2><div class="chips" id="impTipo">'+[['auto','Automático']].concat(TIPOS_LISTA).map(function(t){ return '<button data-t="'+t[0]+'"'+(t[0]==='auto'?' class="sel"':'')+'>'+t[1]+'</button>'; }).join('')+'</div>'+
+    '<div class="nota">Em listas de <b>Músicas</b>, as faixas tocam em sequência. Rádios, TVs e câmeras tocam uma de cada vez.</div>'+
+    '<div class="linha mt"><button id="impArq">'+IC.pasta+'<span>Do aparelho</span></button><button class="pri" id="impOk">'+IC.baixar+'<span>Importar link</span></button></div>');
+  [].forEach.call($('impTipo').children,function(b){ b.onclick=function(){ tipo=b.dataset.t; [].forEach.call($('impTipo').children,function(x){ x.classList.toggle('sel',x===b); }); }; });
+  $('impOk').onclick=function(){ var u=$('impUrl').value.trim(); if(!u){ var c=T.colar(); if(c){ $('impUrl').value=c; u=c; } } if(!u){ $('impUrl').focus(); return; } avisar('Baixando a lista…'); T.importarLista(u,$('impNome').value,tipo); };
+  $('impArq').onclick=function(){ T.importarListaArquivo(tipo); };
+}
+var listaAtual=null, listaFiltro='', listaGrupo='', listaInicio=0, tFiltro;
+function abrirLista(id){
+  listaAtual=id; listaFiltro=''; listaGrupo=''; listaInicio=0;
+  abrirGaveta('lista','Lista','<input class="campo" id="lstBusca" placeholder="Buscar…" autocapitalize="off" autocorrect="off" spellcheck="false">'+
+    '<div class="grupos" id="lstGrupos"></div><div id="lstItens"></div><button id="lstMais" class="oculto" style="width:100%;margin-top:6px">Mostrar mais</button>'+
+    '<details class="mais"><summary>Gerenciar lista</summary><input class="campo" id="lstNome"><div class="chips" id="lstTipo"></div>'+
+    '<div class="menu-lista"><button id="lstSalvar">Salvar</button><button id="lstAtualizar">Atualizar</button><button id="lstApagar" style="color:var(--verm)">Apagar</button></div></details>');
+  $('lstBusca').oninput=function(){ clearTimeout(tFiltro); var v=this.value; tFiltro=setTimeout(function(){ listaFiltro=v; listaInicio=0; carregarItens(false); },200); };
+  $('lstMais').onclick=function(){ listaInicio+=120; carregarItens(true); };
+  $('lstApagar').onclick=function(){ if(!confirm('Apagar esta lista?')) return; T.apagarLista(listaAtual); fecharGaveta(); mostrarBiblioteca(); };
+  $('lstAtualizar').onclick=function(){ avisar('Atualizando a lista…'); T.atualizarLista(listaAtual); };
+  carregarItens(false);
+}
+function carregarItens(somar){
+  var R; try{ R=JSON.parse(T.itensLista(listaAtual,listaFiltro,listaGrupo,listaInicio)); }catch(x){ return; }
+  if(!R.id) return;
+  $('gTitulo').textContent=R.nome;
+  if(!somar){
+    $('lstNome').value=R.nome;
+    $('lstTipo').innerHTML=TIPOS_LISTA.map(function(t){ return '<button data-t="'+t[0]+'"'+(t[0]===R.tipo?' class="sel"':'')+'>'+t[1]+'</button>'; }).join('');
+    [].forEach.call($('lstTipo').children,function(b){ b.onclick=function(){ [].forEach.call($('lstTipo').children,function(x){ x.classList.toggle('sel',x===b); }); }; });
+    $('lstSalvar').onclick=function(){ var sel=$('lstTipo').querySelector('.sel'); T.editarLista(listaAtual,$('lstNome').value,sel?sel.dataset.t:''); mostrarBiblioteca(); avisar('Lista salva.'); carregarItens(false); };
+    var gs=R.grupos||[];
+    $('lstGrupos').innerHTML=gs.length?['<button data-g=""'+(listaGrupo?'':' class="sel"')+'>Todos · '+R.todos+'</button>'].concat(gs.map(function(g){ return '<button data-g="'+esc(g.nome)+'"'+(g.nome===listaGrupo?' class="sel"':'')+'>'+esc(g.nome)+' · '+g.n+'</button>'; })).join(''):'';
+    [].forEach.call($('lstGrupos').children,function(b){ b.onclick=function(){ listaGrupo=b.dataset.g; listaInicio=0; carregarItens(false); }; });
+  }
+  var html=(R.itens||[]).map(function(it){
+    var ico=it.logo?'<img loading="lazy" src="'+esc(it.logo)+'" onerror="this.style.visibility=\'hidden\'">':'<span class="ico t-'+esc(R.tipo)+'">'+(IC[R.tipo]||IC.outro)+'</span>';
+    return '<button class="lst" data-i="'+it.i+'">'+ico+'<span class="txt"><b>'+esc(it.nome)+'</b><small>'+esc(it.grupo||it.url)+'</small></span></button>'; }).join('');
+  if(somar) $('lstItens').insertAdjacentHTML('beforeend',html); else $('lstItens').innerHTML=html||'<div class="vazio">Nada encontrado.</div>';
+  [].forEach.call($('lstItens').querySelectorAll('.lst:not([data-ok])'),function(b){ b.setAttribute('data-ok','1'); b.onclick=function(){ T.tocarItem(listaAtual,+b.dataset.i); fecharGaveta(); mostrarInicio=false; }; });
+  $('lstMais').classList.toggle('oculto',listaInicio+120>=R.total);
+}
+$('novaLista').onclick=$('novaLista2').onclick=abrirImportar;
+$('abrirArq').onclick=function(){ T&&T.abrirArquivo(); };
+$('filaAnt').onclick=function(){ T&&T.pularNaFila(-1); };
+$('filaProx').onclick=function(){ T&&T.pularNaFila(1); };
+
+// ------------------------------------------------ anúncios
+function mostrarAnuncios(){ if(!T) return; var A; try{ A=JSON.parse(T.anuncios()); }catch(x){ return; }
+  if(document.activeElement!==$('adChk')) $('adChk').checked=!!A.ligado;
+  $('adInfo').textContent=A.ligado?(A.bloqueados>0?A.bloqueados+' pedidos de anúncio bloqueados nesta sessão':'Ligado no YouTube e em outros sites'):'Desligado'; }
+$('adChk').onchange=function(){ T&&T.bloquearAnuncios(this.checked); avisar(this.checked?'Bloqueio de anúncios ligado. A página foi recarregada.':'Bloqueio de anúncios desligado.'); setTimeout(mostrarAnuncios,300); };
 
 // ------------------------------------------------ abrir link
 function abrir(modo){
@@ -283,7 +421,7 @@ $('vol').oninput=function(){ $('volTxt').textContent=this.value+'%'; T&&T.volume
 
 // ------------------------------------------------ estado
 var NOMES={parado:'parado',abrindo:'abrindo…',carregando:'carregando…',tocando:'tocando',pausado:'pausado',erro:'não foi possível tocar'};
-var ultimo={}, modoAnt=null, mostrarInicio=false;
+var ultimo={}, modoAnt=null, mostrarInicio=false, contaInicio=0;
 function atualizar(){
   if(!T) return;
   var e; try{ e=JSON.parse(T.estado()); }catch(x){ return; }
@@ -307,6 +445,9 @@ function atualizar(){
   $('progBox').classList.toggle('oculto', !(e.busca&&e.duracao>0));
   if(e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
   $('volBox').classList.toggle('oculto', !vlc);
+  $('filaBox').classList.toggle('oculto', !e.fila);
+  if(e.fila) $('filaTxt').textContent=e.fila.nome+' · '+(e.fila.indice+1)+' de '+e.fila.total;
+  if(verInicio&&(++contaInicio%5===1)){ mostrarAnuncios(); }
   if(vlc&&e.volume>=0&&document.activeElement!==$('vol')){ $('vol').value=e.volume; $('volTxt').textContent=e.volume+'%'; }
   $('aCheio').disabled=!e.podeCheio; $('cCheio').classList.toggle('oculto',!e.podeCheio);
   $('voltar10').disabled=$('avancar10').disabled=!(e.busca&&e.duracao>0);
@@ -333,7 +474,15 @@ function opcoes(itens,sel){ return itens.map(function(o){ return '<button class=
 // ---- legendas
 var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
 function abrirLegendas(){
-  abrirGaveta('leg','Áudio e legendas','<div id="dubBox" class="oculto"><h2>Dublagem em português</h2>'+
+  abrirGaveta('leg','Áudio e legendas','<div id="lgBox" class="oculto"><h2>Legendador · Whisper</h2>'+
+    '<div class="nota" id="lgEstado" style="margin-top:0"></div><div class="medidor oculto" id="lgBarra"><i id="lgProg"></i></div>'+
+    '<div class="chave-linha" id="lgTradLinha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="lgTrad" checked><span></span></label></div>'+
+    '<div class="linha"><button class="pri" id="lgIr">'+IC.cc+'<span>Gerar legenda</span></button><button id="lgCancelar" class="oculto">Cancelar</button></div>'+
+    '<div id="lgBaixar" class="oculto"><div class="linha mt"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div>'+
+    '<div class="linha mt"><button data-f="txt" data-o="0">'+IC.baixar+'<span>.txt português</span></button><button data-f="txt" data-o="1">'+IC.baixar+'<span>.txt original</span></button></div></div>'+
+    '<div style="height:14px"></div></div>'+
+    '<div id="lgDubBox" class="oculto"><h2>Legenda gerada pela dublagem</h2><div class="linha"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div></div>'+
+    '<div id="dubBox" class="oculto"><h2>Dublagem em português</h2>'+
     '<div id="dubEscolha"><div class="nota" style="margin-top:0">De onde vem o texto falado:</div><div id="dubModos"></div>'+
     '<button class="pri" id="dubBotao" style="width:100%;margin-top:6px"></button></div>'+
     '<div id="dubAtivo" class="oculto"><div class="nota" id="dubEstado" style="white-space:pre-line"></div>'+
@@ -355,6 +504,11 @@ function abrirLegendas(){
     '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
   legAnt=''; audAnt=''; atualizarLegendas();
   montarDublagem();
+  $('lgIr').onclick=function(){ T.legendar($('lgTrad').checked); setTimeout(atualizarLegendador,300); };
+  $('lgCancelar').onclick=function(){ T.cancelarLegenda(); };
+  [].forEach.call($('lgBaixar').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('legendador',b.dataset.f,b.dataset.o==='1'); }; });
+  [].forEach.call($('lgDubBox').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('dublagem',b.dataset.f,b.dataset.o==='1'); }; });
+  atualizarLegendador();
   $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
   $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
   $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
@@ -383,7 +537,7 @@ var dubModosAnt='';
 function atualizarDublagem(){
   if(!$('dubBox')) return;
   var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ return; }
-  $('dubBox').classList.remove('oculto');
+  $('dubBox').classList.toggle('oculto',!d.disponivel&&!d.ativo);
   var modos=[];
   if(d.pronta) modos.push({chave:'pronta',nome:'Dublagem já preparada deste vídeo (sincronizada)'});
   if(d.yt&&d.temLegenda) modos.push({chave:'legenda',nome:'Legenda do vídeo (instantâneo)'});
@@ -409,9 +563,22 @@ function atualizarDublagem(){
   $('dubModeloEstado').textContent=est;
   $('dubBaixar').classList.toggle('oculto',!!d.baixando||!mod||mod.pronto);
 }
+function atualizarLegendador(){
+  if(!$('lgBox')) return; var G; try{ G=JSON.parse(T.legendador()); }catch(x){ return; }
+  $('lgBox').classList.toggle('oculto',!G.vlc||!G.whisper);
+  $('lgDubBox').classList.toggle('oculto',!G.dublagem);
+  var trab=!!G.trabalhando;
+  $('lgIr').classList.toggle('oculto',trab); $('lgCancelar').classList.toggle('oculto',!trab);
+  $('lgIr').disabled=!G.disponivel; $('lgTradLinha').classList.toggle('oculto',trab);
+  $('lgBarra').classList.toggle('oculto',!trab); if(trab) $('lgProg').style.width=Math.max(2,G.progresso||0)+'%';
+  $('lgEstado').textContent=G.estado||(G.disponivel?'Cria a legenda deste vídeo ou áudio ouvindo o som com o Whisper, mesmo sem legenda nenhuma. A legenda aparece no vídeo e pode ser baixada.':'Para legendar, abra um arquivo do aparelho ou um vídeo gravado (transmissões ao vivo não dá).');
+  $('lgBaixar').classList.toggle('oculto',!G.pronta);
+  if(G.pronta){ var bs=$('lgBaixar').querySelectorAll('button'); bs[0].classList.toggle('oculto',!G.traduzida); bs[2].classList.toggle('oculto',!G.traduzida); }
+}
 function atualizarLegendas(){
   if(!T||!$('legLista')) return;
   atualizarDublagem();
+  atualizarLegendador();
   var A; try{ A=JSON.parse(T.audios()); }catch(x){ A={itens:[]}; }
   var ka=JSON.stringify(A);
   if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem); $('legTit').classList.toggle('oculto',tem);
@@ -520,6 +687,8 @@ window.avisar=function(m){ var t=$('toast'); t.textContent=m; t.classList.add('o
 
 window.addEventListener('resize',function(){ atualizar(); curva(); });
 mostrarRecentes();
+mostrarBiblioteca();
+mostrarAnuncios();
 atualizar();
 setInterval(atualizar,600);
 </script>

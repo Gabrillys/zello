@@ -349,6 +349,22 @@ final class Dublador implements TextToSpeech.OnInitListener {
         return new File(ctx.getFilesDir(), "dublagens/" + nome + ".json");
     }
 
+    /** Há falas (transcritas/traduzidas) para baixar como legenda? */
+    boolean temFalas() { Roteiro r = roteiro; return r != null && r.tamanho() > 0 && !"legenda".equals(modo); }
+
+    /** Legenda gerada pela dublagem do Whisper (srt ou txt; original ou em português). */
+    String legenda(String formato, boolean original) {
+        Roteiro r = roteiro;
+        if (r == null) return null;
+        List<Roteiro.Fala> f = r.copia();
+        if ("txt".equals(formato)) {
+            StringBuilder s = new StringBuilder();
+            for (Roteiro.Fala x : f) s.append(original && x.original != null && x.original.length() > 0 ? x.original : x.texto).append('\n');
+            return s.toString();
+        }
+        return Legendador.srt(f, original);
+    }
+
     boolean temPronta(String id) { return id != null && id.length() > 0 && arquivo(id).exists(); }
 
     private void salvar(String id, List<Roteiro.Fala> falas, String idioma) {

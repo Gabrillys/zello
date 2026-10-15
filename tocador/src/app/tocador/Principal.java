@@ -95,9 +95,14 @@ public class Principal extends Activity {
         superficieLegendas.setZOrderMediaOverlay(true);
         superficieLegendas.getHolder().setFormat(PixelFormat.TRANSLUCENT);
         area.addView(superficieLegendas, new FrameLayout.LayoutParams(-1, -1, android.view.Gravity.CENTER));
-        superficie.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
-            public void onLayoutChange(View v, int l, int t, int r, int bo, int ol, int ot, int or, int ob) { motor.tamanho(r - l, bo - t); }
+        // A área do vídeo mudou de tamanho (girou, tela cheia…): avisa o VLC e reencaixa o vídeo.
+        area.addOnLayoutChangeListener(new View.OnLayoutChangeListener() {
+            public void onLayoutChange(View v, int l, int t, int r, int bo, int ol, int ot, int or, int ob) {
+                if (r - l != or - ol || bo - t != ob - ot) { motor.tamanho(r - l, bo - t); h.post(encaixarVideo); }
+            }
         });
+        motor.aoMudarLayout(encaixarVideo);
+        motor.aoTerminar(new Runnable() { public void run() { proximoDaFila(1, true); } });
         coluna.addView(area, new LinearLayout.LayoutParams(-1, 0));
 
         painel = criarPainelWeb("file:///android_asset/painel.html", 0xFF0B0D12);
@@ -183,6 +188,7 @@ public class Principal extends Activity {
     void abrir(String url, String modo) {
         url = url.trim();
         if (url.length() == 0) return;
+        if (!abrindoDaFila) { filaLista = null; filaIndice = -1; }
         Dublador dub = Dublador.seExistir();
         if (dub != null && dub.ativo()) dub.parar("");
         if ("auto".equals(modo)) modo = decidirModo(url);
@@ -203,6 +209,7 @@ public class Principal extends Activity {
     }
 
     private void criarNavegador() {
+        Anuncios.ligado = ajustes.getBoolean("anuncios", true);
         nav = new Navegador(this);
         nav.definirAoMudar(new Navegador.AoMudar() {
             public void pagina(final String url) { runOnUiThread(new Runnable() { public void run() { verificarJw(url); } }); }
@@ -289,8 +296,13 @@ public class Principal extends Activity {
         View d = getWindow().getDecorView();
         d.setSystemUiVisibility(sim ? View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
                 | View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION : 0);
-        if (Build.VERSION.SDK_INT >= 28) getWindow().getAttributes().layoutInDisplayCutoutMode = sim
-                ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_DEFAULT;
+        if (Build.VERSION.SDK_INT >= 28) {
+            // Fora da tela cheia, nada pode ficar embaixo do recorte da câmera (no celular deitado o texto "vazava").
+            WindowManager.LayoutParams a = getWindow().getAttributes();
+            a.layoutInDisplayCutoutMode = sim ? WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                    : WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER;
+            getWindow().setAttributes(a);
+        }
     }
 
     void telaCheia(boolean sim) {
@@ -305,6 +317,25 @@ public class Principal extends Activity {
         ajustar();
     }
 
+    /** Mantém a proporção do vídeo (em pé, 4:3, 21:9…): a superfície é encaixada na área, sem esticar. */
+    private final Runnable encaixarVideo = new Runnable() {
+        public void run() {
+            int[] r = motor.encaixar(area.getWidth(), area.getHeight());
+            for (SurfaceView sv : new SurfaceView[] { superficie, superficieLegendas }) {
+                FrameLayout.LayoutParams lp = (FrameLayout.LayoutParams) sv.getLayoutParams();
+                int w = r == null ? -1 : r[0], hh = r == null ? -1 : r[1];
+                if (lp.width == w && lp.height == hh) continue;
+                lp.width = w; lp.height = hh; lp.gravity = android.view.Gravity.CENTER;
+                sv.setLayoutParams(lp);
+            }
+            // Ao saber a proporção, a área do vídeo pode ficar do tamanho certo (vídeo em pé ocupa mais altura).
+            String chave = layoutAtual;
+            layoutAtual = "";
+            ajustar();
+            if (layoutAtual.length() == 0) layoutAtual = chave;
+        }
+    };
+
     private int dp(int v) { return Math.round(v * getResources().getDisplayMetrics().density); }
 
     /** Distribui a tela entre vídeo/página, a camada de controles e o painel. */
@@ -313,7 +344,7 @@ public class Principal extends Activity {
         String modo = Controle.modo;
         boolean videoVlc = "vlc".equals(modo) && motor.temVideoAgora();
         if (cheio && ("nada".equals(modo) || ("vlc".equals(modo) && !videoVlc))) { telaCheia(false); return; }
-        String chave = modo + videoVlc + expandido + deitado + cheio + raiz.getWidth();
+        String chave = modo + videoVlc + expandido + deitado + cheio + raiz.getWidth() + "x" + raiz.getHeight() + "p" + Math.round(motor.proporcao() * 100);
         if (chave.equals(layoutAtual)) return;
         layoutAtual = chave;
 
@@ -344,7 +375,11 @@ public class Principal extends Activity {
                     pa = new LinearLayout.LayoutParams(-1, 0, 1f);
                     pp = new LinearLayout.LayoutParams(-1, dp(76));
                 } else {
-                    pa = new LinearLayout.LayoutParams(-1, largura * 9 / 16);
+                    // Altura conforme o formato do vídeo (em pé ganha mais espaço), sem empurrar o painel para fora da tela.
+                    double prop = motor.proporcao();
+                    int alturaVideo = prop > 0 ? (int) (largura / prop) : largura * 9 / 16;
+                    alturaVideo = Math.min(alturaVideo, (int) (altura * (deitado ? 0.62 : 0.66)));
+                    pa = new LinearLayout.LayoutParams(-1, Math.max(dp(120), alturaVideo));
                     pp = new LinearLayout.LayoutParams(-1, 0, 1f);
                 }
                 controles.setVisibility(View.VISIBLE);
@@ -561,6 +596,128 @@ public class Principal extends Activity {
         d.iniciarWhisper(nav, idVideoAtual(), preparar);
     }
 
+    // ------------------------------------------------------------ arquivos do aparelho e listas
+
+    static final int PEDIDO_ARQUIVO = 7002, PEDIDO_LISTA = 7003;
+    private String tipoListaPedida = "";
+    private Listas listas;
+    private String filaLista;
+    private int filaIndice = -1;
+    private boolean abrindoDaFila;
+
+    Listas listas() {
+        if (listas == null) listas = new Listas(getFilesDir());
+        return listas;
+    }
+
+    private void escolherArquivo(int pedido, String[] tipos) {
+        Intent i = new Intent(Intent.ACTION_OPEN_DOCUMENT).addCategory(Intent.CATEGORY_OPENABLE).setType("*/*")
+                .putExtra(Intent.EXTRA_MIME_TYPES, tipos)
+                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+        try { startActivityForResult(i, pedido); } catch (Exception e) { avisar("Nenhum gerenciador de arquivos encontrado."); }
+    }
+
+    @Override
+    protected void onActivityResult(int pedido, int resultado, Intent dados) {
+        super.onActivityResult(pedido, resultado, dados);
+        if (resultado != RESULT_OK || dados == null || dados.getData() == null) return;
+        final Uri u = dados.getData();
+        try { getContentResolver().takePersistableUriPermission(u, Intent.FLAG_GRANT_READ_URI_PERMISSION); } catch (Exception e) { }
+        if (pedido == PEDIDO_ARQUIVO) {
+            js(painel, "window.guardarRecente&&guardarRecente(" + JSONObject.quote(u.toString()) + ")");
+            abrir(u.toString(), "vlc");
+        } else if (pedido == PEDIDO_LISTA) {
+            final String tipo = tipoListaPedida;
+            avisar("Lendo a lista…");
+            new Thread(new Runnable() { public void run() {
+                try {
+                    String texto = Listas.ler(getContentResolver().openInputStream(u), 30 << 20);
+                    importarTexto(texto, Motor.nomeArquivo(Principal.this, u).replaceAll("\\.[A-Za-z0-9]{2,5}$", ""), u.toString(), tipo, null);
+                } catch (Exception e) { avisarDeFora("Não consegui ler o arquivo: " + e.getMessage()); }
+            } }).start();
+        }
+    }
+
+    private void avisarDeFora(final String m) { runOnUiThread(new Runnable() { public void run() { avisar(m); } }); }
+
+    /** Fora da linha da tela: transforma o texto numa lista guardada (ou toca direto, se for uma transmissão). */
+    private void importarTexto(String texto, String nome, String origem, String tipo, final String urlTransmissao) {
+        if (Listas.ehTransmissao(texto) && urlTransmissao != null) {
+            runOnUiThread(new Runnable() { public void run() { avisar("Isto é uma transmissão, não uma lista: tocando."); abrir(urlTransmissao, "vlc"); } });
+            return;
+        }
+        java.util.List<Listas.Item> itens = Listas.ler(texto, origem.startsWith("http") ? origem : null);
+        if (itens.isEmpty()) { avisarDeFora("Não encontrei nenhum item nesta lista."); return; }
+        if (tipo == null || tipo.length() == 0 || "auto".equals(tipo)) tipo = Listas.adivinharTipo(itens);
+        final Listas.Lista l = listas().adicionar(nome == null || nome.trim().length() == 0 ? "Lista" : nome.trim(), origem, tipo, itens);
+        Diagnostico.anotar("Lista importada: " + itens.size() + " itens, tipo " + tipo);
+        runOnUiThread(new Runnable() { public void run() {
+            avisar("Lista \"" + l.nome + "\" importada: " + l.itens.size() + " itens.");
+            js(painel, "window.listaImportada&&listaImportada(" + JSONObject.quote(l.id) + ")");
+        } });
+    }
+
+    /** Toca o item i da lista (músicas seguem em sequência; o resto toca um de cada vez). */
+    void tocarDaLista(String id, int i) {
+        Listas.Lista l = listas().porId(id);
+        if (l == null || i < 0 || i >= l.itens.size()) return;
+        Listas.Item it = l.itens.get(i);
+        filaLista = id;
+        filaIndice = i;
+        abrindoDaFila = true;
+        try { abrir(it.url, "auto"); } finally { abrindoDaFila = false; }
+        if ("vlc".equals(Controle.modo)) motor.definirTitulo(it.nome);
+    }
+
+    /** dir = +1 próximo, -1 anterior. "sozinho" = o item acabou (só segue em listas de músicas). */
+    void proximoDaFila(int dir, boolean sozinho) {
+        if (filaLista == null) return;
+        Listas.Lista l = listas().porId(filaLista);
+        if (l == null) return;
+        if (sozinho && !"musica".equals(l.tipo)) return;
+        int n = filaIndice + dir;
+        if (n < 0 || n >= l.itens.size()) { if (sozinho) avisar("Fim da lista."); return; }
+        tocarDaLista(filaLista, n);
+    }
+
+    // ------------------------------------------------------------ legendador
+
+    void legendar(boolean traduzir) {
+        final Legendador lg = Legendador.de(this);
+        if (lg.trabalhando()) return;
+        if (!whisperDisponivel()) { avisar("O legendador precisa de um celular de 64 bits."); return; }
+        if (!"vlc".equals(Controle.modo) || motor.url() == null || motor.url().length() == 0) { avisar("Abra um arquivo ou link de vídeo/áudio para legendar."); return; }
+        final String mod = Dublador.de(this).modelo();
+        if (!Modelos.pronto(this, mod)) {
+            if (!Modelos.baixando()) Modelos.baixar(this, mod, null);
+            avisar("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
+            return;
+        }
+        final String url = motor.url();
+        lg.iniciar(url, motor.estado().optString("titulo"), traduzir, mod, new Legendador.Pronto() {
+            public void legenda(final java.io.File srt) {
+                runOnUiThread(new Runnable() { public void run() {
+                    if (url.equals(motor.url()) && motor.adicionarLegenda(srt.getPath())) avisar("Legenda pronta e ligada no vídeo.");
+                    else avisar("Legenda pronta. Baixe na gaveta de legendas.");
+                } });
+            }
+        });
+    }
+
+    private void baixarTextoGerado(final String nome, final String formato, final String texto) {
+        if (!permissaoGravar()) return;
+        if (texto == null || texto.trim().length() == 0) { avisar("Ainda não há legenda gerada."); return; }
+        new Thread(new Runnable() { public void run() {
+            try {
+                String caminho = "srt".equals(formato)
+                        ? Arquivos.salvar(Principal.this, nome, ".srt", "application/x-subrip", texto)
+                        : Arquivos.salvarTexto(Principal.this, nome, texto);
+                avisarDeFora("Salvo em " + caminho);
+                runOnUiThread(new Runnable() { public void run() { js(painel, "window.legendaSalva&&legendaSalva(" + (Arquivos.ultimo != null) + ")"); } });
+            } catch (Exception e) { avisarDeFora("Não consegui salvar: " + e.getMessage()); }
+        } }).start();
+    }
+
     private void dublarLegenda() {
         final Dublador d = Dublador.de(this);
         JSONObject p = Navegador.estadoPagina;
@@ -743,6 +900,11 @@ public class Principal extends Activity {
                     } else o.put("situacao", "parado");
                 }
                 o.put("modo", Controle.modo);
+                if (filaLista != null) {
+                    Listas.Lista l = Principal.this.listas().porId(filaLista);
+                    if (l != null) o.put("fila", new JSONObject().put("nome", l.nome).put("tipo", l.tipo).put("indice", filaIndice).put("total", l.itens.size()));
+                }
+                o.put("anuncios", Anuncios.ligado);
                 o.put("expandido", expandido);
                 o.put("cheio", cheio);
                 o.put("podeCheio", "web".equals(Controle.modo) || ("vlc".equals(Controle.modo) && motor.temVideoAgora()));
@@ -898,6 +1060,135 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void idiomaFonte(final String i) { Dublador.de(Principal.this).definirIdiomaFonte(i == null ? "" : i); }
 
+        // ---- anúncios
+        @JavascriptInterface
+        public String anuncios() {
+            try { return new JSONObject().put("ligado", ajustes.getBoolean("anuncios", true)).put("bloqueados", Anuncios.bloqueados.get()).toString(); }
+            catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void bloquearAnuncios(final boolean sim) {
+            naTela(new Runnable() { public void run() {
+                ajustes.edit().putBoolean("anuncios", sim).apply();
+                Anuncios.ligado = sim;
+                if (nav != null) nav.definirAnuncios(sim);
+            } });
+        }
+
+        // ---- arquivos do aparelho
+        @JavascriptInterface
+        public void abrirArquivo() {
+            naTela(new Runnable() { public void run() { escolherArquivo(PEDIDO_ARQUIVO, new String[] { "video/*", "audio/*" }); } });
+        }
+
+        // ---- listas (m3u, m3u8, pls)
+        @JavascriptInterface
+        public String listas() {
+            try {
+                JSONArray a = new JSONArray();
+                for (Listas.Lista l : Principal.this.listas().todas())
+                    a.put(new JSONObject().put("id", l.id).put("nome", l.nome).put("tipo", l.tipo).put("n", l.itens.size())
+                            .put("origem", l.origem.startsWith("content:") ? "arquivo do aparelho" : l.origem).put("web", l.origem.startsWith("http")));
+                JSONArray tipos = new JSONArray();
+                for (String[] t : Listas.TIPOS) tipos.put(new JSONObject().put("chave", t[0]).put("nome", t[1]));
+                return new JSONObject().put("listas", a).put("tipos", tipos).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void importarLista(final String url, final String nome, final String tipo) {
+            final String u = extrairLink(url == null ? "" : url);
+            if (u == null) { avisarDeFora("Cole o endereço da lista (http…)."); return; }
+            new Thread(new Runnable() { public void run() {
+                try {
+                    String texto = Listas.baixar(u);
+                    String n = nome != null && nome.trim().length() > 0 ? nome : Listas.nomeDe(u).replaceAll("\\.[A-Za-z0-9]{2,5}$", "");
+                    importarTexto(texto, n, u, tipo, u);
+                } catch (Exception e) {
+                    Diagnostico.anotar("Lista: falha ao baixar " + Diagnostico.curto(u) + ": " + e.getMessage());
+                    avisarDeFora("Não consegui baixar a lista: " + e.getMessage());
+                }
+            } }).start();
+        }
+
+        @JavascriptInterface
+        public void importarListaArquivo(final String tipo) {
+            naTela(new Runnable() { public void run() {
+                tipoListaPedida = tipo == null ? "" : tipo;
+                escolherArquivo(PEDIDO_LISTA, new String[] { "audio/x-mpegurl", "audio/mpegurl", "application/x-mpegurl", "application/vnd.apple.mpegurl", "audio/x-scpls", "text/plain", "application/octet-stream" });
+            } });
+        }
+
+        @JavascriptInterface
+        public String itensLista(String id, String filtro, String grupo, int inicio) {
+            try { return Principal.this.listas().itens(id, filtro, grupo, inicio, 120).toString(); } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void tocarItem(final String id, final int i) { naTela(new Runnable() { public void run() { tocarDaLista(id, i); } }); }
+
+        @JavascriptInterface
+        public void pularNaFila(final int dir) { naTela(new Runnable() { public void run() { proximoDaFila(dir, false); } }); }
+
+        @JavascriptInterface
+        public void editarLista(String id, String nome, String tipo) { Principal.this.listas().renomear(id, nome, tipo); }
+
+        @JavascriptInterface
+        public void apagarLista(String id) { Principal.this.listas().apagar(id); }
+
+        @JavascriptInterface
+        public void atualizarLista(String id) {
+            Listas.Lista l = Principal.this.listas().porId(id);
+            if (l == null) return;
+            if (!l.origem.startsWith("http")) { avisarDeFora("Listas de arquivo: importe o arquivo de novo para atualizar."); return; }
+            importarLista(l.origem, l.nome, l.tipo);
+        }
+
+        // ---- legendador (Whisper)
+        @JavascriptInterface
+        public String legendador() {
+            try {
+                Legendador lg = Legendador.seExistir();
+                boolean vlc = "vlc".equals(Controle.modo);
+                Dublador d = Dublador.seExistir();
+                boolean temDub = d != null && d.temFalas();
+                JSONObject o = new JSONObject().put("disponivel", vlc && motor.temDuracao() && whisperDisponivel())
+                        .put("vlc", vlc).put("whisper", whisperDisponivel()).put("dublagem", temDub);
+                if (lg != null) {
+                    boolean doAtual = lg.url().equals(motor.url());
+                    o.put("trabalhando", lg.trabalhando()).put("estado", doAtual || lg.trabalhando() ? lg.estado() : "")
+                            .put("progresso", lg.progresso()).put("pronta", doAtual && lg.temLegenda()).put("traduzida", lg.traduzida());
+                }
+                return o.toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void legendar(final boolean traduzir) { naTela(new Runnable() { public void run() { Principal.this.legendar(traduzir); } }); }
+
+        @JavascriptInterface
+        public void cancelarLegenda() { Legendador lg = Legendador.seExistir(); if (lg != null) lg.cancelar(); }
+
+        /** origem: "legendador" ou "dublagem"; formato: srt ou txt; original: no idioma do vídeo. */
+        @JavascriptInterface
+        public void baixarLegendaGerada(final String origem, final String formato, final boolean original) {
+            naTela(new Runnable() { public void run() {
+                String texto, nome;
+                if ("dublagem".equals(origem)) {
+                    Dublador d = Dublador.seExistir();
+                    texto = d == null ? null : d.legenda(formato, original);
+                    nome = Navegador.tituloAgora;
+                } else {
+                    Legendador lg = Legendador.seExistir();
+                    texto = lg == null ? null : lg.texto(formato, original);
+                    nome = lg == null ? "" : lg.titulo();
+                }
+                nome = (nome == null || nome.length() == 0 ? "Legenda" : nome) + (original ? " (original)" : " (português)");
+                baixarTextoGerado(nome, formato, texto);
+            } });
+        }
+
         /** Abre o ajuste de voz do Android (escolher o motor e baixar a voz em português). */
         @JavascriptInterface
         public void escolherVoz() {
@@ -1035,7 +1326,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.6 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.0 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

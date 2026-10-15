@@ -1,6 +1,6 @@
 # Tocador
 
-Aplicativo Android para assistir e ouvir **vídeos do YouTube e de outros sites**, além de **rádios e links diretos**. Ele continua tocando **em segundo plano e com a tela apagada**, tem **tela cheia só com o vídeo**, **qualidade máxima**, **toque duplo para voltar e avançar**, **legendas** (com download em texto puro) e **equalizador**.
+Aplicativo Android para assistir e ouvir **vídeos do YouTube e de outros sites**, **rádios, TVs e câmeras de listas M3U**, e **vídeos e músicas do próprio aparelho**. Ele continua tocando **em segundo plano e com a tela apagada**, tem **tela cheia só com o vídeo**, **qualidade máxima**, **toque duplo para voltar e avançar**, **legendas** (com download em texto puro) e **equalizador**.
 
 Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celulares arm64 e arm32 com Android 7 ou mais novo. As versões novas instalam por cima das antigas.
 
@@ -10,6 +10,19 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - **Colando o link:** abra o Tocador, toque em *Colar* e depois em *Tocar*. Os atalhos levam direto ao YouTube, Vimeo, Dailymotion e Twitch.
 - Pode **apagar a tela** ou trocar de app: o som continua. A notificação, os fones e a tela de bloqueio controlam a reprodução.
 - O botão **voltar** não fecha o app. Para encerrar, use **Parar**.
+
+## Biblioteca: listas M3U, M3U8 e PLS
+
+- Toque em **Importar lista** e cole o endereço da lista (ou escolha um arquivo do aparelho). Funciona com listas de IPTV (com logotipo e grupos), de rádios, de músicas e com listas simples de endereços.
+- Escolha o **estilo**: Músicas, Rádios, TVs, Câmeras ou Outros (ou *Automático*, que adivinha pelo conteúdo). Em **Músicas**, as faixas tocam em sequência; nos outros estilos, um item de cada vez.
+- Dentro da lista: **busca** (sem se importar com acentos), **grupos** e, no player, os botões **anterior/próximo**.
+- Em *Gerenciar lista*: renomear, trocar o estilo, **atualizar** (baixa de novo do mesmo endereço) e apagar.
+- Se o endereço for de uma transmissão (um único canal `.m3u8`), ele toca direto.
+
+## Vídeos e músicas do aparelho
+
+- **Abrir arquivo** abre o seletor do Android. O arquivo toca no player VLC e fica nos *Recentes*.
+- **Vídeos em pé** (gravados com o celular na vertical) aparecem inteiros e sem esticar. Na tela cheia, o celular fica de pé. Vale para qualquer formato (4:3, 21:9…).
 
 ## Tela do player
 
@@ -36,6 +49,9 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - Cada frase é dita inteira, sem ser cortada pela seguinte. Se a frase for longa para o tempo dela, a voz acelera um pouco.
   - O áudio original fica baixo enquanto a voz fala (o volume é ajustável).
   - O Whisper requer celular de 64 bits (como o Galaxy S22). Em celulares de 32 bits, só a dublagem pela legenda funciona. A dublagem funciona no modo Site; no player VLC, não.
+- **Legendador (Whisper)**: na gaveta **Áudio e legendas** de um arquivo do aparelho ou de um vídeo gravado aberto no player VLC, toque em **Gerar legenda**. O Whisper ouve o som direto do arquivo, mais rápido que assistir. A legenda aparece no vídeo e pode ser baixada em **.srt** (com horários) ou **.txt**, no idioma original ou **traduzida para português**. Funciona em vídeos sem legenda nenhuma. Transmissões ao vivo não podem ser legendadas.
+  - No modo site, a legenda criada pela dublagem do Whisper também pode ser baixada em .srt.
+- **Bloquear anúncios**: chave em *Ajustes*, na tela inicial (ligada por padrão). No YouTube, o app apaga a lista de anúncios que vem com o vídeo, recusa os pedidos aos servidores de anúncio e, se algum anúncio ainda começar, deixa mudo, adianta até o fim e toca em "Pular". Também esconde os banners. O YouTube muda isso com frequência, e às vezes um anúncio pode escapar. Bloquear anúncios contraria os termos de uso do YouTube.
 - **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
 
 ## jw.org
@@ -83,6 +99,9 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Tradutor`: tradução das falas para português;
   - `VozNeural`: vozes neurais (protocolo do projeto edge-tts);
   - `Roteiro`: falas e horários;
+  - `Listas`: listas M3U/M3U8/PLS (leitura, estilos, busca);
+  - `Legendador`: legenda de arquivos com o Whisper (.srt/.txt);
+  - `Anuncios`: bloqueio de anúncios;
   - `AgenteCH`: Client Hints da versão para computador;
   - `Arquivos`: salvar na pasta Download;
   - `EqSistema`: equalizador do Android;

@@ -30,12 +30,17 @@ public final class Arquivos {
 
     /** Grava o texto em UTF-8 e devolve o caminho mostrado para a pessoa (ex.: "Download/Tocador/x.txt"). */
     public static String salvarTexto(Context c, String nome, String texto) throws IOException {
-        nome = nomeSeguro(nome) + ".txt";
+        return salvar(c, nome, ".txt", "text/plain", texto);
+    }
+
+    /** Igual, com outra extensão (ex.: ".srt", "application/x-subrip"). */
+    public static String salvar(Context c, String nome, String ext, String tipo, String texto) throws IOException {
+        nome = nomeSeguro(nome) + ext;
         byte[] dados = texto.getBytes("UTF-8");
         if (Build.VERSION.SDK_INT >= 29) {
             ContentValues v = new ContentValues();
             v.put(MediaStore.MediaColumns.DISPLAY_NAME, nome);
-            v.put(MediaStore.MediaColumns.MIME_TYPE, "text/plain");
+            v.put(MediaStore.MediaColumns.MIME_TYPE, tipo);
             v.put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Tocador");
             ContentResolver cr = c.getContentResolver();
             Uri uri = cr.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, v);
@@ -49,10 +54,10 @@ public final class Arquivos {
         File pasta = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Tocador");
         if (!pasta.exists() && !pasta.mkdirs()) throw new IOException("Sem permissão para gravar na pasta Download.");
         File f = new File(pasta, nome);
-        for (int i = 1; f.exists(); i++) f = new File(pasta, nome.substring(0, nome.length() - 4) + " (" + i + ").txt");
+        for (int i = 1; f.exists(); i++) f = new File(pasta, nome.substring(0, nome.length() - ext.length()) + " (" + i + ")" + ext);
         FileOutputStream o = new FileOutputStream(f);
         try { o.write(dados); } finally { o.close(); }
-        MediaScannerConnection.scanFile(c, new String[] { f.getAbsolutePath() }, new String[] { "text/plain" }, null);
+        MediaScannerConnection.scanFile(c, new String[] { f.getAbsolutePath() }, new String[] { tipo }, null);
         ultimo = null; // Android 9 ou anterior: abrir um arquivo exige outro mecanismo; mostramos só o caminho
         return "Download/Tocador/" + f.getName();
     }

@@ -253,12 +253,15 @@ public class Navegador extends WebView {
         setWebViewClient(new WebViewClient() {
             @Override public void onPageStarted(WebView v, String url, Bitmap f) {
                 if (url != null) enderecoAgora = url;
+                // Sem o script de início (WebView antigo), o bloqueio entra o mais cedo possível.
+                if (Anuncios.ligado && !Anuncios.temScriptDeInicio()) v.evaluateJavascript(Anuncios.JS, null);
                 synchronized (arquivosLegenda) { arquivosLegenda.clear(); }
                 v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
                 v.evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
             }
             @Override public void onPageFinished(WebView v, String url) {
                 v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
+                v.evaluateJavascript(Anuncios.ligado ? Anuncios.JS : Anuncios.JS_DESLIGAR, null);
                 v.evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
                 v.evaluateJavascript(JS_ESTILO_LEGENDAS, null);
                 if (aoMudar != null) aoMudar.pagina(url);
@@ -277,6 +280,7 @@ public class Navegador extends WebView {
                 if (aoMudar != null && url != null) aoMudar.pagina(url);
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
+                if (Anuncios.ehAnuncio(r.getUrl())) return Anuncios.vazio();
                 anotarLegenda(r.getUrl().toString());
                 return null;
             }
@@ -285,7 +289,11 @@ public class Navegador extends WebView {
         if (Build.VERSION.SDK_INT >= 24) {
             try {
                 ServiceWorkerController.getInstance().setServiceWorkerClient(new ServiceWorkerClient() {
-                    @Override public WebResourceResponse shouldInterceptRequest(WebResourceRequest r) { anotarLegenda(r.getUrl().toString()); return null; }
+                    @Override public WebResourceResponse shouldInterceptRequest(WebResourceRequest r) {
+                        if (Anuncios.ehAnuncio(r.getUrl())) return Anuncios.vazio();
+                        anotarLegenda(r.getUrl().toString());
+                        return null;
+                    }
                 });
             } catch (Throwable t) { }
         }
@@ -295,6 +303,8 @@ public class Navegador extends WebView {
             @Override public void onHideCustomView() { if (telaCheia != null) telaCheia.esconder(); }
             @Override public void onReceivedTitle(WebView v, String t) { tituloAgora = t == null ? "" : t; }
         });
+
+        Diagnostico.anotar("Bloqueio de anúncios: " + Anuncios.aplicar(this));
 
         // Som do vídeo para o Whisper (dublagem): a página manda pedaços de áudio por aqui.
         addJavascriptInterface(new Object() {
@@ -309,6 +319,14 @@ public class Navegador extends WebView {
     }
 
     public void definirTelaCheia(TelaCheia t) { telaCheia = t; }
+
+    /** Liga/desliga o bloqueio de anúncios e recarrega a página para valer já. */
+    public void definirAnuncios(boolean sim) {
+        Anuncios.ligado = sim;
+        Diagnostico.anotar("Bloqueio de anúncios: " + Anuncios.aplicar(this));
+        if (!sim) evaluateJavascript(Anuncios.JS_DESLIGAR, null);
+        reload();
+    }
     public void definirAoMudar(AoMudar a) { aoMudar = a; }
     public String agente() { return getSettings().getUserAgentString(); }
 
