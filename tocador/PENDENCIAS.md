@@ -54,3 +54,14 @@ Falta no celular:
 - Rodapé: metadados ICY do VLC (Title, Genre, Description, NowPlaying, ArtworkURL), o nome do item da lista M3U e o Radio Browser (byurl e byname).
 - Testado aqui: os quatro efeitos e a tela cheia no Chromium, com som simulado e no modo ambiente.
 - Falta no celular: o Visualizer na sessão do VLC (e se a troca de saída de som para AudioTrack não mudou nada no som), os metadados reais das rádios e o Radio Browser.
+
+## Para amanhã (pedido do usuário): animação só quando algo está tocando
+
+Hoje o palco da animação aparece também com o player em "pausado", "carregando" e "abrindo" (`atualizar()` em `assets/painel.html`, variável `radio`), e o Visualizer segue ligado.
+
+Plano:
+- mostrar a animação só com `situacao === 'tocando'`; em pausa, parado, erro ou carregando, voltar ao player simples (ou congelar o último quadro e escurecer);
+- desligar o Visualizer (`T.animacao(false)`) e parar o `requestAnimationFrame` sempre que nada toca, para não gastar bateria;
+- religar sozinho quando voltar a tocar.
+
+O usuário instala a 3.8 amanhã.
