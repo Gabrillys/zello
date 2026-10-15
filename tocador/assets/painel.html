@@ -107,7 +107,7 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
 
   <div class="cartao oculto" id="avisoBox" style="border-color:var(--destaque);color:var(--destaque2);font-size:15px">
     <div id="avisoTxt"></div>
-    <button class="peq oculto" id="tentar" style="margin-top:10px">↻ Tentar de novo</button>
+    <div class="linha" style="margin-top:10px;flex-wrap:wrap"><button class="peq oculto" id="tentar">↻ Tentar de novo</button><button class="peq" id="avDiag">📋 Copiar diagnóstico</button></div>
   </div>
 
   <div class="cartao">
@@ -154,6 +154,10 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
       <button id="bxAudio" class="pri oculto">⬇ Só o áudio</button>
     </div>
     <button id="bxTocar" class="oculto" style="width:100%;margin-top:8px">🎚 Ouvir no player VLC (equalizador completo)</button>
+    <div class="linha oculto" id="bxAjuda" style="margin-top:10px">
+      <button class="peq" id="bxCompartilhar">↗ Enviar link a outro app</button>
+      <button class="peq" id="bxDiag">📋 Copiar diagnóstico</button>
+    </div>
   </div>
 
   <div class="cartao oculto" id="midiasBox">
@@ -198,6 +202,8 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
       <li>Se o som parar sozinho com a tela apagada, libere o app da economia de bateria:</li>
     </ul>
     <button class="peq" id="bateria">🔋 Abrir ajuste de bateria</button>
+    <p class="aviso">Algo não funcionou? Toque em <b>Copiar diagnóstico</b> logo depois do problema e cole na conversa de suporte.</p>
+    <button class="peq" id="diag">📋 Copiar diagnóstico</button>
   </div>
 </div>
 
@@ -242,6 +248,8 @@ $('baixar').onclick=function(){ T&&T.baixarAtual(); avisar('Download iniciado. A
 $('bxVideo').onclick=function(){ T&&T.extraBaixar('video'); avisar('Download do vídeo iniciado.'); };
 $('bxAudio').onclick=function(){ T&&T.extraBaixar('audio'); avisar('Download do áudio iniciado.'); };
 $('bxTocar').onclick=function(){ T&&T.extraTocar(); };
+$('diag').onclick=$('bxDiag').onclick=$('avDiag').onclick=function(){ T&&T.copiarDiagnostico(); avisar('Diagnóstico copiado. Cole na conversa de suporte.'); };
+$('bxCompartilhar').onclick=function(){ T&&T.compartilharLink(); };
 $('tentar').onclick=function(){ if(T&&this.dataset.url) T.abrir(this.dataset.url,'auto'); };
 $('cBaixar').onclick=function(){ T&&T.expandir(true); setTimeout(function(){ $('baixarCard').scrollIntoView({behavior:'smooth',block:'start'}); },350); };
 $('limpar').onclick=function(){ T&&T.limparDownloads(); downAnt=''; atualizar(); };
@@ -313,13 +321,14 @@ function mostrarBaixar(e, vlc, sit){
   if(yt){
     mostrar=true;
     if(x.estado==='buscando') msg='Procurando os arquivos deste vídeo do YouTube…';
-    else if(x.estado==='erro') msg=(x.erro||'O YouTube não liberou o download deste vídeo.')+' (função experimental)';
-    else { bv=!!x.video; ba=!!x.audio; bt=ba&&e.modo==='web'; acao=bv||ba; msg=e.podeBaixar?'':'Vídeo do YouTube (função experimental):'; }
+    else if(x.estado==='erro'){ var er=x.erro||'O YouTube não liberou o download deste vídeo.'; msg=er+(/[.!?]$/.test(er)?' ':'. ')+'Você pode enviar o link a um app de download (NewPipe, Seal…).'; }
+    else { bv=!!x.video; ba=!!x.audio; bt=ba&&e.modo==='web'; acao=bv||ba; msg=x.obs||(e.podeBaixar?'':'Vídeo do YouTube (função experimental):'); }
   } else if(ig){
     mostrar=true; bv=!!x.video; ba=!!x.audio; acao=true;
   }
   $('bxVideo').classList.toggle('oculto',!bv); $('bxAudio').classList.toggle('oculto',!ba); $('bxTocar').classList.toggle('oculto',!bt);
   $('bxMsg').textContent=msg; $('bxMsg').classList.toggle('oculto',!msg);
+  $('bxAjuda').classList.toggle('oculto', !(yt && (x.estado==='erro' || x.obs)));
   $('baixarCard').classList.toggle('oculto',!mostrar);
   $('cBaixar').style.display=acao?'':'none';
 }

@@ -417,6 +417,7 @@ public class Principal extends Activity {
                     if (x != null) {
                         e.put("titulo", x.titulo); e.put("erro", x.erro == null ? "" : x.erro);
                         e.put("video", x.video != null || x.hls != null); e.put("audio", x.audio != null);
+                        e.put("obs", x.obs == null ? "" : x.obs);
                     }
                     o.put("extra", e);
                 }
@@ -476,7 +477,9 @@ public class Principal extends Activity {
                 String u = "audio".equals(tipo) ? x.audio : (x.video != null ? x.video : x.hls);
                 if (u == null) return;
                 boolean soAudio = "audio".equals(tipo);
-                Baixador.baixar(Principal.this, u, x.titulo + (soAudio ? " (áudio)" : ""), x.agente, x.referer, null,
+                String ua = soAudio && x.agenteAudio != null ? x.agenteAudio : u.equals(x.hls) && x.agenteHls != null ? x.agenteHls : x.agente;
+                Diagnostico.anotar("Download pedido: " + (soAudio ? "áudio " : "vídeo ") + Diagnostico.curto(u));
+                Baixador.baixar(Principal.this, u, x.titulo + (soAudio ? " (áudio)" : ""), ua, x.referer, null,
                         soAudio || u.equals(x.hls) ? null : x.audioSeparado);
             } });
         }
@@ -495,10 +498,31 @@ public class Principal extends Activity {
                 EqSistema.de(Principal.this).soltar();
                 Controle.modo = "vlc";
                 motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
-                motor.tocar(u, x.agente, x.referer, junto ? x.audioSeparado : null);
+                String ua = u.equals(x.audio) && x.agenteAudio != null ? x.agenteAudio : u.equals(x.hls) && x.agenteHls != null ? x.agenteHls : x.agente;
+                motor.tocar(u, ua, x.referer, junto ? x.audioSeparado : null);
                 motor.definirTitulo(x.titulo);
                 Servico.iniciar(Principal.this);
                 ajustar();
+            } });
+        }
+
+        /** Copia o diagnóstico para a área de transferência (para colar na conversa de suporte). */
+        @JavascriptInterface
+        public void copiarDiagnostico() {
+            naTela(new Runnable() { public void run() {
+                String t = Diagnostico.texto() + "\nVersão: 1.4 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
+            } });
+        }
+
+        /** Manda o link atual para outro app (ex.: NewPipe ou Seal, para baixar do YouTube). */
+        @JavascriptInterface
+        public void compartilharLink() {
+            naTela(new Runnable() { public void run() {
+                String u = "web".equals(Controle.modo) && nav != null ? nav.getUrl() : motor.url();
+                if (u == null || u.length() == 0) return;
+                Intent i = new Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, u);
+                startActivity(Intent.createChooser(i, "Enviar o link para…"));
             } });
         }
 

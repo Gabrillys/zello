@@ -49,7 +49,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     private volatile float buffer = 0;
     private volatile String situacao = "parado"; // parado, abrindo, carregando, tocando, pausado, erro
     private volatile boolean temVideo;
-    private boolean querTocando, pausadoPorFoco;
+    private boolean querTocando, pausadoPorFoco, jaTocou;
     private int tentativas;
     private boolean eqLigado;
     private int preset;
@@ -88,7 +88,8 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     /** @param audio som que vem num arquivo separado do vídeo (Instagram); o VLC toca os dois juntos. */
     public void tocar(String u, String userAgent, String ref, String audio) {
         url = u; ua = userAgent; referer = ref; audioExtra = audio;
-        titulo = ""; tituloFixo = null; temVideo = false; tentativas = 0;
+        titulo = ""; tituloFixo = null; jaTocou = false;
+        Diagnostico.anotar("VLC: abrir " + Diagnostico.curto(u) + (audio != null ? " + som separado " + Diagnostico.curto(audio) : "")); temVideo = false; tentativas = 0;
         querTocando = true;
         iniciarMidia();
     }
@@ -187,12 +188,29 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
                 if (buffer < 100f && !situacao.equals("pausado")) situacao = "carregando";
                 else if (mp.isPlaying()) situacao = "tocando";
                 break;
-            case MediaPlayer.Event.Playing: situacao = "tocando"; tentativas = 0; lerTitulo(); Servico.atualizar(ctx); break;
+            case MediaPlayer.Event.Playing:
+                situacao = "tocando"; tentativas = 0; lerTitulo(); Servico.atualizar(ctx);
+                if (!jaTocou) {
+                    jaTocou = true;
+                    // Mostra no diagnóstico se o som foi carregado (0 faixas de áudio = vídeo mudo).
+                    h.postDelayed(new Runnable() { public void run() {
+                        try { Diagnostico.anotar("VLC: tocando; faixas de áudio=" + Math.max(0, mp.getAudioTracksCount() - 1) + " faixas de vídeo=" + Math.max(0, mp.getVideoTracksCount() - 1)); } catch (Exception x) { }
+                    } }, 1500);
+                }
+                break;
             case MediaPlayer.Event.Paused: situacao = "pausado"; Servico.atualizar(ctx); break;
             case MediaPlayer.Event.Vout: temVideo = e.getVoutCount() > 0; break;
             case MediaPlayer.Event.ESAdded: case MediaPlayer.Event.MediaChanged: lerTitulo(); break;
             case MediaPlayer.Event.EndReached:
             case MediaPlayer.Event.EncounteredError:
+                if (e.type == MediaPlayer.Event.EncounteredError) Diagnostico.anotar("VLC: erro ao tocar " + Diagnostico.curto(url) + (audioExtra != null ? " (com som separado)" : ""));
+                if (e.type == MediaPlayer.Event.EncounteredError && audioExtra != null && !jaTocou) {
+                    // A faixa de som extra pode ter impedido a abertura: tenta só com o vídeo.
+                    Diagnostico.anotar("VLC: tentando de novo sem o som separado");
+                    audioExtra = null;
+                    h.post(new Runnable() { public void run() { if (querTocando) iniciarMidia(); } });
+                    break;
+                }
                 boolean aoVivo = mp.getLength() <= 0;
                 if (querTocando && (aoVivo || e.type == MediaPlayer.Event.EncounteredError) && tentativas < 6) {
                     // Rádio/stream caiu: tenta reconectar sozinho.

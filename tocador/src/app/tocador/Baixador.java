@@ -156,7 +156,11 @@ public class Baixador extends Service {
                 else { t.estado = "concluido"; avisarFim(t, null); }
             } catch (Throwable e) {
                 if (t.cancelar) t.estado = "cancelado";
-                else { t.estado = "erro"; t.erro = e.getMessage() == null ? e.toString() : e.getMessage(); avisarFim(t, t.erro); }
+                else {
+                    t.estado = "erro"; t.erro = e.getMessage() == null ? e.toString() : e.getMessage();
+                    Diagnostico.anotar("Download falhou: " + Diagnostico.curto(t.url) + " -> " + t.erro);
+                    avisarFim(t, t.erro);
+                }
             }
         }
         synchronized (Baixador.class) { trabalhador = null; }

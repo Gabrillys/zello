@@ -33,7 +33,10 @@ public final class Extrator {
         public String audioSeparado;  // som que vem num arquivo à parte e deve ser juntado ao vídeo
         public boolean semSom;        // o próprio post não tem som
         public String hls;            // lista .m3u8 (vídeo com som)
-        public String agente;         // User-Agent que deve ser usado para baixar/tocar
+        public String agente;         // User-Agent que deve ser usado para baixar/tocar o vídeo
+        public String agenteAudio, agenteHls; // idem para o áudio e para a lista HLS (YouTube: podem vir de clientes diferentes)
+        public String videoDash;      // Instagram: vídeo do manifesto DASH (alternativa ao video_url)
+        public String obs;            // observação para mostrar (ex.: "só o áudio foi liberado")
         public String referer;
         public boolean aoVivo;
         public String erro;
@@ -107,29 +110,105 @@ public final class Extrator {
     };
 
     public static Resultado youtube(String url) {
-        Resultado r = new Resultado();
-        r.fonte = "youtube";
+        Resultado fim = new Resultado();
+        fim.fonte = "youtube";
         String id = idYoutube(url);
-        if (id == null) { r.erro = "Não reconheci o link do YouTube."; return r; }
+        if (id == null) { fim.erro = "Não reconheci o link do YouTube."; return fim; }
+        Diagnostico.anotar("YouTube: vídeo " + id);
         String ultimoErro = "O YouTube não respondeu.";
+        boolean bloqueado = false;
+        // Pergunta a cada "cliente" e fica com o que cada um liberar de fato (cada endereço é testado antes).
         for (String[] cl : CLIENTES_YT) {
             try {
                 String corpo = "{\"context\":{\"client\":{\"clientName\":\"" + cl[0] + "\",\"clientVersion\":\"" + cl[1] + "\",\"userAgent\":\"" + cl[3]
                         + "\"," + cl[4] + ",\"hl\":\"pt\",\"gl\":\"BR\"}},\"videoId\":\"" + id + "\",\"contentCheckOk\":true,\"racyCheckOk\":true}";
-                Resposta res = http("POST", "https://www.youtube.com/youtubei/v1/player?prettyPrint=false", new String[][] {
+                Resposta res = http("POST", API_YT, new String[][] {
                         { "Content-Type", "application/json" }, { "User-Agent", cl[3] }, { "X-YouTube-Client-Name", cl[2] },
                         { "X-YouTube-Client-Version", cl[1] }, { "Origin", "https://www.youtube.com" } }, corpo);
+                Diagnostico.anotar("YouTube " + cl[0] + ": HTTP " + res.codigo);
                 if (res.codigo != 200) { ultimoErro = "O YouTube recusou (erro " + res.codigo + ")."; continue; }
-                Resultado x = lerRespostaYoutube(new JSONObject(res.corpo));
-                x.agente = cl[3];
-                if (x.ok() || x.aoVivo) return x;
-                if (x.erro != null) ultimoErro = x.erro;
+                JSONObject j = new JSONObject(res.corpo);
+                Resultado x = lerRespostaYoutube(j);
+                JSONObject ps = j.optJSONObject("playabilityStatus");
+                Diagnostico.anotar("YouTube " + cl[0] + ": status=" + (ps == null ? "?" : ps.optString("status")) + " vídeo=" + (x.video != null)
+                        + " áudio=" + (x.audio != null) + " hls=" + (x.hls != null) + (x.erro != null ? " erro=" + x.erro : ""));
+                if (fim.titulo.length() == 0) fim.titulo = x.titulo;
+                if (x.aoVivo) { x.agente = cl[3]; return x; }
+                if (x.erro != null) { ultimoErro = x.erro; fim.precisaLogin |= x.precisaLogin; continue; }
+                if (fim.video == null && x.video != null) {
+                    int c = sondar(x.video, cl[3], null);
+                    Diagnostico.anotar("  teste vídeo com som (" + cl[0] + "): " + c);
+                    if (ok(c)) { fim.video = x.video; fim.agente = cl[3]; } else bloqueado = true;
+                }
+                if (fim.audio == null && x.audio != null) {
+                    int c = sondar(x.audio, cl[3], null);
+                    Diagnostico.anotar("  teste áudio (" + cl[0] + "): " + c);
+                    if (ok(c)) { fim.audio = x.audio; fim.agenteAudio = cl[3]; } else bloqueado = true;
+                }
+                if (fim.video == null && fim.hls == null && x.hls != null) {
+                    boolean b = sondarHls(x.hls, cl[3]);
+                    Diagnostico.anotar("  teste lista HLS (" + cl[0] + "): " + (b ? "ok" : "bloqueada"));
+                    if (b) { fim.hls = x.hls; fim.agenteHls = cl[3]; } else bloqueado = true;
+                }
+                if ((fim.video != null || fim.hls != null) && fim.audio != null) break;
             } catch (Exception e) {
                 ultimoErro = "Falha ao falar com o YouTube: " + e.getMessage();
+                Diagnostico.anotar("YouTube " + cl[0] + ": exceção " + e);
             }
         }
-        r.erro = ultimoErro;
-        return r;
+        if (fim.agente == null) fim.agente = fim.agenteHls != null ? fim.agenteHls : fim.agenteAudio;
+        if (!fim.ok()) fim.erro = bloqueado ? "O YouTube bloqueou o download deste vídeo para apps não oficiais (erro 403)." : ultimoErro;
+        else if (fim.video == null && fim.hls == null) fim.obs = "Só o áudio foi liberado; o YouTube bloqueou o vídeo.";
+        else if (fim.audio == null) fim.obs = "Só o vídeo foi liberado; o YouTube bloqueou o arquivo de áudio.";
+        Diagnostico.anotar("YouTube: resultado " + (fim.ok() ? "vídeo=" + (fim.video != null || fim.hls != null) + " áudio=" + (fim.audio != null) : "erro: " + fim.erro));
+        return fim;
+    }
+
+    static boolean ok(int codigo) { return codigo == 200 || codigo == 206; }
+
+    /** Pede só os 2 primeiros bytes para saber se o servidor libera o arquivo. Devolve o código HTTP (-1 = sem resposta). */
+    static int sondar(String url, String ua, String referer) {
+        HttpURLConnection c = null;
+        try {
+            URL u = new URL(url);
+            for (int r = 0; r < 5; r++) {
+                c = (HttpURLConnection) u.openConnection();
+                c.setConnectTimeout(10000);
+                c.setReadTimeout(10000);
+                c.setInstanceFollowRedirects(false);
+                if (ua != null) c.setRequestProperty("User-Agent", ua);
+                if (referer != null) c.setRequestProperty("Referer", referer);
+                c.setRequestProperty("Range", "bytes=0-1");
+                int cod = c.getResponseCode();
+                String loc = c.getHeaderField("Location");
+                if (cod >= 300 && cod < 400 && loc != null) { u = new URL(u, loc); c.disconnect(); continue; }
+                try {
+                    InputStream in = cod >= 400 ? c.getErrorStream() : c.getInputStream();
+                    if (in != null) { in.read(new byte[2]); in.close(); }
+                } catch (IOException e) { }
+                return cod;
+            }
+            return -1;
+        } catch (Exception e) {
+            return -1;
+        } finally { if (c != null) c.disconnect(); }
+    }
+
+    /** Testa uma lista HLS indo até o primeiro pedaço de vídeo. */
+    static boolean sondarHls(String url, String ua) {
+        try {
+            String[][] cab = { { "User-Agent", ua } };
+            for (int nivel = 0; nivel < 3; nivel++) {
+                Resposta r = http("GET", url, cab, null);
+                if (r.codigo != 200 || !r.corpo.trim().startsWith("#EXTM3U")) return false;
+                String proximo = null;
+                for (String l : r.corpo.split("\r?\n")) { l = l.trim(); if (l.length() > 0 && !l.startsWith("#")) { proximo = new URL(new URL(r.url), l).toString(); break; } }
+                if (proximo == null) return false;
+                if (r.corpo.contains("#EXT-X-STREAM-INF")) { url = proximo; continue; }
+                return ok(sondar(proximo, ua, null));
+            }
+        } catch (Exception e) { }
+        return false;
     }
 
     /** Lê a resposta do /youtubei/v1/player. Separado para poder ser testado com respostas salvas. */
@@ -183,6 +262,11 @@ public final class Extrator {
     // ------------------------------------------------------------ Instagram
 
     static final String UA_DESKTOP = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+    /** Endereços das APIs (alteráveis só nos testes). */
+    static String API_YT = "https://www.youtube.com/youtubei/v1/player?prettyPrint=false";
+    static String API_IG = "https://www.instagram.com/graphql/query";
+    static String SITE_IG = "https://www.instagram.com";
+
     private static final String IG_APP_ID = "936619743392459";
     private static final String[] DOC_IDS = { "8845758582119845", "10015901848480474" };
 
@@ -212,25 +296,30 @@ public final class Extrator {
             for (String doc : DOC_IDS) {
                 String corpo = "variables=" + enc("{\"shortcode\":\"" + codigo + "\",\"fetch_tagged_user_count\":null,\"hoisted_comment_id\":null,\"hoisted_reply_id\":null}")
                         + "&doc_id=" + doc + "&server_timestamps=true";
-                Resposta res = http("POST", "https://www.instagram.com/graphql/query", new String[][] {
+                Resposta res = http("POST", API_IG, new String[][] {
                         { "User-Agent", UA_DESKTOP }, { "Content-Type", "application/x-www-form-urlencoded" }, { "X-IG-App-ID", IG_APP_ID },
                         { "X-ASBD-ID", "129477" }, { "X-Requested-With", "XMLHttpRequest" }, { "X-CSRFToken", csrf }, { "Origin", "https://www.instagram.com" },
                         { "Referer", "https://www.instagram.com/p/" + codigo + "/" }, { "Cookie", cookies } }, corpo);
+                Diagnostico.anotar("Instagram GraphQL (" + doc + "): HTTP " + res.codigo + (res.corpo.contains("require_login") ? " pede login" : ""));
                 if (res.codigo == 200 && res.corpo.trim().startsWith("{")) {
                     Resultado x = lerRespostaInstagram(new JSONObject(res.corpo));
-                    if (x.ok()) { x.agente = r.agente; x.referer = r.referer; return x; }
+                    Diagnostico.anotar("Instagram: " + (x.ok() ? "video_url=" + Diagnostico.curto(x.video) + " dash_vídeo=" + (x.videoDash != null)
+                            + " dash_áudio=" + (x.audioSeparado != null) + " sem_som=" + x.semSom : "erro: " + x.erro));
+                    if (x.ok()) { x.agente = r.agente; x.referer = r.referer; escolherInstagram(x); return x; }
                     if (x.erro != null) r.erro = x.erro;
                 }
                 if (res.codigo == 401 || res.codigo == 403 || res.corpo.contains("\"require_login\":true")) r.precisaLogin = true;
             }
             // 2) Página "embed" (às vezes traz o endereço do vídeo no HTML).
-            Resposta emb = http("GET", "https://www.instagram.com/p/" + codigo + "/embed/captioned/", new String[][] { { "User-Agent", UA_DESKTOP }, { "Cookie", cookies } }, null);
+            Resposta emb = http("GET", SITE_IG + "/p/" + codigo + "/embed/captioned/", new String[][] { { "User-Agent", UA_DESKTOP }, { "Cookie", cookies } }, null);
             String v = videoNoHtml(emb.corpo);
-            if (v != null) { r.video = v; r.titulo = "Instagram"; return r; }
+            Diagnostico.anotar("Instagram embed: HTTP " + emb.codigo + " vídeo=" + (v != null));
+            if (v != null) { r.video = v; r.titulo = "Instagram"; escolherInstagram(r); return r; }
             if (r.erro == null) r.erro = "O Instagram não liberou este vídeo sem login.";
             r.precisaLogin = true;
         } catch (Exception e) {
             r.erro = "Falha ao falar com o Instagram: " + e.getMessage();
+            Diagnostico.anotar("Instagram: exceção " + e);
         }
         return r;
     }
@@ -270,12 +359,32 @@ public final class Extrator {
     static void preencherVideoInstagram(Resultado r, JSONObject m) {
         r.video = m.optString("video_url");
         String[] d = melhoresDoDash(m.optString("video_dash_manifest", ""));
+        r.videoDash = d[0];
         if (d[1] != null) {
-            if (d[0] != null) r.video = d[0];
             r.audioSeparado = d[1];
             r.audio = d[1];
         } else if (m.has("has_audio") && !m.optBoolean("has_audio", true)) {
             r.semSom = true;
+        }
+    }
+
+    /**
+     * Testa os endereços antes de usar: o vídeo principal é o video_url (que já tocava);
+     * se ele estiver bloqueado, tenta o do manifesto. O som separado só é usado se responder.
+     */
+    static void escolherInstagram(Resultado x) {
+        int cv = sondar(x.video, UA_DESKTOP, "https://www.instagram.com/");
+        Diagnostico.anotar("  teste video_url: " + cv);
+        if (!ok(cv) && x.videoDash != null) {
+            int cd = sondar(x.videoDash, UA_DESKTOP, "https://www.instagram.com/");
+            Diagnostico.anotar("  teste vídeo do manifesto: " + cd);
+            if (ok(cd)) x.video = x.videoDash;
+            else x.erro = "O Instagram bloqueou o arquivo do vídeo (erro " + cv + ").";
+        } else if (!ok(cv)) x.erro = "O Instagram bloqueou o arquivo do vídeo (erro " + cv + ").";
+        if (x.audioSeparado != null) {
+            int ca = sondar(x.audioSeparado, UA_DESKTOP, "https://www.instagram.com/");
+            Diagnostico.anotar("  teste som separado: " + ca);
+            if (!ok(ca)) { x.audioSeparado = null; x.audio = null; }
         }
     }
 
