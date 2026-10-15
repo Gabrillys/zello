@@ -93,6 +93,11 @@ public class Navegador extends WebView {
             "if(document.documentElement.classList.contains('tocador-cheio')&&(!v||!v.classList.contains('tocador-alvo')||document.querySelector('.ytp-caption-window-container:not(.tocador-cap)')))o.reisolar=true;" +
             "return o;})()";
 
+    /** Leitura rápida do tempo do vídeo (para a dublagem acompanhar a fala). */
+    static final String JS_TEMPO = "(function(){" + PRINCIPAL + "var v=principal();if(!v)return {t:0,p:true};" +
+            "var p=document.getElementById('movie_player'),vd=p&&p.getVideoData&&p.getVideoData();" +
+            "return {t:Math.round(v.currentTime*1000),p:v.paused||v.ended||v.readyState<3,r:v.playbackRate||1,vid:(vd&&vd.video_id)||''};})()";
+
     private static String jsComando(String acao) {
         return "(function(a){var m=[].slice.call(document.querySelectorAll('video,audio'));" +
                 "var p=m.filter(function(x){return !x.paused&&!x.ended});" +

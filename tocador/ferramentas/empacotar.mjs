@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 9,
-  versionName: '2.3',
+  versionCode: 10,
+  versionName: '2.4',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -69,6 +69,8 @@ function manifesto(o) {
     perm('android.permission.MODIFY_AUDIO_SETTINGS'),
     // Só Android 9 ou anterior precisa disto para salvar legendas na pasta Download.
     el('uses-permission', [A('name', 'str', 'android.permission.WRITE_EXTERNAL_STORAGE'), A('maxSdkVersion', 'int', 28)]),
+    // Android 11+: sem isto o app não enxerga os motores de voz instalados (usados na dublagem).
+    el('queries', [], [el('intent', [], [acao('android.intent.action.TTS_SERVICE')])]),
     el('application', [A('label', 'str', o.nome), A('icon', 'ref', 0x7f010000), A('hardwareAccelerated', 'bool', true),
       A('extractNativeLibs', 'bool', true), A('usesCleartextTraffic', 'bool', true)], [
       el('activity', [A('label', 'str', o.nome), A('name', 'str', 'app.tocador.Principal'), A('exported', 'bool', true),

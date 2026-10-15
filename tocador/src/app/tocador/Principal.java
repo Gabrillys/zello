@@ -183,6 +183,8 @@ public class Principal extends Activity {
     void abrir(String url, String modo) {
         url = url.trim();
         if (url.length() == 0) return;
+        Dublador dub = Dublador.seExistir();
+        if (dub != null && dub.ativo()) dub.parar("");
         if ("auto".equals(modo)) modo = decidirModo(url);
         if ("vlc".equals(modo)) {
             if (Controle.modo.equals("web")) Navegador.comandar("pausar");
@@ -504,6 +506,77 @@ public class Principal extends Activity {
         } }, "tocador-legenda").start();
     }
 
+    // ------------------------------------------------------------ dublagem automática (YouTube → português)
+
+    interface AoPedido { void pronto(String url); void falhou(); }
+
+    /** Espera o player do YouTube pedir o arquivo da legenda (ele só pede quando a legenda é ligada). */
+    private void esperarPedido(final String vid, final String idioma, final boolean auto, final int tentativa, final AoPedido cb) {
+        h.postDelayed(new Runnable() { public void run() {
+            String u = Navegador.legendaPedida(vid, idioma, auto);
+            if (u != null) cb.pronto(u);
+            else if (tentativa < 20) esperarPedido(vid, idioma, auto, tentativa + 1, cb);
+            else cb.falhou();
+        } }, 500);
+    }
+
+    void dublar() {
+        final Dublador d = Dublador.de(this);
+        JSONObject p = Navegador.estadoPagina;
+        if (!"web".equals(Controle.modo) || nav == null || !p.optBoolean("yt")) { d.definirEstado("A dublagem funciona com vídeos do YouTube."); return; }
+        JSONArray legs = p.optJSONArray("legs");
+        if (legs == null || legs.length() == 0) { d.definirEstado("Este vídeo não tem legendas (nem automáticas), então não dá para dublar. Dê play e tente de novo em alguns segundos."); return; }
+        // Melhor origem: legenda em português feita por pessoas > legenda feita por pessoas em outro idioma
+        // (traduzida pelo YouTube) > automática em português > automática em outro idioma (traduzida).
+        JSONObject melhor = null; int nota = -1;
+        for (int i = 0; i < legs.length(); i++) {
+            JSONObject l = legs.optJSONObject(i);
+            boolean pt = l.optString("idioma").startsWith("pt"), auto = l.optBoolean("auto");
+            int n = !auto ? (pt ? 4 : 3) : (pt ? 2 : 1);
+            if (n > nota) { nota = n; melhor = l; }
+        }
+        final String idioma = melhor.optString("idioma"), nome = melhor.optString("nome");
+        final boolean auto = melhor.optBoolean("auto"), jaPt = idioma.startsWith("pt");
+        final String vid = p.optString("vid");
+        final boolean estavaLigada = p.optString("legAtual").length() > 0;
+        d.definirEstado("Preparando a dublagem…");
+        String u = Navegador.legendaPedida(vid, idioma, auto);
+        if (u != null) { buscarRoteiro(u, jaPt, nome, vid); return; }
+        js(nav, Navegador.jsLegendaYoutube(idioma, auto, ""));
+        esperarPedido(vid, idioma, auto, 0, new AoPedido() {
+            public void pronto(String url) {
+                if (!estavaLigada) js(nav, Navegador.jsLegendaYoutube("", false, "")); // devolve a legenda como estava
+                buscarRoteiro(url, jaPt, nome, vid);
+            }
+            public void falhou() {
+                Diagnostico.anotar("Dublagem: o player não pediu a legenda " + idioma);
+                d.definirEstado("O YouTube não entregou a legenda deste vídeo. Dê play, espere alguns segundos e tente de novo.");
+            }
+        });
+    }
+
+    private void buscarRoteiro(final String url, final boolean jaPt, final String origem, final String vid) {
+        final String ua = nav.agente();
+        final String cookie = CookieManager.getInstance().getCookie("https://www.youtube.com");
+        new Thread(new Runnable() { public void run() {
+            java.util.List<Roteiro.Fala> falas = null;
+            String erro = null;
+            try { falas = Roteiro.deJson3(Legendas.baixar(Legendas.urlYoutube(url, jaPt ? null : "pt"), ua, cookie, "https://www.youtube.com/")); }
+            catch (Exception e) { erro = e.getMessage(); }
+            final java.util.List<Roteiro.Fala> f = falas;
+            final String motivo = erro;
+            runOnUiThread(new Runnable() { public void run() {
+                Dublador d = Dublador.de(Principal.this);
+                if (f == null || f.isEmpty()) {
+                    Diagnostico.anotar("Dublagem: roteiro vazio" + (motivo != null ? " (" + motivo + ")" : ""));
+                    d.definirEstado("Não consegui a legenda traduzida" + (motivo != null ? " (" + motivo + ")" : "") + ". Tente de novo.");
+                    return;
+                }
+                if (nav != null) d.iniciar(nav, f, origem + (jaPt ? "" : " → português"), vid);
+            } });
+        } }, "tocador-dublagem").start();
+    }
+
     private void lerFaixa(final int i, final int tentativa) {
         if (nav == null) return;
         nav.evaluateJavascript(Navegador.jsTextoFaixa(i), new ValueCallback<String>() {
@@ -575,7 +648,11 @@ public class Principal extends Activity {
 
         @JavascriptInterface
         public void parar() {
-            naTela(new Runnable() { public void run() { telaCheia(false); Controle.parar(Principal.this); Controle.modo = "nada"; ajustar(); } });
+            naTela(new Runnable() { public void run() {
+                Dublador dub = Dublador.seExistir();
+                if (dub != null) dub.parar("");
+                telaCheia(false); Controle.parar(Principal.this); Controle.modo = "nada"; ajustar();
+            } });
         }
 
         /** Vai para um ponto (0 a 1) do vídeo. */
@@ -720,6 +797,35 @@ public class Principal extends Activity {
         }
 
         @JavascriptInterface
+        public String dublagem() {
+            try {
+                Dublador d = Dublador.seExistir();
+                return new JSONObject().put("ativo", d != null && d.ativo()).put("estado", d == null ? "" : d.estado())
+                        .put("volume", d == null ? getSharedPreferences("ajustes", MODE_PRIVATE).getInt("volumeOriginal", 15) : d.volumeOriginal())
+                        .put("disponivel", "web".equals(Controle.modo) && Navegador.estadoPagina.optBoolean("yt")).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void dublar(final boolean sim) {
+            naTela(new Runnable() { public void run() {
+                if (sim) Principal.this.dublar(); else Dublador.de(Principal.this).parar("");
+            } });
+        }
+
+        @JavascriptInterface
+        public void volumeOriginal(final int v) { naTela(new Runnable() { public void run() { Dublador.de(Principal.this).definirVolumeOriginal(v); } }); }
+
+        /** Abre o ajuste de voz do Android (escolher o motor e baixar a voz em português). */
+        @JavascriptInterface
+        public void escolherVoz() {
+            naTela(new Runnable() { public void run() {
+                try { startActivity(new Intent("com.android.settings.TTS_SETTINGS").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+                catch (Exception e) { try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (Exception x) { } }
+            } });
+        }
+
+        @JavascriptInterface
         public void baixarLegenda(final String chave, final boolean traduzir) {
             naTela(new Runnable() { public void run() { Principal.this.baixarLegenda(chave, traduzir); } });
         }
@@ -847,7 +953,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.3 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 2.4 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

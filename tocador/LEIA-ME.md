@@ -24,6 +24,10 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - **Player VLC**: escolhe as legendas embutidas no arquivo ou transmissão. Elas não podem ser baixadas como texto.
   - Na tela cheia, a legenda continua sendo a do próprio site (uma só, por cima do vídeo). No YouTube, ela fica na base da tela, a 64 px do rodapé nas duas orientações, com o dobro do tamanho.
 - **Áudio dublado (YouTube)**: em vídeos com o áudio em vários idiomas, a gaveta **Áudio e legendas** mostra as faixas para trocar com um toque. Se o YouTube não aceitar a troca por ali, use a engrenagem do próprio vídeo → *Faixa de áudio*.
+- **Dublagem automática em português (YouTube)**: na gaveta **Áudio e legendas**, toque em **Dublar em português**.
+  - O app usa a legenda do vídeo (manual ou automática), traduzida para português pelo próprio YouTube, e fala cada frase na hora certa com a voz do aparelho. Enquanto isso, o áudio original fica baixo (o volume é ajustável).
+  - A voz vem do mecanismo de voz do Android: Google, ou os de código aberto **RHVoice** e **eSpeak NG** (F-Droid). Para escolher o motor e baixar a voz em português, use **Escolher voz**.
+  - Vídeos sem nenhuma legenda ainda não podem ser dublados.
 - **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
 
 ## jw.org
@@ -66,6 +70,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Servico`: segundo plano;
   - `Legendas`: conversão de legendas para texto puro;
   - `JwOrg`: API do jw.org;
+  - `Roteiro` + `Dublador`: dublagem automática;
   - `AgenteCH`: Client Hints da versão para computador;
   - `Arquivos`: salvar na pasta Download;
   - `EqSistema`: equalizador do Android;

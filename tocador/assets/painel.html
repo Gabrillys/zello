@@ -185,7 +185,7 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
       <div class="vol oculto" id="volBox"><span>Volume</span><input type="range" id="vol" min="0" max="200" value="100"><span id="volTxt" style="min-width:42px;text-align:right">100%</span></div>
       <div class="grade">
         <button class="acao" id="aCheio"><span></span>Tela cheia</button>
-        <button class="acao" id="aLeg"><span></span>Legendas</button>
+        <button class="acao" id="aLeg"><span></span>Áudio e legendas</button>
         <button class="acao" id="aQual"><span></span>Qualidade</button>
         <button class="acao" id="aEq"><span></span>Equalizador</button>
         <button class="acao" id="aLink"><span></span>Novo link</button>
@@ -329,17 +329,34 @@ function opcoes(itens,sel){ return itens.map(function(o){ return '<button class=
 // ---- legendas
 var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
 function abrirLegendas(){
-  abrirGaveta('leg','Áudio e legendas','<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
+  abrirGaveta('leg','Áudio e legendas','<div id="dubBox" class="oculto"><h2>Dublagem automática</h2>'+
+    '<button class="pri" id="dubBotao" style="width:100%"></button><div class="nota" id="dubEstado"></div>'+
+    '<div class="tempos" style="margin-top:6px"><span>Volume do áudio original</span><span id="dubVolTxt"></span></div><input type="range" id="dubVol" min="0" max="100" step="5">'+
+    '<div class="linha mt"><button id="dubVoz">Escolher voz</button></div>'+
+    '<div class="nota">Usa a legenda do vídeo traduzida para português e a voz do aparelho. Motores de voz de código aberto: RHVoice e eSpeak NG (F-Droid).</div><h2 style="margin-top:16px">Áudio do vídeo</h2></div>'+
+    '<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
     '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
     '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
   legAnt=''; audAnt=''; atualizarLegendas();
+  $('dubBotao').onclick=function(){ var d=JSON.parse(T.dublagem()); T.dublar(!d.ativo); setTimeout(atualizarDublagem,300); };
+  $('dubVol').oninput=function(){ $('dubVolTxt').textContent=this.value+'%'; T.volumeOriginal(+this.value); };
+  $('dubVoz').onclick=function(){ T.escolherVoz(); };
   $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
   $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
   $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
 }
 window.legendaSalva=function(podeAbrir){ var b=$('legAbrir'); if(b) b.classList.toggle('oculto',!podeAbrir); };
+function atualizarDublagem(){
+  if(!$('dubBox')) return;
+  var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ return; }
+  $('dubBox').classList.toggle('oculto',!d.disponivel&&!d.ativo);
+  $('dubBotao').innerHTML=d.ativo?IC.parar+'<span>Parar a dublagem</span>':IC.play+'<span>Dublar em português</span>';
+  $('dubEstado').textContent=d.estado||'';
+  if(document.activeElement!==$('dubVol')){ $('dubVol').value=d.volume; $('dubVolTxt').textContent=d.volume+'%'; }
+}
 function atualizarLegendas(){
   if(!T||!$('legLista')) return;
+  atualizarDublagem();
   var A; try{ A=JSON.parse(T.audios()); }catch(x){ A={itens:[]}; }
   var ka=JSON.stringify(A);
   if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem);
