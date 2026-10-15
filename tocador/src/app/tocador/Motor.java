@@ -43,7 +43,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     private AudioFocusRequest pedidoFoco;
 
     private volatile String url = "";
-    private String ua, referer, audioExtra;
+    private String ua, referer, audioExtra, legendaExtra;
     private volatile String titulo = "";
     private volatile String tituloFixo;
     private volatile float buffer = 0;
@@ -89,8 +89,11 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     public void tocar(String u, String userAgent, String ref) { tocar(u, userAgent, ref, null); }
 
     /** @param audio som que vem num arquivo separado do vídeo (Instagram); o VLC toca os dois juntos. */
-    public void tocar(String u, String userAgent, String ref, String audio) {
-        url = u; ua = userAgent; referer = ref; audioExtra = audio;
+    public void tocar(String u, String userAgent, String ref, String audio) { tocar(u, userAgent, ref, audio, null); }
+
+    /** @param legenda arquivo de legenda externo (.vtt/.srt) para mostrar junto com o vídeo. */
+    public void tocar(String u, String userAgent, String ref, String audio, String legenda) {
+        url = u; ua = userAgent; referer = ref; audioExtra = audio; legendaExtra = legenda;
         titulo = ""; tituloFixo = null; jaTocou = false;
         Diagnostico.anotar("VLC: abrir " + Diagnostico.curto(u) + (audio != null ? " + som separado " + Diagnostico.curto(audio) : "")); temVideo = false; tentativas = 0;
         querTocando = true;
@@ -103,6 +106,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         if (ua != null && ua.length() > 0) m.addOption(":http-user-agent=" + ua);
         if (referer != null && referer.length() > 0) m.addOption(":http-referrer=" + referer);
         if (audioExtra != null) m.addSlave(new IMedia.Slave(IMedia.Slave.Type.Audio, 4, audioExtra));
+        if (legendaExtra != null) m.addSlave(new IMedia.Slave(IMedia.Slave.Type.Subtitle, 4, legendaExtra));
         if (qualidadeMaxima) m.addOption(":adaptive-logic=highest");
         mp.setMedia(m);
         m.release();

@@ -20,7 +20,11 @@ import android.webkit.WebViewClient;
 
 import org.json.JSONObject;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Locale;
+import java.util.regex.Pattern;
 
 /**
  * Navegador para o YouTube e outros sites de vídeo. O vídeo é tocado pelo player do próprio site;
@@ -30,6 +34,8 @@ import java.util.HashMap;
 public class Navegador extends WebView {
 
     public interface TelaCheia { void mostrar(View v, WebChromeClient.CustomViewCallback cb); void esconder(); }
+    /** Avisado quando o endereço da página muda (inclusive em sites que não recarregam a página). */
+    public interface AoMudar { void pagina(String url); }
 
     static volatile boolean tocandoAgora;
     static volatile String tituloAgora = "";
@@ -116,11 +122,26 @@ public class Navegador extends WebView {
                 "if(p.setPlaybackQualityRange)p.setPlaybackQualityRange(alvo,alvo);if(p.setPlaybackQuality)p.setPlaybackQuality(alvo);return alvo;})('" + q + "')";
     }
 
+    /**
+     * Grava a qualidade preferida onde o YouTube guarda a escolha manual feita no menu do player
+     * ("yt-player-quality"). Vale para os próximos vídeos, mesmo se o player ignorar o comando direto.
+     */
+    static String jsPreferenciaYoutube(String q) {
+        int altura = "max".equals(q) ? 4320 : "highres".equals(q) ? 4320 : "hd2880".equals(q) ? 2880 : "hd2160".equals(q) ? 2160
+                : "hd1440".equals(q) ? 1440 : "hd1080".equals(q) ? 1080 : "hd720".equals(q) ? 720 : "large".equals(q) ? 480
+                : "medium".equals(q) ? 360 : "small".equals(q) ? 240 : "tiny".equals(q) ? 144 : 0;
+        return "(function(h){if(!/youtube\\.com$/.test(location.hostname))return;try{if(!h){localStorage.removeItem('yt-player-quality');return;}" +
+                "var agora=Date.now();localStorage.setItem('yt-player-quality',JSON.stringify({data:JSON.stringify({quality:h,previousQuality:h})," +
+                "expiration:agora+31536000000,creation:agora}));}catch(e){}})(" + altura + ")";
+    }
+
     /** Liga uma legenda do YouTube (idioma vazio = desliga). traduzir = código do idioma de tradução, ou "". */
     static String jsLegendaYoutube(String idioma, boolean auto, String traduzir) {
         return "(function(lang,asr,trad){var p=document.getElementById('movie_player');if(!p)return 'sem';" +
-                "if(!lang){try{p.setOption('captions','track',{});}catch(e){}try{p.unloadModule('captions');}catch(e){}return 'off';}" +
-                "try{p.loadModule('captions');}catch(e){}var alvo=null;" +
+                "if(!lang){try{p.setOption('captions','track',{});}catch(e){}try{p.unloadModule('captions');}catch(e){}window.__tocadorCap=0;return 'off';}" +
+                // Carregar o módulo de legendas mais de uma vez faz o YouTube desenhar a legenda em dobro.
+                "var pronto=false;try{var t0=p.getOption('captions','tracklist');pronto=!!(t0&&t0.length);}catch(e){}" +
+                "if(!pronto&&!window.__tocadorCap){window.__tocadorCap=1;try{p.loadModule('captions');}catch(e){}}var alvo=null;" +
                 "try{var tl=p.getOption('captions','tracklist')||[];for(var i=0;i<tl.length;i++){if(tl[i].languageCode===lang&&((tl[i].kind==='asr')===asr)){alvo=tl[i];break;}}}catch(e){}" +
                 "var t=alvo?JSON.parse(JSON.stringify(alvo)):{languageCode:lang};if(asr&&!alvo)t.kind='asr';if(trad)t.translationLanguage={languageCode:trad};" +
                 "try{p.setOption('captions','track',t);}catch(e){return 'erro';}return alvo?'ok':'parcial';})(" +
@@ -154,12 +175,16 @@ public class Navegador extends WebView {
     private final Handler h = new Handler(Looper.getMainLooper());
     private final String agenteCelular;
     private TelaCheia telaCheia;
+    private AoMudar aoMudar;
     private volatile boolean cheio;
     private volatile String qualidade = "max";
     private String ultimoVideo = "", ultimosNiveis = "";
     private long ultimaQualidade;
     /** Endereços de legenda pedidos pelo player do YouTube: "vídeo|idioma|asr" -> endereço (com a autorização do player). */
     private static final HashMap<String, String> legendasPedidas = new HashMap<String, String>();
+    /** Arquivos de legenda (.vtt, .srt, .ttml…) pedidos pelo player de qualquer site: endereço -> nome. */
+    private static final LinkedHashMap<String, String> arquivosLegenda = new LinkedHashMap<String, String>();
+    private static final Pattern ARQ_LEGENDA = Pattern.compile("(?i)^[^?#]+\\.(vtt|webvtt|srt|ttml|dfxp)([?#].*)?$");
 
     @SuppressLint("SetJavaScriptEnabled")
     public Navegador(Context c) {
@@ -184,15 +209,24 @@ public class Navegador extends WebView {
         setBackgroundColor(0xFF000000);
 
         setWebViewClient(new WebViewClient() {
-            @Override public void onPageStarted(WebView v, String url, Bitmap f) { v.evaluateJavascript(JS_SEMPRE_VISIVEL, null); }
+            @Override public void onPageStarted(WebView v, String url, Bitmap f) {
+                synchronized (arquivosLegenda) { arquivosLegenda.clear(); }
+                v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
+                v.evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
+            }
             @Override public void onPageFinished(WebView v, String url) {
                 v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
+                v.evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
+                if (aoMudar != null) aoMudar.pagina(url);
                 if (cheio) v.evaluateJavascript(jsIsolar(true), null);
             }
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
                 String esq = r.getUrl().getScheme();
                 // Links "intent:", "vnd.youtube:" etc. abririam o app oficial; ficamos no navegador.
                 return esq == null || !(esq.equals("http") || esq.equals("https"));
+            }
+            @Override public void doUpdateVisitedHistory(WebView v, String url, boolean recarga) {
+                if (aoMudar != null && url != null) aoMudar.pagina(url);
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
                 anotarLegenda(r.getUrl().toString());
@@ -218,6 +252,7 @@ public class Navegador extends WebView {
     }
 
     public void definirTelaCheia(TelaCheia t) { telaCheia = t; }
+    public void definirAoMudar(AoMudar a) { aoMudar = a; }
     public String agente() { return getSettings().getUserAgentString(); }
 
     /** O site nunca fica sabendo que a janela sumiu (tela apagada, outro app na frente). */
@@ -236,6 +271,7 @@ public class Navegador extends WebView {
     public void definirQualidade(String q) {
         qualidade = q;
         ultimosNiveis = "";
+        evaluateJavascript(jsPreferenciaYoutube(q), null);
         evaluateJavascript(jsQualidade(q), null);
     }
 
@@ -257,12 +293,30 @@ public class Navegador extends WebView {
     // ------------------------------------------------------------ legendas
 
     private void anotarLegenda(String u) {
-        if (!u.contains("/api/timedtext")) return;
+        if (!u.contains("/api/timedtext")) {
+            if (!ARQ_LEGENDA.matcher(u).matches()) return;
+            String nome = u.replaceAll("[?#].*$", "");
+            nome = nome.substring(nome.lastIndexOf('/') + 1);
+            synchronized (arquivosLegenda) {
+                if (arquivosLegenda.containsKey(u)) return;
+                arquivosLegenda.put(u, nome);
+                while (arquivosLegenda.size() > 20) arquivosLegenda.remove(arquivosLegenda.keySet().iterator().next());
+            }
+            Diagnostico.anotar("Arquivo de legenda pedido pelo site: " + Diagnostico.curto(u));
+            return;
+        }
         String v = Legendas.parametro(u, "v"), lang = Legendas.parametro(u, "lang");
         if (v == null || lang == null) return;
         String kind = Legendas.parametro(u, "kind");
         synchronized (legendasPedidas) { legendasPedidas.put(v + "|" + lang + "|" + ("asr".equals(kind)), u); }
         Diagnostico.anotar("Legenda pedida pelo player: " + lang + ("asr".equals(kind) ? " (automática)" : ""));
+    }
+
+    /** Arquivos de legenda vistos nesta página: lista de {endereço, nome}. */
+    public static ArrayList<String[]> arquivosDeLegenda() {
+        ArrayList<String[]> l = new ArrayList<String[]>();
+        synchronized (arquivosLegenda) { for (java.util.Map.Entry<String, String> e : arquivosLegenda.entrySet()) l.add(new String[] { e.getKey(), e.getValue() }); }
+        return l;
     }
 
     /** Endereço da legenda que o próprio player do YouTube já pediu (com autorização), ou null. */
@@ -310,7 +364,18 @@ public class Navegador extends WebView {
         if (!mudou && "max".equals(qualidade) && primeiro.equals(o.optString("q"))) return;
         if (!mudou && !"max".equals(qualidade) && qualidade.equals(o.optString("q"))) return;
         ultimoVideo = vid; ultimosNiveis = niveis; ultimaQualidade = agora;
-        evaluateJavascript(jsQualidade(qualidade), null);
+        final String antes = o.optString("q");
+        final String pedida = qualidade;
+        evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
+        evaluateJavascript(jsQualidade(qualidade), new ValueCallback<String>() {
+            public void onReceiveValue(String r) {
+                Diagnostico.anotar("Qualidade YouTube: pedida=" + pedida + " antes=" + antes + " resposta=" + r + " níveis=" + ultimosNiveis);
+                // Confere depois de alguns segundos se o player realmente mudou.
+                h.postDelayed(new Runnable() { public void run() {
+                    Diagnostico.anotar("Qualidade YouTube 4 s depois: " + estadoPagina.optString("q"));
+                } }, 4000);
+            }
+        });
     }
 
     /** Executa tocar / pausar / alternar no player da página aberta. */

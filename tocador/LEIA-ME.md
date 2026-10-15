@@ -20,9 +20,17 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - **Legendas**:
   - **YouTube**: escolha o idioma (inclusive as legendas automáticas) e, se quiser, **Traduzir para português**.
   - **Baixar legenda como texto (.txt)**: salva a legenda inteira do vídeo, sem horários, em **Download/Tocador**. Funciona no YouTube e em sites que usam legendas padrão da web.
+  - **Arquivos de legenda encontrados**: qualquer arquivo de legenda (`.vtt`, `.srt`, `.ttml`) que o player de um site pedir aparece na gaveta de Legendas, pronto para baixar como texto. Isso cobre sites com player próprio, como o jw.org.
   - **Player VLC**: escolhe as legendas embutidas no arquivo ou transmissão. Elas não podem ser baixadas como texto.
   - Na tela cheia do YouTube, o app desenha a legenda sobre o vídeo.
 - **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
+
+## jw.org
+
+Em vídeos do jw.org, o app consulta a API pública do site. Ela informa as resoluções (até 720p) e a legenda de cada vídeo.
+
+- Na gaveta **Qualidade**, em *Vídeo do jw.org*, escolha **Assistir em 720p** (ou outra resolução). O vídeo abre no player VLC com a qualidade fixa e a legenda do site.
+- Na gaveta **Legendas**, a **Legenda do jw.org** pode ser baixada como texto.
 
 ## Os dois modos
 
@@ -38,6 +46,7 @@ Se o modo automático errar, use *Abrir como: Site / Player VLC*.
 - Os sites mudam com frequência e podem bloquear a reprodução em segundo plano a qualquer momento.
 - Em alguns aparelhos (Xiaomi, Samsung, Motorola…), a economia de bateria pode cortar o som com a tela apagada. Em *Dicas → Ajuste de bateria*, deixe o Tocador **sem restrição**.
 - Qualidades muito altas (4K) dependem do celular conseguir decodificar o vídeo.
+- Qualidade do YouTube: o app usa o comando do player e também grava a preferência no mesmo lugar onde o YouTube guarda a escolha manual. Se mesmo assim a qualidade não mudar, o *Copiar diagnóstico* mostra o que o player respondeu.
 - Se você arrastar o app para fora da lista de recentes, o modo site para. O modo VLC continua tocando.
 - Algo não funcionou? Em *Dicas*, toque em **Copiar diagnóstico** e envie o texto.
 
@@ -55,6 +64,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Motor`: player VLC;
   - `Servico`: segundo plano;
   - `Legendas`: conversão de legendas para texto puro;
+  - `JwOrg`: API do jw.org;
   - `Arquivos`: salvar na pasta Download;
   - `EqSistema`: equalizador do Android;
   - `Diagnostico`: registro para suporte.

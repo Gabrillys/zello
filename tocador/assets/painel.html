@@ -331,7 +331,7 @@ var legChaveSel='', legTraduzir=false, legAnt='';
 function abrirLegendas(){
   abrirGaveta('leg','Legendas','<div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
     '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
-    '<button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
+    '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
   legAnt=''; atualizarLegendas();
   $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
   $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
@@ -353,7 +353,12 @@ function atualizarLegendas(){
   if(!(L.itens||[]).length) nota=L.fonte==='vlc'?'Este arquivo ou transmissão não tem legendas embutidas.':'Nenhuma legenda encontrada ainda. Dê play no vídeo; se ele tiver legendas, elas aparecem aqui.';
   else if(L.fonte==='vlc') nota='Legendas embutidas no arquivo. Elas aparecem no vídeo, mas não podem ser baixadas como texto.';
   else if(L.fonte==='youtube') nota='O arquivo de texto traz a legenda inteira do vídeo, sem horários.';
+  var arqs=L.arquivos||[];
+  if(!(L.itens||[]).length&&arqs.length) nota='O player deste site não lista as legendas, mas o app encontrou o arquivo abaixo.';
   $('legNota').textContent=nota;
+  $('legArqs').innerHTML=arqs.length?'<h2 style="margin-top:14px">Arquivos de legenda encontrados</h2>'+arqs.map(function(a){
+    return '<div class="lista-item"><span class="u" style="color:var(--texto)">'+esc(a.nome)+'</span><button class="pri" data-c="'+esc(a.chave)+'" style="padding:9px 12px">'+IC.baixar+'<span>.txt</span></button></div>'; }).join(''):'';
+  [].forEach.call($('legArqs').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegenda(b.dataset.c,false); }; });
 }
 $('aLeg').onclick=$('cLeg').onclick=abrirLegendas;
 
@@ -366,6 +371,10 @@ function abrirQualidade(){
   else html+='<div class="nota">Este site escolhe a qualidade sozinho. Ligar a versão para computador costuma liberar qualidades maiores.</div>';
   if(Q.fonte==='vlc') html+='<div class="nota">Vale para transmissões e vídeos em lista (.m3u8 / DASH). Em "Máxima", o player não baixa a qualidade quando a internet oscila.</div>';
   else if(Q.fonte==='youtube') html+='<div class="nota">"Máxima disponível" é reaplicada a cada vídeo novo. Qualidades muito altas (4K) podem engasgar em celulares mais simples.</div>';
+  if(Q.jw){
+    html+='<h2 style="margin-top:16px">Vídeo do jw.org</h2><div class="nota">Abre no player VLC na resolução escolhida, que fica fixa'+(Q.jw.legenda?', com a legenda do site':'')+'.</div>'+
+      Q.jw.itens.map(function(o){ return '<button class="opcao" data-c="'+esc(o.chave)+'"><span>Assistir em '+esc(o.nome)+'</span><i class="marc"></i></button>'; }).join('');
+  }
   if(Q.fonte!=='vlc') html+='<div class="chave-linha"><span>Versão para computador<br><small style="color:var(--fraco);font-weight:400">Recarrega a página</small></span><label class="chave"><input type="checkbox" id="qComp"'+(Q.computador?' checked':'')+'><span></span></label></div>';
   abrirGaveta('qual','Qualidade',html);
   [].forEach.call($('gConteudo').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ T.escolherQualidade(b.dataset.c); [].forEach.call($('gConteudo').querySelectorAll('.opcao'),function(x){ x.classList.toggle('sel',x===b); }); avisar('Qualidade: '+b.textContent); }; });

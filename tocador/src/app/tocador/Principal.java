@@ -62,6 +62,9 @@ public class Principal extends Activity {
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;
     private String layoutAtual = "";
+    /** Vídeo do jw.org da página aberta (arquivos em cada resolução e legenda), se houver. */
+    private volatile JwOrg.Midia jw;
+    private volatile String jwPagina = "";
 
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
@@ -197,6 +200,9 @@ public class Principal extends Activity {
 
     private void criarNavegador() {
         nav = new Navegador(this);
+        nav.definirAoMudar(new Navegador.AoMudar() {
+            public void pagina(final String url) { runOnUiThread(new Runnable() { public void run() { verificarJw(url); } }); }
+        });
         nav.definirQualidade(ajustes.getString("qualidade", "max"));
         if (ajustes.getBoolean("computador", false)) nav.definirComputador(true);
         nav.definirTelaCheia(new Navegador.TelaCheia() {
@@ -211,6 +217,38 @@ public class Principal extends Activity {
             public void esconder() { sairTelaCheiaDoSite(); }
         });
         area.addView(nav, 2, new FrameLayout.LayoutParams(-1, -1)); // abaixo da camada de controles
+    }
+
+    /** Página de vídeo do jw.org: consulta a API do site para ter as resoluções e a legenda. */
+    private void verificarJw(final String url) {
+        final String[] id = JwOrg.identificar(url);
+        if (id == null) { if (!JwOrg.ehJwOrg(url)) { jw = null; jwPagina = ""; } return; }
+        final String chave = id[0] + "/" + id[1];
+        if (chave.equals(jwPagina)) return;
+        jwPagina = chave;
+        jw = null;
+        final String ua = nav.agente();
+        new Thread(new Runnable() { public void run() {
+            JwOrg.Midia m = null;
+            try { m = JwOrg.buscar(url, ua); } catch (Exception e) { Diagnostico.anotar("jw.org: falha na API: " + e.getMessage()); }
+            final JwOrg.Midia r = m;
+            Diagnostico.anotar("jw.org " + chave + ": " + (r == null ? "sem resultado" : r.arquivos.size() + " resoluções, legenda=" + (r.legenda != null)));
+            runOnUiThread(new Runnable() { public void run() { if (chave.equals(jwPagina)) jw = r; } });
+        } }, "tocador-jw").start();
+    }
+
+    /** Toca o vídeo do jw.org no player VLC, na resolução escolhida, com a legenda do site. */
+    private void tocarJw(int i) {
+        JwOrg.Midia m = jw;
+        if (m == null || i < 0 || i >= m.arquivos.size()) return;
+        if (Controle.modo.equals("web")) Navegador.comandar("pausar");
+        EqSistema.de(this).soltar();
+        Controle.modo = "vlc";
+        motor.anexar(superficie, superficieLegendas, superficie.getWidth(), superficie.getHeight());
+        motor.tocar(m.arquivos.get(i)[1], null, "https://www.jw.org/", null, m.legenda);
+        motor.definirTitulo(m.titulo);
+        Servico.iniciar(this);
+        ajustar();
     }
 
     private void sairTelaCheiaDoSite() {
@@ -392,6 +430,27 @@ public class Principal extends Activity {
             lerFaixa(Integer.parseInt(chave.substring(3)), 0);
             return;
         }
+        if (chave.startsWith("cap:") || chave.equals("jw")) {
+            final String url;
+            if (chave.equals("jw")) url = jw != null ? jw.legenda : null;
+            else {
+                java.util.ArrayList<String[]> l = Navegador.arquivosDeLegenda();
+                int i = Integer.parseInt(chave.substring(4));
+                url = i >= 0 && i < l.size() ? l.get(i)[0] : null;
+            }
+            if (url == null) { avisar("Esta legenda não está mais disponível. Abra o vídeo de novo."); return; }
+            avisar("Baixando a legenda…");
+            final String ua = nav != null ? nav.agente() : null;
+            final String cookie = CookieManager.getInstance().getCookie(url);
+            final String pagina = nav != null ? nav.getUrl() : null;
+            final String titulo = chave.equals("jw") && jw != null ? jw.titulo : ("vlc".equals(Controle.modo) ? motor.titulo() : Navegador.tituloAgora);
+            new Thread(new Runnable() { public void run() {
+                String texto = "", erro = null;
+                try { texto = Legendas.paraTexto(Legendas.baixar(url, ua, cookie, pagina)); } catch (Exception e) { erro = e.getMessage(); }
+                salvarLegenda(titulo, "do site", texto, erro);
+            } }, "tocador-legenda").start();
+            return;
+        }
         if (!chave.startsWith("yt:") || nav == null) { avisar("Esta legenda não pode ser baixada como texto."); return; }
         String[] p = chave.substring(3).split(":");
         final String idioma = p[0];
@@ -409,7 +468,6 @@ public class Principal extends Activity {
         h.postDelayed(new Runnable() { public void run() {
             String u = Navegador.legendaPedida(vid, idioma, auto);
             if (u != null) { buscarLegendaYoutube(u, idioma, traduzir); return; }
-            if (tentativa == 3 && nav != null) js(nav, Navegador.jsLegendaYoutube(idioma, auto, ""));
             if (tentativa < 20) esperarLegenda(vid, idioma, auto, traduzir, tentativa + 1);
             else {
                 Diagnostico.anotar("Legenda: o player não pediu o arquivo de " + idioma);
@@ -569,7 +627,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public String legendas() {
             try {
-                if ("vlc".equals(Controle.modo)) return motor.legendas().toString();
+                if ("vlc".equals(Controle.modo)) return comArquivos(motor.legendas()).toString();
                 JSONObject p = Navegador.estadoPagina, o = new JSONObject();
                 JSONArray itens = new JSONArray(), legs = p.optJSONArray("legs");
                 boolean yt = p.optBoolean("yt");
@@ -582,9 +640,24 @@ public class Principal extends Activity {
                 }
                 o.put("fonte", "web".equals(Controle.modo) ? (yt ? "youtube" : "site") : "").put("itens", itens)
                         .put("atual", p.optString("legAtual")).put("traducao", p.optString("legTrad"))
-                        .put("podeBaixar", "web".equals(Controle.modo)).put("podeTraduzir", yt);
-                return o.toString();
+                        .put("podeBaixar", "web".equals(Controle.modo) && (yt || itens.length() > 0)).put("podeTraduzir", yt);
+                return comArquivos(o).toString();
             } catch (Exception e) { return "{}"; }
+        }
+
+        /** Acrescenta os arquivos de legenda encontrados (pedidos pelo site ou informados pelo jw.org), que podem ser baixados. */
+        private JSONObject comArquivos(JSONObject o) throws Exception {
+            JSONArray a = new JSONArray();
+            JwOrg.Midia m = jw;
+            if (m != null && m.legenda != null) a.put(new JSONObject().put("chave", "jw").put("nome", "Legenda do jw.org" + (m.titulo.length() > 0 ? " — " + m.titulo : "")));
+            if ("web".equals(Controle.modo)) {
+                java.util.ArrayList<String[]> l = Navegador.arquivosDeLegenda();
+                for (int i = 0; i < l.size(); i++) {
+                    if (m != null && l.get(i)[0].equals(m.legenda)) continue;
+                    a.put(new JSONObject().put("chave", "cap:" + i).put("nome", l.get(i)[1]));
+                }
+            }
+            return o.put("arquivos", a);
         }
 
         /** chave: "off", "yt:idioma[:asr]", "tt:índice" ou "vlc:id". */
@@ -602,9 +675,10 @@ public class Principal extends Activity {
                 if (chave.startsWith("yt:")) {
                     String[] p = chave.substring(3).split(":");
                     final String c = Navegador.jsLegendaYoutube(p[0], p.length > 1, traduzir ? "pt" : "");
-                    js(nav, c);
-                    // Na primeira vez o módulo de legendas ainda está carregando: repete logo depois.
-                    h.postDelayed(new Runnable() { public void run() { js(nav, c); } }, 800);
+                    // Se o módulo de legendas ainda estava carregando, repete uma vez (só nesse caso, para não duplicar).
+                    nav.evaluateJavascript(c, new ValueCallback<String>() { public void onReceiveValue(String r) {
+                        if (r != null && r.contains("parcial")) h.postDelayed(new Runnable() { public void run() { js(nav, c); } }, 900);
+                    } });
                 }
             } });
         }
@@ -651,6 +725,12 @@ public class Principal extends Activity {
                     o.put("atual", ajustes.getString("qualidade", "max"));
                     o.put("computador", nav != null && nav.computador());
                 }
+                JwOrg.Midia m = jw;
+                if (m != null && !m.arquivos.isEmpty()) {
+                    JSONArray ji = new JSONArray();
+                    for (int i = 0; i < m.arquivos.size(); i++) ji.put(new JSONObject().put("chave", "jw:" + i).put("nome", m.arquivos.get(i)[0]));
+                    o.put("jw", new JSONObject().put("titulo", m.titulo).put("itens", ji).put("legenda", m.legenda != null));
+                }
                 return o.put("itens", itens).toString();
             } catch (Exception e) { return "{}"; }
         }
@@ -658,6 +738,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void escolherQualidade(final String q) {
             naTela(new Runnable() { public void run() {
+                if (q.startsWith("jw:")) { tocarJw(Integer.parseInt(q.substring(3))); return; }
                 if ("vlc".equals(Controle.modo)) { motor.definirQualidadeMaxima("max".equals(q)); return; }
                 ajustes.edit().putString("qualidade", q).apply();
                 if (nav != null) nav.definirQualidade(q);
@@ -728,7 +809,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.0 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 2.1 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
