@@ -524,7 +524,8 @@ public class Principal extends Activity {
     private String idVideoAtual() {
         String v = Navegador.estadoPagina.optString("vid");
         if (v.length() > 0) return v;
-        return nav == null || nav.getUrl() == null ? "" : "url:" + nav.getUrl();
+        String u = Navegador.enderecoAgora;
+        return u == null || u.length() == 0 ? "" : "url:" + u;
     }
 
     /** modo: legenda, aovivo, preparar ou pronta. */
@@ -539,13 +540,16 @@ public class Principal extends Activity {
         dublarLegenda();
     }
 
-    private boolean whisperPreparar;
+    /** O Whisper (ONNX Runtime) só vem para processadores de 64 bits. */
+    static boolean whisperDisponivel() {
+        for (String abi : Build.SUPPORTED_ABIS) if ("arm64-v8a".equals(abi)) return true;
+        return false;
+    }
 
-    /** Passo a passo: modelo baixado → permissão do microfone → autorização de gravar o áudio → começa. */
+    /** Baixa o modelo na primeira vez e começa. O som é lido dentro da página: nenhuma autorização é pedida. */
     private void dublarWhisper(boolean preparar) {
-        whisperPreparar = preparar;
         final Dublador d = Dublador.de(this);
-        if (Build.VERSION.SDK_INT < 29) { d.definirEstado("Ouvir o vídeo com o Whisper precisa do Android 10 ou mais novo."); return; }
+        if (!whisperDisponivel()) { d.definirEstado("O Whisper precisa de um celular de 64 bits."); return; }
         final String mod = d.modelo();
         if (!Modelos.pronto(this, mod)) {
             if (!Modelos.baixando()) Modelos.baixar(this, mod, new Modelos.Fim() { public void pronto(boolean ok, String erro) {
@@ -554,44 +558,7 @@ public class Principal extends Activity {
             d.definirEstado("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
             return;
         }
-        if (checkSelfPermission("android.permission.RECORD_AUDIO") != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] { "android.permission.RECORD_AUDIO" }, 3);
-            d.definirEstado("Permita o áudio: o Android exige essa permissão para o app ouvir o som do vídeo.");
-            return;
-        }
-        android.media.projection.MediaProjection p = Servico.projecao();
-        if (p != null) { d.iniciarWhisper(nav, idVideoAtual(), preparar, p); return; }
-        android.media.projection.MediaProjectionManager m = (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
-        d.definirEstado("Autorize a gravação: só o som do vídeo é usado, e nada sai do celular.");
-        try { startActivityForResult(m.createScreenCaptureIntent(), PEDIDO_GRAVACAO); }
-        catch (Exception e) { d.definirEstado("Este celular não permitiu a gravação do áudio: " + e.getMessage()); }
-    }
-
-    static final int PEDIDO_GRAVACAO = 7001;
-
-    @Override
-    protected void onActivityResult(int pedido, int resultado, Intent dados) {
-        super.onActivityResult(pedido, resultado, dados);
-        if (pedido != PEDIDO_GRAVACAO) return;
-        final Dublador d = Dublador.de(this);
-        if (resultado != RESULT_OK || dados == null) { d.definirEstado("Sem a autorização de gravação, o Whisper não consegue ouvir o vídeo."); return; }
-        Servico.ativarProjecao(this, resultado, dados, new Servico.AoProjetar() {
-            public void pronto(final android.media.projection.MediaProjection p, final String erro) {
-                runOnUiThread(new Runnable() { public void run() {
-                    if (p == null) { d.definirEstado("Não consegui ligar a gravação do áudio: " + erro); return; }
-                    if (nav != null) d.iniciarWhisper(nav, idVideoAtual(), whisperPreparar, p);
-                } });
-            }
-        });
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int pedido, String[] permissoes, int[] resultados) {
-        super.onRequestPermissionsResult(pedido, permissoes, resultados);
-        if (pedido == 3) {
-            if (resultados.length > 0 && resultados[0] == PackageManager.PERMISSION_GRANTED) dublarWhisper(whisperPreparar);
-            else Dublador.de(this).definirEstado("Sem a permissão de áudio, o Whisper não consegue ouvir o vídeo.");
-        }
+        d.iniciarWhisper(nav, idVideoAtual(), preparar);
     }
 
     private void dublarLegenda() {
@@ -886,7 +853,7 @@ public class Principal extends Activity {
                         .put("volume", d.volumeOriginal()).put("disponivel", web).put("yt", web && p.optBoolean("yt"))
                         .put("temLegenda", web && legs != null && legs.length() > 0)
                         .put("pronta", web && d.temPronta(idVideoAtual()))
-                        .put("whisper", Build.VERSION.SDK_INT >= 29)
+                        .put("whisper", whisperDisponivel())
                         .put("voz", d.voz()).put("vozes", vozes)
                         .put("modelo", d.modelo()).put("modelos", modelos)
                         .put("baixando", Modelos.baixando()).put("andamento", Modelos.andamento())
@@ -1068,7 +1035,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.5 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 2.6 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

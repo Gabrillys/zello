@@ -30,11 +30,12 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - **Whisper ao vivo**: dubla enquanto o vídeo toca. A voz vem alguns segundos depois da fala original.
   - O Whisper funciona **em vídeos sem legenda** e em qualquer site com vídeo, não só no YouTube.
   - Na primeira vez, o app baixa o modelo do Whisper: **Rápido** (base, cerca de 80 MB) ou **Mais preciso** (small, cerca de 250 MB). Escolha em *Ajustes do Whisper*.
-  - Para ouvir o vídeo, o Android pede duas autorizações: a de áudio e a de "gravar ou transmitir a tela". Só o som é usado, e ele não sai do celular. Só o texto vai para a tradução.
+  - O app ouve o som do vídeo dentro do próprio navegador interno: **não pede nenhuma autorização** e não grava nada. O som não sai do celular; só o texto vai para a tradução.
+  - Alguns sites protegem o arquivo de vídeo e não deixam o app ouvir o som (o app avisa). No YouTube funciona.
   - **Voz**: vozes neurais da Microsoft, as mesmas do "Ler em voz alta" do Edge: Francisca, Antônio e Thalita (Brasil), Raquel e Duarte (Portugal). Elas precisam de internet. Toque em **Ouvir a voz** para comparar. Se o serviço falhar, o app usa a voz do Android.
   - Cada frase é dita inteira, sem ser cortada pela seguinte. Se a frase for longa para o tempo dela, a voz acelera um pouco.
   - O áudio original fica baixo enquanto a voz fala (o volume é ajustável).
-  - Requer Android 10 ou mais novo e celular de 64 bits (como o Galaxy S22). Em celulares de 32 bits, só a dublagem pela legenda funciona.
+  - O Whisper requer celular de 64 bits (como o Galaxy S22). Em celulares de 32 bits, só a dublagem pela legenda funciona. A dublagem funciona no modo Site; no player VLC, não.
 - **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
 
 ## jw.org
@@ -78,7 +79,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Legendas`: conversão de legendas para texto puro;
   - `JwOrg`: API do jw.org;
   - `Dublador`: dublagem (fila de falas, sincronia, voz);
-  - `Whisper` + `Transcritor` + `Escuta` + `Modelos`: reconhecimento de fala no celular (ONNX Runtime), gravação do som do vídeo e download do modelo;
+  - `Whisper` + `Transcritor` + `Modelos`: reconhecimento de fala no celular (ONNX Runtime) e download do modelo (o som chega da página pela ponte `TocadorAudio`);
   - `Tradutor`: tradução das falas para português;
   - `VozNeural`: vozes neurais (protocolo do projeto edge-tts);
   - `Roteiro`: falas e horários;

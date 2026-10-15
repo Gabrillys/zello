@@ -15,6 +15,7 @@ import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 
@@ -39,6 +40,8 @@ public class Navegador extends WebView {
 
     static volatile boolean tocandoAgora;
     static volatile String tituloAgora = "";
+    /** Endereço da página atual (lido da linha da tela; a ponte do JavaScript não pode chamar getUrl). */
+    static volatile String enderecoAgora = "";
     /** Último estado lido da página (tempo, duração, legendas, qualidade…). */
     static volatile JSONObject estadoPagina = new JSONObject();
     /** Resultado do último pedido de qualidade ao YouTube, para mostrar na gaveta de Qualidade. */
@@ -249,6 +252,7 @@ public class Navegador extends WebView {
 
         setWebViewClient(new WebViewClient() {
             @Override public void onPageStarted(WebView v, String url, Bitmap f) {
+                if (url != null) enderecoAgora = url;
                 synchronized (arquivosLegenda) { arquivosLegenda.clear(); }
                 v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
                 v.evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
@@ -269,6 +273,7 @@ public class Navegador extends WebView {
                 return esq == null || !(esq.equals("http") || esq.equals("https"));
             }
             @Override public void doUpdateVisitedHistory(WebView v, String url, boolean recarga) {
+                if (url != null) enderecoAgora = url;
                 if (aoMudar != null && url != null) aoMudar.pagina(url);
             }
             @Override public WebResourceResponse shouldInterceptRequest(WebView v, WebResourceRequest r) {
@@ -290,6 +295,15 @@ public class Navegador extends WebView {
             @Override public void onHideCustomView() { if (telaCheia != null) telaCheia.esconder(); }
             @Override public void onReceivedTitle(WebView v, String t) { tituloAgora = t == null ? "" : t; }
         });
+
+        // Som do vídeo para o Whisper (dublagem): a página manda pedaços de áudio por aqui.
+        addJavascriptInterface(new Object() {
+            @JavascriptInterface
+            public void pcm(String base64, double tempoMs, double ritmo) {
+                Dublador d = Dublador.seExistir();
+                if (d != null) d.receberAudio(base64, tempoMs, ritmo);
+            }
+        }, "TocadorAudio");
 
         h.postDelayed(consulta, 1000);
     }

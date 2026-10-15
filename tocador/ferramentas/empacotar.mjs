@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 11,
-  versionName: '2.5',
+  versionCode: 12,
+  versionName: '2.6',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -67,9 +67,6 @@ function manifesto(o) {
     perm('android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'),
     perm('android.permission.POST_NOTIFICATIONS'),
     perm('android.permission.MODIFY_AUDIO_SETTINGS'),
-    // Dublagem com o Whisper: ouvir o som do vídeo (captura da reprodução, Android 10+).
-    perm('android.permission.RECORD_AUDIO'),
-    perm('android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION'),
     // Só Android 9 ou anterior precisa disto para salvar legendas na pasta Download.
     el('uses-permission', [A('name', 'str', 'android.permission.WRITE_EXTERNAL_STORAGE'), A('maxSdkVersion', 'int', 28)]),
     // Android 11+: sem isto o app não enxerga os motores de voz instalados (usados na dublagem).
@@ -85,8 +82,8 @@ function manifesto(o) {
         el('intent-filter', [], [acao('android.intent.action.VIEW'), cat_('android.intent.category.DEFAULT'), cat_('android.intent.category.BROWSABLE'), dado('audio/*')]),
         el('intent-filter', [], [acao('android.intent.action.VIEW'), cat_('android.intent.category.DEFAULT'), cat_('android.intent.category.BROWSABLE'), dado('video/*')]),
       ]),
-      // foregroundServiceType 0x2 = mediaPlayback, 0x20 = mediaProjection (gravar o som do vídeo para o Whisper)
-      el('service', [A('name', 'str', 'app.tocador.Servico'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x22)]),
+      // foregroundServiceType 0x2 = mediaPlayback
+      el('service', [A('name', 'str', 'app.tocador.Servico'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x2)]),
     ]),
   ]);
 

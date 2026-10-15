@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.media.AudioAttributes;
 import android.media.MediaPlayer;
 import android.media.PlaybackParams;
-import android.media.projection.MediaProjection;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -77,7 +76,10 @@ final class Dublador implements TextToSpeech.OnInitListener {
 
     // Whisper
     private volatile Transcritor transcritor;
-    private volatile Escuta escuta;
+    private volatile boolean ouvindo;          // o vídeo está mandando o som para o Whisper
+    private volatile float nivel = -1, picoAtual;
+    private long picoDesde;
+    private int falhasOuvir;
     private Whisper whisper;
     private volatile String idiomaVideo = "";
     private volatile boolean terminandoPreparo;
@@ -122,7 +124,7 @@ final class Dublador implements TextToSpeech.OnInitListener {
     boolean ativo() { return ativo; }
     String modo() { return modo; }
     int volumeOriginal() { return volumeOriginal; }
-    float nivelCaptura() { Escuta e = escuta; return e == null ? -1 : e.nivel(); }
+    float nivelCaptura() { return ouvindo ? Math.max(0, nivel) : -1; }
     void definirEstado(String e) { estado = e; }
 
     String estado() {
@@ -168,7 +170,7 @@ final class Dublador implements TextToSpeech.OnInitListener {
      * Dublagem com o Whisper ouvindo o vídeo.
      * @param preparar true: ouve o vídeo inteiro antes (do começo, na velocidade escolhida) e depois toca sincronizado.
      */
-    void iniciarWhisper(Navegador n, String idVideo, final boolean preparar, final MediaProjection projecao) {
+    void iniciarWhisper(Navegador n, String idVideo, final boolean preparar) {
         parar(null);
         comecar(n, idVideo, preparar ? "preparar" : "aovivo", new Roteiro(new ArrayList<Roteiro.Fala>()));
         estado = "Carregando o Whisper…";
@@ -190,15 +192,12 @@ final class Dublador implements TextToSpeech.OnInitListener {
                 carregarWhisper(mod);
                 if (!ativo || transcritor != tr) return;
                 tr.iniciar();
-                escuta = new Escuta(projecao, tr, new Escuta.Relogio() {
-                    public long tempoVideo() { return pausado ? -1 : tempoAgora(); }
-                    public double ritmo() { return ritmo; }
-                });
-                escuta.iniciar();
                 h.post(new Runnable() { public void run() {
+                    if (!ativo || transcritor != tr) return;
+                    ouvir();
                     if (preparar) {
                         estado = "Preparando: o Whisper está ouvindo o vídeo do começo ao fim.";
-                        nav.evaluateJavascript(jsMidia("m.currentTime=0;m.playbackRate=" + velocidadePreparo() + ";m.volume=1;var r=m.play();if(r&&r.catch)r.catch(function(){});"), null);
+                        nav.evaluateJavascript(jsMidia("m.currentTime=0;m.playbackRate=" + velocidadePreparo() + ";" + JS_VOLUME_1 + "var r=m.play();if(r&&r.catch)r.catch(function(){});"), null);
                     } else estado = "Dublando ao vivo: a voz vem alguns segundos depois da fala original.";
                 } });
                 Diagnostico.anotar("Whisper " + mod + " pronto; modo " + modo);
@@ -241,9 +240,8 @@ final class Dublador implements TextToSpeech.OnInitListener {
         h.removeCallbacks(ciclo);
         pararClipe();
         fila.clear();
-        if (escuta != null) { escuta.parar(); escuta = null; }
+        pararDeOuvir();
         if (transcritor != null) { transcritor.parar(); transcritor = null; }
-        Servico.pararProjecao();
         if (traducao != null) { traducao.shutdownNow(); traducao = null; }
         if (sintese != null) { sintese.interrupt(); sintese = null; }
         if (tts != null) tts.stop();
@@ -322,14 +320,13 @@ final class Dublador implements TextToSpeech.OnInitListener {
         terminandoPreparo = true;
         estado = "Terminando a transcrição…";
         if (transcritor != null) transcritor.descarregar();
-        if (escuta != null) { escuta.parar(); escuta = null; }
+        pararDeOuvir();
         h.postDelayed(new Runnable() { public void run() {
             if (!ativo) return;
             Transcritor tr = transcritor;
             if ((tr != null && tr.ocupado()) || falasPendentes.get() > 0) { h.postDelayed(this, 500); return; }
             if (tr != null) tr.parar();
             transcritor = null;
-            Servico.pararProjecao();
             liberarWhisper();
             List<Roteiro.Fala> falas = roteiro.copia();
             salvar(video, falas, idiomaVideo);
@@ -495,7 +492,84 @@ final class Dublador implements TextToSpeech.OnInitListener {
     }
 
     private void aplicarVolume(double v) {
-        if (nav != null) nav.evaluateJavascript(jsMidia("m.volume=" + v + ";"), null);
+        if (nav != null) nav.evaluateJavascript(jsMidia(jsVolume(v)), null);
+    }
+
+    /** Volume do original: se o som passa pelo Web Audio (para o Whisper ouvir), abaixa depois do ponto de escuta. */
+    static String jsVolume(double v) {
+        return "if(m.__tocGanho){m.volume=1;m.__tocGanho.gain.value=" + v + ";}else m.volume=" + v + ";";
+    }
+
+    static final String JS_VOLUME_1 = jsVolume(1.0);
+
+    // ------------------------------------------------------------ ouvir o vídeo (sem gravar a tela)
+
+    /**
+     * O som do vídeo é lido dentro da própria página (Web Audio), convertido para 16 kHz e enviado ao app
+     * pela ponte "TocadorAudio", com o tempo do vídeo de cada pedaço. Não precisa de nenhuma autorização.
+     * Sites que protegem o vídeo (arquivo de outro domínio sem permissão) não deixam: aí não mexemos no som.
+     */
+    static final String JS_OUVIR = "var A=window.AudioContext||window.webkitAudioContext;if(!A)return 'sem-webaudio';" +
+            "var C=window.__tocCtx||(window.__tocCtx=new A());if(C.state==='suspended')C.resume();" +
+            "if(!m.__tocSrc){var s=m.currentSrc||m.src||'';" +
+            " if(s&&s.indexOf('blob:')!==0&&!m.crossOrigin){try{if(new URL(s,location.href).origin!==location.origin)return 'protegido';}catch(e){}}" +
+            " try{m.__tocSrc=C.createMediaElementSource(m);}catch(e){return 'erro:'+e.message;}" +
+            " m.__tocGanho=C.createGain();m.__tocSrc.connect(m.__tocGanho);m.__tocGanho.connect(C.destination);}" +
+            "if(m.__tocCap)return 'ok';" +
+            "var sp=C.createScriptProcessor(4096,1,1),taxa=C.sampleRate,passo=taxa/16000,buf=new Int16Array(8000),n=0,pos=0,t0=-1;" +
+            "m.__tocSrc.connect(sp);sp.connect(C.destination);" +
+            "sp.onaudioprocess=function(e){var pl=document.getElementById('movie_player');" +
+            " if(m.paused||m.ended||m.readyState<3||(pl&&pl.classList.contains('ad-showing'))){n=0;t0=-1;pos=0;return;}" +
+            " var x=e.inputBuffer.getChannelData(0),L=x.length,r=m.playbackRate||1;" +
+            " if(t0<0)t0=m.currentTime*1000-L/taxa*1000*r;" +
+            " while(pos<L){var a=Math.floor(pos),b=Math.min(L,Math.floor(pos+passo)),sm=0,c=0;for(var i=a;i<b;i++){sm+=x[i];c++;}" +
+            "  var v=c?sm/c:0;v=v<-1?-1:v>1?1:v;buf[n++]=v*32767;pos+=passo;" +
+            "  if(n===buf.length){var by=new Uint8Array(buf.buffer),st='';for(var k=0;k<by.length;k+=8192)st+=String.fromCharCode.apply(null,by.subarray(k,k+8192));" +
+            "   try{TocadorAudio.pcm(btoa(st),Math.round(t0),r);}catch(_){}" +
+            "   n=0;t0=m.currentTime*1000-(L-pos)/taxa*1000*r;}}" +
+            " pos-=L;};" +
+            "m.__tocCap=sp;return 'ok';";
+
+    static final String JS_PARAR_OUVIR = "if(m.__tocCap){m.__tocCap.onaudioprocess=null;try{m.__tocSrc.disconnect(m.__tocCap);m.__tocCap.disconnect();}catch(e){}m.__tocCap=null;}";
+
+    private void ouvir() {
+        ouvindo = true;
+        if (nav == null) return;
+        nav.evaluateJavascript("(function(){" + Navegador.PRINCIPAL + "var m=principal();if(!m)return 'sem-video';" + JS_OUVIR + "})()", new ValueCallback<String>() {
+            public void onReceiveValue(String r) {
+                if (!ativo || !ouvindo) return;
+                String v = r == null ? "" : r.replace("\"", "");
+                if (v.equals("ok")) { falhasOuvir = 0; return; }
+                Diagnostico.anotar("Ouvir o vídeo: " + v);
+                if (v.equals("protegido")) parar("Este site protege o som do vídeo, então o Whisper não consegue ouvi-lo aqui. No YouTube funciona.");
+                else if (!v.equals("sem-video") && ++falhasOuvir >= 5) parar("Não consegui ouvir o som deste vídeo (" + v + ").");
+            }
+        });
+    }
+
+    private void pararDeOuvir() {
+        if (!ouvindo) return;
+        ouvindo = false;
+        nivel = -1;
+        if (nav != null) nav.evaluateJavascript(jsMidia(JS_PARAR_OUVIR), null);
+    }
+
+    /** Chamado pela página (ponte "TocadorAudio"): meio segundo de som do vídeo, 16 kHz mono, em base64. */
+    void receberAudio(String base64, double tempoMs, double ritmoVideo) {
+        Transcritor tr = transcritor;
+        if (!ativo || !ouvindo || tr == null || base64 == null) return;
+        byte[] b;
+        try { b = android.util.Base64.decode(base64, android.util.Base64.DEFAULT); } catch (Exception e) { return; }
+        short[] pcm = new short[b.length / 2];
+        float pico = 0;
+        for (int i = 0; i < pcm.length; i++) {
+            pcm[i] = (short) ((b[2 * i] & 0xff) | (b[2 * i + 1] << 8));
+            pico = Math.max(pico, Math.abs(pcm[i]) / 32768f);
+        }
+        picoAtual = Math.max(picoAtual, pico);
+        long agora = System.currentTimeMillis();
+        if (agora - picoDesde > 1000) { nivel = picoAtual; picoAtual = 0; picoDesde = agora; }
+        tr.bloco(pcm, pcm.length, Math.max(0, Math.round(tempoMs)), ritmoVideo > 0 ? ritmoVideo : 1);
     }
 
     /** Executa um comando no vídeo principal da página (variável m). */
@@ -508,8 +582,9 @@ final class Dublador implements TextToSpeech.OnInitListener {
             if (!ativo || nav == null) return;
             if (voltas++ % 10 == 0) {
                 // O YouTube às vezes devolve o volume (e a velocidade) ao trocar de qualidade ou depois de anúncio.
-                if ("preparar".equals(modo)) { if (!terminandoPreparo) nav.evaluateJavascript(jsMidia("m.volume=1;if(m.playbackRate!=" + velocidadePreparo() + ")m.playbackRate=" + velocidadePreparo() + ";"), null); }
+                if ("preparar".equals(modo)) { if (!terminandoPreparo) nav.evaluateJavascript(jsMidia(JS_VOLUME_1 + "if(m.playbackRate!=" + velocidadePreparo() + ")m.playbackRate=" + velocidadePreparo() + ";"), null); }
                 else aplicarVolume(volumeOriginal / 100.0);
+                if (ouvindo) ouvir(); // o site pode ter trocado o elemento de vídeo
             }
             nav.evaluateJavascript(Navegador.JS_TEMPO, new ValueCallback<String>() {
                 public void onReceiveValue(String v) {
