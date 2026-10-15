@@ -58,6 +58,13 @@ public class Principal extends Activity {
     private volatile boolean expandido;
     private String layoutAtual = "";
 
+    // Vídeo do YouTube/Instagram descoberto pelo Extrator (para tocar no VLC e baixar).
+    private volatile Extrator.Resultado extra;
+    private volatile String extraEstado = "";   // "", buscando, pronto, erro
+    private volatile String extraFonte = "";
+    private volatile String extraChave = "";
+    private volatile String aviso = "";
+
     @SuppressLint({"SetJavaScriptEnabled", "AddJavascriptInterface"})
     @Override
     protected void onCreate(Bundle b) {
@@ -158,6 +165,9 @@ public class Principal extends Activity {
     void abrir(String url, String modo) {
         url = url.trim();
         if (url.length() == 0) return;
+        aviso = "";
+        // Instagram: o site pede login; busca o vídeo direto e toca no player VLC.
+        if (!"web".equals(modo) && Extrator.ehInstagram(url)) { abrirInstagram(url); return; }
         if ("auto".equals(modo)) modo = decidirModo(url);
         if ("vlc".equals(modo)) {
             if (Controle.modo.equals("web")) Navegador.comandar("pausar");
@@ -169,15 +179,66 @@ public class Principal extends Activity {
             motor.parar();
             Controle.modo = "web";
             if (nav == null) criarNavegador();
-            String embed = Navegador.instagramEmbed(url);
-            nav.loadUrl(embed != null ? embed : url);
+            nav.loadUrl(url);
+            verificarYoutube(url);
         }
         Servico.iniciar(this);
         ajustar();
     }
 
+    private void abrirInstagram(final String url) {
+        extra = null; extraFonte = "instagram"; extraEstado = "buscando"; extraChave = url;
+        aviso = "Buscando o vídeo do Instagram…";
+        final String cookies = CookieManager.getInstance().getCookie("https://www.instagram.com");
+        new Thread(new Runnable() { public void run() {
+            final Extrator.Resultado r = Extrator.instagram(url, cookies);
+            runOnUiThread(new Runnable() { public void run() {
+                if (!url.equals(extraChave)) return; // a pessoa já abriu outro link
+                extra = r;
+                if (r.ok()) {
+                    extraEstado = "pronto"; aviso = "";
+                    if (Controle.modo.equals("web")) Navegador.comandar("pausar");
+                    EqSistema.de(Principal.this).soltar();
+                    Controle.modo = "vlc";
+                    motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
+                    motor.tocar(r.video, r.agente, r.referer);
+                    motor.definirTitulo(r.titulo);
+                    Servico.iniciar(Principal.this);
+                    ajustar();
+                } else {
+                    extraEstado = "erro";
+                    // Abre a página normal: se for preciso, a pessoa entra na conta uma vez e o app passa a usar esse login.
+                    abrir(url, "web");
+                    aviso = r.erro + (r.precisaLogin ? " Entre na sua conta do Instagram aqui na página (só uma vez) e depois toque em Tentar de novo." : "");
+                }
+            } });
+        } }, "tocador-instagram").start();
+    }
+
+    /** Ao abrir um vídeo do YouTube, procura em segundo plano os arquivos para baixar/tocar no VLC. */
+    private void verificarYoutube(final String url) {
+        final String id = Extrator.idYoutube(url);
+        if (id == null) {
+            if ("youtube".equals(extraFonte)) { extra = null; extraEstado = ""; extraFonte = ""; extraChave = ""; }
+            return;
+        }
+        if (id.equals(extraChave) && !"erro".equals(extraEstado)) return;
+        extra = null; extraFonte = "youtube"; extraEstado = "buscando"; extraChave = id;
+        new Thread(new Runnable() { public void run() {
+            final Extrator.Resultado r = Extrator.youtube(url);
+            runOnUiThread(new Runnable() { public void run() {
+                if (!id.equals(extraChave)) return;
+                extra = r;
+                extraEstado = r.ok() ? "pronto" : "erro";
+            } });
+        } }, "tocador-youtube").start();
+    }
+
     private void criarNavegador() {
         nav = new Navegador(this);
+        nav.definirAoMudar(new Navegador.AoMudar() {
+            public void pagina(final String url) { runOnUiThread(new Runnable() { public void run() { verificarYoutube(url); } }); }
+        });
         nav.definirTelaCheia(new Navegador.TelaCheia() {
             public void mostrar(View v, WebChromeClient.CustomViewCallback cb) {
                 cbTelaCheia = cb;
@@ -345,6 +406,19 @@ public class Principal extends Activity {
                 o.put("expandido", expandido);
                 o.put("podeBaixar", "vlc".equals(Controle.modo) && motor.temDuracao() && motor.url().matches("(?i)^https?://.*"));
                 o.put("downloads", Baixador.lista());
+                o.put("aviso", aviso);
+                Extrator.Resultado x = extra;
+                if (extraEstado.length() > 0) {
+                    JSONObject e = new JSONObject();
+                    e.put("fonte", extraFonte);
+                    e.put("estado", extraEstado);
+                    if ("instagram".equals(extraFonte)) e.put("url", extraChave);
+                    if (x != null) {
+                        e.put("titulo", x.titulo); e.put("erro", x.erro == null ? "" : x.erro);
+                        e.put("video", x.video != null || x.hls != null); e.put("audio", x.audio != null);
+                    }
+                    o.put("extra", e);
+                }
                 o.put("temPagina", nav != null);
                 Navegador n = nav;
                 if (n != null) o.put("midias", n.listaMidias());
@@ -389,6 +463,37 @@ public class Principal extends Activity {
                 String[] m = nav.midia(i);
                 if (m == null || !permissaoGravar()) return;
                 Baixador.baixar(Principal.this, m[0], Navegador.tituloAgora, nav.agente(), m[1], CookieManager.getInstance().getCookie(m[0]));
+            } });
+        }
+
+        /** Baixa o vídeo (com som) ou só o áudio encontrado pelo Extrator. */
+        @JavascriptInterface
+        public void extraBaixar(final String tipo) {
+            naTela(new Runnable() { public void run() {
+                Extrator.Resultado x = extra;
+                if (x == null || !permissaoGravar()) return;
+                String u = "audio".equals(tipo) ? x.audio : (x.video != null ? x.video : x.hls);
+                if (u == null) return;
+                Baixador.baixar(Principal.this, u, x.titulo + ("audio".equals(tipo) ? " (áudio)" : ""), x.agente, x.referer, null);
+            } });
+        }
+
+        /** Toca o áudio do vídeo do YouTube no player VLC (equalizador completo). */
+        @JavascriptInterface
+        public void extraTocar() {
+            naTela(new Runnable() { public void run() {
+                Extrator.Resultado x = extra;
+                if (x == null) return;
+                String u = x.audio != null ? x.audio : x.video != null ? x.video : x.hls;
+                if (u == null) return;
+                if (Controle.modo.equals("web")) Navegador.comandar("pausar");
+                EqSistema.de(Principal.this).soltar();
+                Controle.modo = "vlc";
+                motor.anexar(superficie, superficie.getWidth(), superficie.getHeight());
+                motor.tocar(u, x.agente, x.referer);
+                motor.definirTitulo(x.titulo);
+                Servico.iniciar(Principal.this);
+                ajustar();
             } });
         }
 

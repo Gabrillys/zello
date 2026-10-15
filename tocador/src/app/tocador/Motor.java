@@ -45,6 +45,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     private volatile String url = "";
     private String ua, referer;
     private volatile String titulo = "";
+    private volatile String tituloFixo;
     private volatile float buffer = 0;
     private volatile String situacao = "parado"; // parado, abrindo, carregando, tocando, pausado, erro
     private volatile boolean temVideo;
@@ -84,7 +85,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
 
     public void tocar(String u, String userAgent, String ref) {
         url = u; ua = userAgent; referer = ref;
-        titulo = ""; temVideo = false; tentativas = 0;
+        titulo = ""; tituloFixo = null; temVideo = false; tentativas = 0;
         querTocando = true;
         iniciarMidia();
     }
@@ -130,6 +131,8 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     public boolean ativo() { return url.length() > 0 && !situacao.equals("parado"); }
     public boolean tocando() { return mp.isPlaying(); }
     public String titulo() { return titulo; }
+    /** Título conhecido de antemão (ex.: "@perfil — legenda" do Instagram). */
+    public void definirTitulo(String t) { tituloFixo = t; titulo = t == null ? "" : t; Servico.atualizar(ctx); }
     public String url() { return url; }
     public String agente() { return ua; }
     public String referer() { return referer; }
@@ -211,7 +214,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         try {
             String agora = m.getMeta(IMedia.Meta.NowPlaying);
             String t = m.getMeta(IMedia.Meta.Title);
-            String novo = agora != null && agora.length() > 0 ? agora : (t != null ? t : "");
+            String novo = agora != null && agora.length() > 0 ? agora : tituloFixo != null ? tituloFixo : (t != null ? t : "");
             if (!novo.equals(titulo)) { titulo = novo; Servico.atualizar(ctx); }
         } finally { m.release(); }
     }

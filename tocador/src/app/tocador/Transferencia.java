@@ -111,7 +111,9 @@ public abstract class Transferencia {
 
     public void executar(Tarefa t) throws Exception {
         String url = t.url.replaceAll("[&?](bytestart|byteend)=\\d+", ""); // Facebook/Instagram: arquivo inteiro
-        if (url.toLowerCase(Locale.US).matches("^[^?#]+\\.m3u8?([?#].*)?$")) { baixarHls(t, url); return; }
+        if (url.toLowerCase(Locale.US).matches("^[^?#]+\\.m3u8?([?#].*)?$") || url.contains("/manifest/hls_")) { baixarHls(t, url); return; }
+        Matcher clen = Pattern.compile("[?&]clen=(\\d+)").matcher(url);
+        if (url.contains("googlevideo.com/") && clen.find()) { baixarEmPartes(t, url, Long.parseLong(clen.group(1))); return; }
         HttpURLConnection c = abrir(t, url, null);
         String tipo = c.getContentType() == null ? "" : c.getContentType().toLowerCase(Locale.US);
         if (tipo.contains("mpegurl")) { c.disconnect(); baixarHls(t, url); return; }
@@ -167,6 +169,34 @@ public abstract class Transferencia {
             }
             in.close();
             if (t.total > 0 && t.feitos < t.total) throw new IOException("A conexão caiu antes do fim.");
+            ok = true;
+        } finally { d.fechar(ok); }
+    }
+
+    /**
+     * Servidores do YouTube limitam a velocidade de quem pede o arquivo inteiro de uma vez;
+     * pedindo em partes de 10 MB a velocidade fica normal.
+     */
+    private void baixarEmPartes(Tarefa t, String url, long total) throws Exception {
+        String mimeTipo = "";
+        Matcher mm = Pattern.compile("[?&]mime=([^&]+)").matcher(url);
+        if (mm.find()) mimeTipo = java.net.URLDecoder.decode(mm.group(1), "UTF-8");
+        String ext = mimeTipo.startsWith("audio/mp4") ? "m4a" : mimeTipo.startsWith("audio/webm") ? "webm" : mimeTipo.startsWith("video/webm") ? "webm" : "mp4";
+        t.total = total;
+        t.feitos = 0;
+        final long PARTE = 10L * 1024 * 1024;
+        Saida d = abrirSaida(t.nome + "." + ext, mime(ext));
+        boolean ok = false;
+        try {
+            while (t.feitos < total) {
+                if (t.cancelar) throw new IOException("cancelado");
+                long fim = Math.min(total, t.feitos + PARTE) - 1;
+                byte[] dados = lerTudo(t, url, "bytes=" + t.feitos + "-" + fim);
+                if (dados.length == 0) throw new IOException("O servidor parou de enviar o arquivo.");
+                d.fluxo().write(dados);
+                t.feitos += dados.length;
+                progresso(t);
+            }
             ok = true;
         } finally { d.fechar(ok); }
     }

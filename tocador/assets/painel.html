@@ -91,6 +91,7 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
 <div id="compacto">
   <button class="redondo" id="cTp" aria-label="Tocar ou pausar">▶</button>
   <div class="info"><div class="titulo" id="cTitulo">Tocador</div><div class="sit" id="cSit"></div></div>
+  <button class="peq" id="cBaixar" style="display:none" aria-label="Baixar">⬇</button>
   <button class="peq" id="cMidias" style="display:none">🎵 VLC</button>
   <button class="peq" id="cAbrir" aria-label="Abrir painel">▲ Painel</button>
 </div>
@@ -102,6 +103,11 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
       <span class="chip" id="chip">parado</span>
       <button class="peq oculto" id="recolher">▼ Recolher</button>
     </div>
+  </div>
+
+  <div class="cartao oculto" id="avisoBox" style="border-color:var(--destaque);color:var(--destaque2);font-size:15px">
+    <div id="avisoTxt"></div>
+    <button class="peq oculto" id="tentar" style="margin-top:10px">↻ Tentar de novo</button>
   </div>
 
   <div class="cartao">
@@ -136,9 +142,18 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
       <input type="range" id="vol" min="0" max="200" value="100">
     </div>
     <div id="erroBox" class="aviso oculto">Não consegui tocar esse link no player. <button class="peq" id="tentarSite">Abrir como site</button></div>
-    <div id="baixarBox" class="mt oculto"><button id="baixar" style="width:100%">⬇ Baixar este áudio/vídeo</button></div>
-    <div id="aoVivo" class="aviso oculto">Transmissão ao vivo: não há arquivo para baixar.</div>
     <div id="voltarBox" class="mt oculto"><button class="peq" id="voltar">← Voltar para a página</button></div>
+  </div>
+
+  <div class="cartao oculto" id="baixarCard">
+    <h2>Baixar</h2>
+    <div id="bxMsg" class="aviso" style="margin-top:0"></div>
+    <button id="baixar" class="pri oculto" style="width:100%;margin-top:8px">⬇ Baixar este áudio/vídeo</button>
+    <div class="linha" style="margin-top:8px">
+      <button id="bxVideo" class="pri oculto">⬇ Vídeo com som</button>
+      <button id="bxAudio" class="pri oculto">⬇ Só o áudio</button>
+    </div>
+    <button id="bxTocar" class="oculto" style="width:100%;margin-top:8px">🎚 Ouvir no player VLC (equalizador completo)</button>
   </div>
 
   <div class="cartao oculto" id="midiasBox">
@@ -223,7 +238,12 @@ $('tp').onclick=$('cTp').onclick=function(){ T&&T.tocarPausar(); };
 $('parar').onclick=function(){ T&&T.parar(); };
 $('voltar').onclick=function(){ T&&T.voltarPagina(); };
 $('bateria').onclick=function(){ T&&T.bateria(); };
-$('baixar').onclick=function(){ T&&T.baixarAtual(); avisar('Download iniciado. Acompanhe abaixo ou na notificação.'); };
+$('baixar').onclick=function(){ T&&T.baixarAtual(); avisar('Download iniciado. Acompanhe em Downloads ou na notificação.'); };
+$('bxVideo').onclick=function(){ T&&T.extraBaixar('video'); avisar('Download do vídeo iniciado.'); };
+$('bxAudio').onclick=function(){ T&&T.extraBaixar('audio'); avisar('Download do áudio iniciado.'); };
+$('bxTocar').onclick=function(){ T&&T.extraTocar(); };
+$('tentar').onclick=function(){ if(T&&this.dataset.url) T.abrir(this.dataset.url,'auto'); };
+$('cBaixar').onclick=function(){ T&&T.expandir(true); setTimeout(function(){ $('baixarCard').scrollIntoView({behavior:'smooth',block:'start'}); },350); };
 $('limpar').onclick=function(){ T&&T.limparDownloads(); downAnt=''; atualizar(); };
 $('pasta').onclick=function(){ T&&T.abrirDownloads(); };
 var tToast;
@@ -272,10 +292,32 @@ function atualizar(){
     [].forEach.call($('midias').querySelectorAll('button[data-i]'),function(b){ b.onclick=function(){ T.tocarMidia(+b.dataset.i); }; });
     [].forEach.call($('midias').querySelectorAll('button[data-b]'),function(b){ b.onclick=function(){ T.baixarMidia(+b.dataset.b); avisar('Download iniciado. Se for ao vivo, o app avisa.'); }; });
   }
-  $('baixarBox').classList.toggle('oculto', !e.podeBaixar);
-  $('aoVivo').classList.toggle('oculto', !(vlc&&!e.podeBaixar&&(sit==='tocando'||sit==='pausado')&&!(e.duracao>0)));
+  mostrarBaixar(e, vlc, sit);
+  $('avisoTxt').textContent=e.aviso||''; $('avisoBox').classList.toggle('oculto', !e.aviso);
+  var urlIg=(e.extra&&e.extra.fonte==='instagram'&&e.extra.estado==='erro')?e.extra.url:'';
+  $('tentar').classList.toggle('oculto', !urlIg); $('tentar').dataset.url=urlIg||'';
   mostrarDownloads(e.downloads||[]);
   if(e.modo!==modoAnterior){ modoAnterior=e.modo; carregarEq(); }
+}
+
+// ------------------------------------------------ cartão "Baixar"
+function mostrarBaixar(e, vlc, sit){
+  var x=e.extra||null, msg='', mostrar=false, acao=false;
+  var yt = x && x.fonte==='youtube';
+  $('baixar').classList.toggle('oculto', !e.podeBaixar);
+  if(e.podeBaixar){ mostrar=true; acao=true; }
+  else if(vlc && (sit==='tocando'||sit==='pausado'||sit==='carregando') && !(e.duracao>0)){ mostrar=true; msg='Transmissão ao vivo: não há arquivo para baixar.'; }
+  var bv=false, ba=false, bt=false;
+  if(yt){
+    mostrar=true;
+    if(x.estado==='buscando') msg='Procurando os arquivos deste vídeo do YouTube…';
+    else if(x.estado==='erro') msg=(x.erro||'O YouTube não liberou o download deste vídeo.')+' (função experimental)';
+    else { bv=!!x.video; ba=!!x.audio; bt=ba&&e.modo==='web'; acao=bv||ba; msg=e.podeBaixar?'':'Vídeo do YouTube (função experimental):'; }
+  }
+  $('bxVideo').classList.toggle('oculto',!bv); $('bxAudio').classList.toggle('oculto',!ba); $('bxTocar').classList.toggle('oculto',!bt);
+  $('bxMsg').textContent=msg; $('bxMsg').classList.toggle('oculto',!msg);
+  $('baixarCard').classList.toggle('oculto',!mostrar);
+  $('cBaixar').style.display=acao?'':'none';
 }
 
 // ------------------------------------------------ downloads
