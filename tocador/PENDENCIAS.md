@@ -9,9 +9,13 @@
   Linhas que importam no diagnóstico: `Qualidade YouTube…`, `Versão para computador… Client Hints…` e `jw.org…`.
   Com isso, decidir: se o comando de qualidade do YouTube é ignorado, se os Client Hints foram aceitos pelo WebView do aparelho, e se a API do jw.org respondeu.
 
-## Decisão pendente
+## Próxima etapa (decidida) — aguardando acesso à rede do ambiente
 
-- **Dublagem de vídeos sem legenda (Whisper) com voz natural** — pedido na versão 2.4.
-  A versão 2.4 já dubla a partir da legenda (manual ou automática) traduzida pelo YouTube, com a voz do Android.
-  Falta o usuário escolher o caminho para o Whisper e a voz humanizada:
-  (A) tudo no celular (código aberto, offline); (B) serviços online; (C) o próprio computador dele como servidor (yt-dlp + faster-whisper + tradução + XTTS).
+- **Dublagem com Whisper e voz humanizada** — o usuário não gostou da dublagem da 2.4 (voz da legenda pelo Android): ficou entrecortada e sintética.
+  Caminho escolhido (celular Samsung Galaxy S22 Ultra, Snapdragon 8 Gen 1; o computador dele é lento e sem placa de vídeo):
+  1. Whisper no celular via ONNX Runtime (onnxruntime-android, do Maven Central), modelo *base* ou *small* baixado no primeiro uso;
+  2. áudio obtido gravando a reprodução (AudioPlaybackCapture/MediaProjection), já que o YouTube bloqueia o download;
+  3. tradução do texto para português (online leve, ou modelo aberto offline);
+  4. voz neural natural (vozes da Microsoft usadas pelo projeto edge-tts; a do Google como alternativa), com frases inteiras e sem cortes;
+  5. modos "Preparar dublagem" (sincronia perfeita) e "Ao vivo" (alguns segundos de atraso).
+  **Bloqueio:** liberar na rede do ambiente `huggingface.co`, `cdn-lfs.huggingface.co`, `github.com`, `objects.githubusercontent.com` e `speech.platform.bing.com`, para testar os modelos e a voz de verdade antes de entregar.
