@@ -183,7 +183,11 @@ input.campo:focus{outline:none;border-color:var(--cor)}
 #rodape .agora i{display:inline-block;font-style:normal;padding-right:40px}
 #rodape .agora.rola i{animation:rolar 14s linear infinite}
 @keyframes rolar{from{transform:translateX(0)}to{transform:translateX(-100%)}}
-#rodape small{display:block;font-size:12px;color:rgba(255,255,255,.65);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#rodape small{display:block;font-size:11.5px;color:rgba(255,255,255,.6);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px;letter-spacing:.2px}
+#rodape .desc{font-size:12px;font-style:italic;color:rgba(255,255,255,.72);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+#rodape .etq{display:flex;gap:5px;margin-top:6px;overflow:hidden;white-space:nowrap;-webkit-mask-image:linear-gradient(90deg,#000 88%,transparent);mask-image:linear-gradient(90deg,#000 88%,transparent)}
+#rodape .etq span{flex:0 0 auto;font-size:11px;font-weight:650;letter-spacing:.3px;padding:3px 8px;border-radius:99px;background:rgba(255,255,255,.12);color:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.12);max-width:60%;overflow:hidden;text-overflow:ellipsis}
+#rodape .etq span.est{background:rgba(245,165,36,.18);color:var(--cor2);border-color:rgba(245,165,36,.3)}
 #vizAviso{position:absolute;left:12px;right:12px;top:54px;z-index:2;font-size:12.5px;color:rgba(255,255,255,.8);background:rgba(0,0,0,.45);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:center}
 #vizAviso button{padding:6px 10px;font-size:12.5px;border-radius:99px;flex:0 0 auto}
 body.efeito-cheio{overflow:hidden}
@@ -272,7 +276,7 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
         <canvas id="tela"></canvas>
         <div class="topo-efeito"><span id="efeitoNome"></span><div style="display:flex;gap:6px"><button id="efeitoTroca" aria-label="Trocar efeito"></button><button id="efeitoCheio" aria-label="Tela cheia"></button></div></div>
         <div id="vizAviso" class="oculto"><span style="flex:1">Modo ambiente. Para a animação dançar com a música, permita o áudio.</span><button id="vizPermitir">Permitir</button></div>
-        <div id="rodape"><img id="rLogo" class="oculto" alt=""><div class="txt"><b id="rNome"></b><div class="agora" id="rAgora"><i></i></div><small id="rInfo"></small></div></div>
+        <div id="rodape"><img id="rLogo" class="oculto" alt=""><div class="txt"><b id="rNome"></b><div class="agora" id="rAgora"><i></i></div><div class="desc oculto" id="rDesc"></div><div class="etq" id="rEtq"></div><small id="rInfo"></small></div></div>
       </div>
       <div class="progresso oculto" id="progBox">
         <input type="range" id="busca" min="0" max="1000" value="0" aria-label="Posição">
@@ -574,18 +578,27 @@ $('tela').onclick=trocarEfeito;
 $('vizPermitir').onclick=function(){ T&&T.pedirPermissaoAnimacao(); };
 document.addEventListener('visibilitychange',function(){ if(!palcoVisivel) return; if(document.hidden){ T&&T.animacao(false); } else { T&&T.animacao(true); if(!rafId) rafId=requestAnimationFrame(desenhar); } });
 var radioAnt='';
+function nomePais(cc){ try{ return cc&&cc.length===2?new Intl.DisplayNames(['pt-BR'],{type:'region'}).of(cc.toUpperCase()):''; }catch(e){ return ''; } }
+var IDIOMAS_PT={portuguese:'Português',english:'Inglês',spanish:'Espanhol',french:'Francês',italian:'Italiano',german:'Alemão',japanese:'Japonês',chinese:'Chinês',korean:'Coreano',russian:'Russo',arabic:'Árabe',hindi:'Hindi',dutch:'Holandês',polish:'Polonês',turkish:'Turco',greek:'Grego',hebrew:'Hebraico',catalan:'Catalão',galician:'Galego',basque:'Basco'};
+function nomeIdioma(n){ n=(n||'').trim(); var k=n.toLowerCase(); return IDIOMAS_PT[k]||(n.charAt(0).toUpperCase()+n.slice(1)); }
+function bandeira(cc){ if(!cc||cc.length!==2) return ''; cc=cc.toUpperCase(); return String.fromCodePoint(0x1F1E6+cc.charCodeAt(0)-65,0x1F1E6+cc.charCodeAt(1)-65)+' '; }
 function atualizarRadio(){
   var R; try{ R=JSON.parse(T.radio()); }catch(x){ return; }
   var semPerm=R.vizMotivo==='sem-permissao', semDados=R.vizMotivo==='sem-dados';
   $('vizAviso').classList.toggle('oculto',!semPerm&&!semDados);
   $('vizAviso').firstChild.textContent=semPerm?'Modo ambiente. Para a animação dançar com a música, permita o áudio.':'Modo ambiente: este celular não entregou o som para a animação.';
   $('vizPermitir').classList.toggle('oculto',!semPerm);
-  var k=JSON.stringify([R.nome,R.agora,R.genero,R.local,R.logo,R.bitrate]); if(k===radioAnt) return; radioAnt=k;
+  var k=JSON.stringify([R.nome,R.agora,R.estilos,R.local,R.pais,R.idioma,R.qualidade,R.site,R.descricao,R.logo]); if(k===radioAnt) return; radioAnt=k;
   $('rNome').textContent=R.nome||'Rádio';
-  var ag=$('rAgora'); ag.firstChild.textContent=R.agora?'♪ '+R.agora:(R.descricao||''); ag.classList.remove('rola');
+  var ag=$('rAgora'); ag.firstChild.textContent=R.agora?(R.musica?R.agora:'♪ '+R.agora):''; ag.classList.toggle('oculto',!R.agora); ag.classList.remove('rola');
   setTimeout(function(){ ag.classList.toggle('rola',ag.firstChild.scrollWidth>ag.clientWidth); },50);
-  var info=[R.genero,R.local,R.bitrate?R.bitrate+' kbps':'',R.codec].filter(function(v){return v;}).join(' · ');
-  $('rInfo').textContent=info;
+  $('rDesc').textContent=R.descricao||''; $('rDesc').classList.toggle('oculto',!R.descricao||!!R.agora);
+  var etq=(R.estilos||[]).map(function(t,i){ return '<span'+(R.musica&&i===0?'':' class="est"')+'>'+(R.musica&&i===0?IC.lista.replace('<svg','<svg style="width:12px;height:12px;vertical-align:-2px;margin-right:4px"'):'')+esc(t)+'</span>'; });
+  var pais=nomePais(R.pais)||R.paisNome||'', local=[R.estado,pais].filter(function(v){return v;}).join(', ')||R.local;
+  if(local) etq.push('<span>'+bandeira(R.pais)+esc(local)+'</span>');
+  if(R.idioma) etq.push('<span>'+esc(nomeIdioma(R.idioma.split(',')[0]))+'</span>');
+  $('rEtq').innerHTML=etq.join(''); $('rEtq').classList.toggle('oculto',!etq.length);
+  $('rInfo').textContent=[R.qualidade,R.site].filter(function(v){return v;}).join(' · ');
   if(R.logo){ $('rLogo').src=R.logo; $('rLogo').classList.remove('oculto'); $('rLogo').onerror=function(){ this.classList.add('oculto'); }; } else $('rLogo').classList.add('oculto');
 }
 

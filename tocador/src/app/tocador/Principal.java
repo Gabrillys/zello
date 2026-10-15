@@ -504,7 +504,54 @@ public class Principal extends Activity {
     private boolean vizQuer;
     private String vizMotivo = "";
     private String radioUrlBuscada = "";
-    private volatile JSONObject radioInfo = new JSONObject();
+    private volatile JSONObject radioInfo = new JSONObject(), radioIcy = new JSONObject();
+
+    /** Rodapé de música (arquivo, download ou playlist de áudio): título, artista, álbum, capa e posição na lista. */
+    private JSONObject infoMusica(JSONObject m, Listas.Lista lf, String nomeLista) throws Exception {
+        JSONObject o = new JSONObject();
+        String titulo = primeiro(m.optString("tituloFaixa"), nomeLista, Listas.nomeDe(motor.url() == null ? "" : motor.url()));
+        titulo = titulo.replaceAll("^\\d{1,3} - ", "").replaceAll("\\.(m4a|mp3|opus|webm|flac|ogg|wav|aac)$", "");
+        String artista = m.optString("artista"), album = m.optString("album");
+        JSONArray estilos = new JSONArray();
+        if (lf != null) estilos.put(lf.nome);
+        if (m.optString("genero").length() > 0) estilos.put(m.optString("genero"));
+        StringBuilder q = new StringBuilder(m.optString("codec"));
+        if (m.optInt("kbps") > 0) q.append(q.length() > 0 ? " · " : "").append(m.optInt("kbps")).append(" kbps");
+        if (m.optInt("khz") > 0) q.append(q.length() > 0 ? " · " : "").append(String.format(java.util.Locale.ROOT, "%.1f", m.optInt("khz") / 1000.0).replace(".0", "").replace('.', ',')).append(" kHz");
+        if (lf != null && filaIndice >= 0) q.insert(0, "Faixa " + (fila.posicao() + 1) + " de " + lf.itens.size() + (q.length() > 0 ? " · " : ""));
+        o.put("musica", true).put("nome", titulo).put("agora", artista.length() > 0 || album.length() > 0 ? (artista + (album.length() > 0 ? (artista.length() > 0 ? " — " : "") + album : "")) : "")
+         .put("estilos", estilos).put("qualidade", q.toString()).put("logo", capa(m.optString("arte")))
+         .put("viz", vizLigada).put("vizMotivo", vizMotivo);
+        return o;
+    }
+
+    private String capaArquivo = "", capaDados = "";
+
+    /** A capa que o VLC extrai fica num arquivo do app: vira "data:" para a página poder mostrar. */
+    private String capa(String arte) {
+        if (arte == null || arte.length() == 0) return "";
+        if (!arte.startsWith("file://")) return arte;
+        if (arte.equals(capaArquivo)) return capaDados;
+        capaArquivo = arte;
+        capaDados = "";
+        try {
+            java.io.File f = new java.io.File(Uri.parse(arte).getPath());
+            if (f.length() > 0 && f.length() < 600 * 1024) {
+                byte[] b = new byte[(int) f.length()];
+                java.io.DataInputStream in = new java.io.DataInputStream(new java.io.FileInputStream(f));
+                in.readFully(b);
+                in.close();
+                String tipo = b.length > 3 && (b[0] & 0xff) == 0x89 ? "image/png" : "image/jpeg";
+                capaDados = "data:" + tipo + ";base64," + android.util.Base64.encodeToString(b, android.util.Base64.NO_WRAP);
+            }
+        } catch (Exception e) { }
+        return capaDados;
+    }
+
+    private static String primeiro(String... v) {
+        for (String x : v) if (x != null && x.trim().length() > 0 && !"null".equals(x)) return x.trim();
+        return "";
+    }
 
     private final Visualizador.Saida vizSaida = new Visualizador.Saida() {
         public void quadro(final String b, final String w) {
@@ -576,21 +623,48 @@ public class Principal extends Activity {
             if (url.startsWith("http") && !url.equals(radioUrlBuscada)) {
                 radioUrlBuscada = url;
                 radioInfo = new JSONObject();
+                radioIcy = new JSONObject();
                 new Thread(new Runnable() { public void run() {
-                    JSONObject r = Estacoes.buscar(url, nomeBusca);
+                    JSONObject i = Estacoes.icy(url);
+                    if (url.equals(radioUrlBuscada)) radioIcy = i;
+                    JSONObject r = Estacoes.buscar(url, nomeBusca.length() > 0 ? nomeBusca : i.optString("nome"));
                     if (url.equals(radioUrlBuscada)) radioInfo = r;
                 } }, "tocador-estacao").start();
             }
-            JSONObject rb = radioInfo;
-            String nome = m.optString("nome");
-            if (nome.length() == 0) nome = nomeLista;
-            if (nome.length() == 0) nome = rb.optString("nome");
-            if (nome.length() == 0) nome = Listas.nomeDe(url);
-            String genero = m.optString("genero");
-            if (genero.length() == 0) genero = rb.optString("tags");
-            o.put("nome", nome).put("agora", m.optString("agora")).put("genero", genero).put("descricao", m.optString("descricao"))
+            Listas.Lista lf = filaLista != null ? listas().porId(filaLista) : null;
+            boolean musica = !url.startsWith("http") || (lf != null && "musica".equals(lf.tipo)) || motor.temDuracao();
+            if (musica) return infoMusica(m, lf, nomeLista);
+            JSONObject rb = radioInfo, ic = radioIcy;
+            String nome = primeiro(m.optString("nome"), nomeLista, ic.optString("nome"), rb.optString("nome"), Listas.nomeDe(url));
+            // estilos: da rádio, do catálogo; sem repetir, no máximo 4
+            java.util.LinkedHashSet<String> tags = new java.util.LinkedHashSet<String>();
+            for (String fonte : new String[] { m.optString("genero"), ic.optString("genero"), rb.optString("tags") })
+                for (String t : fonte.split("[,;/|]")) {
+                    t = t.trim();
+                    // siglas curtas ficam em maiúsculas (MPB, POP→Pop só se for palavra comum)
+                    if (t.length() > 1 && t.length() < 24 && tags.size() < 4)
+                        tags.add(t.length() <= 3 && !t.equalsIgnoreCase("pop") && !t.equalsIgnoreCase("rap") ? t.toUpperCase(java.util.Locale.ROOT)
+                                : Character.toUpperCase(t.charAt(0)) + t.substring(1));
+                }
+            JSONArray estilos = new JSONArray();
+            for (String t : tags) estilos.put(t);
+            int kbps = m.optInt("kbps") > 0 ? m.optInt("kbps") : ic.optInt("kbps") > 0 ? ic.optInt("kbps") : rb.optInt("bitrate");
+            int hz = m.optInt("khz") > 0 ? m.optInt("khz") : ic.optInt("hz");
+            String codec = primeiro(m.optString("codec"), rb.optString("codec"));
+            StringBuilder q = new StringBuilder();
+            if (codec.length() > 0) q.append(codec);
+            if (kbps > 0) q.append(q.length() > 0 ? " · " : "").append(kbps).append(" kbps");
+            if (hz > 0) q.append(q.length() > 0 ? " · " : "").append(String.format(java.util.Locale.ROOT, "%.1f", hz / 1000.0).replace(".0", "").replace('.', ',')).append(" kHz");
+            int canais = m.optInt("canais");
+            if (canais > 0) q.append(q.length() > 0 ? " · " : "").append(canais == 1 ? "mono" : canais == 2 ? "estéreo" : canais + " canais");
+            String descricao = primeiro(m.optString("descricao"), ic.optString("descricao"));
+            if (descricao.equalsIgnoreCase(nome)) descricao = "";
+            String site = primeiro(ic.optString("site"), rb.optString("site"));
+            o.put("nome", nome).put("agora", m.optString("agora")).put("estilos", estilos).put("genero", tags.isEmpty() ? "" : tags.iterator().next())
+             .put("descricao", descricao)
              .put("logo", rb.optString("logo").length() > 0 ? rb.optString("logo") : m.optString("arte"))
-             .put("local", rb.optString("local")).put("bitrate", rb.optInt("bitrate")).put("codec", rb.optString("codec"))
+             .put("local", rb.optString("local")).put("estado", rb.optString("estado")).put("paisNome", rb.optString("paisNome")).put("pais", rb.optString("pais")).put("idioma", rb.optString("idioma"))
+             .put("qualidade", q.toString()).put("site", site.replaceAll("^https?://(www\\.)?", "").replaceAll("/$", ""))
              .put("viz", vizLigada).put("vizMotivo", vizMotivo);
         } catch (Exception e) { }
         return o;
@@ -1625,7 +1699,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.6 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.7 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

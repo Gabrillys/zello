@@ -42,7 +42,52 @@ final class Estacoes {
         if (tags.length() > 60) tags = tags.substring(0, tags.lastIndexOf(", ", 60) > 0 ? tags.lastIndexOf(", ", 60) : 60);
         return new JSONObject().put("nome", e.optString("name").trim()).put("logo", e.optString("favicon"))
                 .put("local", local).put("tags", tags).put("bitrate", e.optInt("bitrate")).put("codec", e.optString("codec"))
-                .put("site", e.optString("homepage"));
+                .put("site", e.optString("homepage")).put("pais", e.optString("countrycode"))
+                .put("idioma", e.optString("language")).put("votos", e.optInt("votes"))
+                .put("estado", e.optString("state").trim()).put("paisNome", e.optString("country").trim());
+    }
+
+    /**
+     * Cabeçalhos "icy-" que a própria rádio manda (nome, gênero, descrição, site, kbps, kHz).
+     * Feito "na mão", com socket, porque servidores Shoutcast antigos respondem "ICY 200 OK", que o Java não aceita.
+     */
+    static JSONObject icy(String endereco) {
+        JSONObject r = new JSONObject();
+        java.net.Socket s = null;
+        try {
+            URL u = new URL(endereco);
+            boolean https = "https".equalsIgnoreCase(u.getProtocol());
+            int porta = u.getPort() > 0 ? u.getPort() : (https ? 443 : 80);
+            s = https ? javax.net.ssl.SSLSocketFactory.getDefault().createSocket(u.getHost(), porta) : new java.net.Socket();
+            if (!https) s.connect(new java.net.InetSocketAddress(u.getHost(), porta), 6000);
+            s.setSoTimeout(6000);
+            String caminho = (u.getPath() == null || u.getPath().length() == 0 ? "/" : u.getPath()) + (u.getQuery() != null ? "?" + u.getQuery() : "");
+            String pedido = "GET " + caminho + " HTTP/1.0\r\nHost: " + u.getHost() + "\r\nUser-Agent: VLC/3.0.20 LibVLC/3.0.20\r\nIcy-MetaData: 1\r\nConnection: close\r\n\r\n";
+            s.getOutputStream().write(pedido.getBytes("ISO-8859-1"));
+            java.io.InputStream in = s.getInputStream();
+            StringBuilder linha = new StringBuilder();
+            int c, linhas = 0, lidos = 0;
+            while ((c = in.read()) >= 0 && lidos++ < 16384) {
+                if (c == '\n') {
+                    String l = linha.toString().trim();
+                    linha.setLength(0);
+                    if (l.length() == 0 && linhas > 0) break;
+                    linhas++;
+                    int dp = l.indexOf(':');
+                    if (dp <= 0) continue;
+                    String k = l.substring(0, dp).trim().toLowerCase(java.util.Locale.ROOT), v = l.substring(dp + 1).trim();
+                    v = new String(v.getBytes("ISO-8859-1"), "UTF-8"); // a maioria manda UTF-8
+                    if (k.equals("icy-name")) r.put("nome", v);
+                    else if (k.equals("icy-genre")) r.put("genero", v);
+                    else if (k.equals("icy-description")) r.put("descricao", v);
+                    else if (k.equals("icy-url")) r.put("site", v);
+                    else if (k.equals("icy-br")) r.put("kbps", v.replaceAll("\\D.*$", ""));
+                    else if (k.equals("icy-sr")) r.put("hz", v);
+                } else if (c != '\r') linha.append((char) c);
+            }
+        } catch (Exception e) { /* sem cabeçalhos: tudo bem */ }
+        finally { if (s != null) try { s.close(); } catch (Exception e) { } }
+        return r;
     }
 
     private static String juntar(String a, String b) {

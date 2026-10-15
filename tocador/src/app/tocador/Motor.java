@@ -412,11 +412,38 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         return s;
     }
 
-    /** Dados da transmissão para o rodapé da animação. */
+    /** Dados da transmissão para o rodapé da animação (inclui o formato do som: codec, kbps, kHz, canais). */
     public JSONObject meta() {
         JSONObject o = new JSONObject();
-        try { o.put("nome", metaNome).put("genero", metaGenero).put("descricao", metaDescricao).put("agora", metaAgora).put("arte", metaArte); } catch (Exception e) { }
+        try {
+            o.put("nome", metaNome).put("genero", metaGenero).put("descricao", metaDescricao).put("agora", metaAgora).put("arte", metaArte);
+            IMedia m = mp.getMedia();
+            if (m != null) try {
+                o.put("artista", limpo(m.getMeta(IMedia.Meta.Artist))).put("album", limpo(m.getMeta(IMedia.Meta.Album)))
+                 .put("tituloFaixa", limpo(m.getMeta(IMedia.Meta.Title)));
+                for (int i = 0; i < m.getTrackCount(); i++) {
+                    IMedia.Track t = m.getTrack(i);
+                    if (t instanceof IMedia.AudioTrack) {
+                        IMedia.AudioTrack a = (IMedia.AudioTrack) t;
+                        o.put("codec", nomeCodec(a.codec)).put("kbps", a.bitrate > 0 ? a.bitrate / 1000 : 0)
+                         .put("khz", a.rate).put("canais", a.channels);
+                        break;
+                    }
+                }
+            } finally { m.release(); }
+        } catch (Exception e) { }
         return o;
+    }
+
+    private static String nomeCodec(String c) {
+        if (c == null) return "";
+        String k = c.trim().toLowerCase(java.util.Locale.ROOT);
+        if (k.startsWith("mpga") || k.startsWith("mp3")) return "MP3";
+        if (k.startsWith("mp4a") || k.contains("aac")) return "AAC";
+        if (k.contains("opus")) return "Opus";
+        if (k.contains("vorb")) return "Vorbis";
+        if (k.contains("flac")) return "FLAC";
+        return c.trim().toUpperCase(java.util.Locale.ROOT);
     }
 
     private void lerTituloSeguro() { h.post(new Runnable() { public void run() { lerTitulo(); } }); }

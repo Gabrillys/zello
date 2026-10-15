@@ -14,7 +14,9 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 ## Rádio com animação
 
 - Enquanto uma rádio (ou música) toca no player VLC, a tela mostra uma **animação que dança com o som**, no estilo do antigo Windows Media Player. São quatro efeitos: **Alquimia**, **Barras e ondas**, **Batalha** e **Ondas**. Toque na animação (ou no botão de setas) para trocar; o botão de tela cheia mostra só a animação.
-- **Rodapé**: nome da rádio, a música tocando agora (rolando quando é comprida), estilo, cidade/país, qualidade (kbps) e logotipo. Esses dados vêm da própria rádio e, quando faltam, do **Radio Browser**, um catálogo aberto de rádios.
+- **Rodapé da rádio**: nome em destaque e, em letras menores, a música tocando agora (rolando quando é comprida), etiquetas de estilo, cidade e país com a bandeira, idioma, qualidade do som (formato, kbps, kHz, estéreo/mono), site e descrição, além do logotipo. Os dados vêm da própria rádio (cabeçalhos "icy-" e metadados), do nome na lista e do **Radio Browser**, um catálogo aberto de rádios.
+- **Playlists de áudio e músicas do aparelho** também têm a animação. O rodapé mostra título, artista e álbum, a capa, a playlist e a posição ("Faixa 7 de 42"), além da qualidade.
+- Links de rádio sem extensão (`…/stream`, `…:8000/`) são reconhecidos e abrem direto no player VLC.
 - Para a animação reagir à música, o Android exige a permissão de áudio (pedida uma vez). Sem ela, a animação segue num modo ambiente, sem reagir ao som. Com a tela apagada, a animação para e não gasta bateria.
 
 ## Biblioteca: listas M3U, M3U8 e PLS
