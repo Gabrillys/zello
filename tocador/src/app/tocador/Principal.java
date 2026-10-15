@@ -2,6 +2,7 @@ package app.tocador;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.DownloadManager;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -19,6 +20,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
+import android.webkit.CookieManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
@@ -167,7 +169,8 @@ public class Principal extends Activity {
             motor.parar();
             Controle.modo = "web";
             if (nav == null) criarNavegador();
-            nav.loadUrl(url);
+            String embed = Navegador.instagramEmbed(url);
+            nav.loadUrl(embed != null ? embed : url);
         }
         Servico.iniciar(this);
         ajustar();
@@ -289,6 +292,15 @@ public class Principal extends Activity {
 
     private void naTela(Runnable r) { runOnUiThread(r); }
 
+    /** Android 9 ou anterior precisa de permissão para gravar na pasta Download. */
+    private boolean permissaoGravar() {
+        if (Build.VERSION.SDK_INT >= 29) return true;
+        if (checkSelfPermission("android.permission.WRITE_EXTERNAL_STORAGE") == PackageManager.PERMISSION_GRANTED) return true;
+        requestPermissions(new String[] { "android.permission.WRITE_EXTERNAL_STORAGE" }, 2);
+        painel.evaluateJavascript("window.avisar&&avisar('Permita o acesso aos arquivos e toque em baixar de novo.')", null);
+        return false;
+    }
+
     final class Ponte {
 
         @JavascriptInterface
@@ -331,6 +343,8 @@ public class Principal extends Activity {
                 }
                 o.put("modo", Controle.modo);
                 o.put("expandido", expandido);
+                o.put("podeBaixar", "vlc".equals(Controle.modo) && motor.temDuracao() && motor.url().matches("(?i)^https?://.*"));
+                o.put("downloads", Baixador.lista());
                 o.put("temPagina", nav != null);
                 Navegador n = nav;
                 if (n != null) o.put("midias", n.listaMidias());
@@ -354,6 +368,42 @@ public class Principal extends Activity {
                     ajustar();
                 }
             });
+        }
+
+        /** Baixa o que está tocando no player VLC (só se não for ao vivo). */
+        @JavascriptInterface
+        public void baixarAtual() {
+            naTela(new Runnable() { public void run() {
+                if (!"vlc".equals(Controle.modo) || !motor.temDuracao()) return;
+                if (!permissaoGravar()) return;
+                String u = motor.url();
+                Baixador.baixar(Principal.this, u, motor.titulo(), motor.agente(), motor.referer(), CookieManager.getInstance().getCookie(u));
+            } });
+        }
+
+        /** Baixa a mídia número i encontrada na página aberta. */
+        @JavascriptInterface
+        public void baixarMidia(final int i) {
+            naTela(new Runnable() { public void run() {
+                if (nav == null) return;
+                String[] m = nav.midia(i);
+                if (m == null || !permissaoGravar()) return;
+                Baixador.baixar(Principal.this, m[0], Navegador.tituloAgora, nav.agente(), m[1], CookieManager.getInstance().getCookie(m[0]));
+            } });
+        }
+
+        @JavascriptInterface
+        public void cancelarDownload(int id) { Baixador.cancelar(id); }
+
+        @JavascriptInterface
+        public void limparDownloads() { Baixador.limparConcluidos(); }
+
+        @JavascriptInterface
+        public void abrirDownloads() {
+            naTela(new Runnable() { public void run() {
+                try { startActivity(new Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+                catch (Exception e) { }
+            } });
         }
 
         @JavascriptInterface

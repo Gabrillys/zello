@@ -131,6 +131,10 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     public boolean tocando() { return mp.isPlaying(); }
     public String titulo() { return titulo; }
     public String url() { return url; }
+    public String agente() { return ua; }
+    public String referer() { return referer; }
+    /** Tem duração conhecida (arquivo ou vídeo gravado), ou seja, não é ao vivo. */
+    public boolean temDuracao() { return mp.getLength() > 0; }
     /** Há imagem neste link? (rádio = não; vídeo = sim). */
     public boolean temVideoAgora() {
         if (temVideo) return true;

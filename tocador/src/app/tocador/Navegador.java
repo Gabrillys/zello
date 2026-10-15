@@ -43,6 +43,21 @@ public class Navegador extends WebView {
     private static final Pattern IGNORAR = Pattern.compile(
             "(?i)(doubleclick|googlesyndication|googleadservices|adservice|/ads?/|imasdk|adsystem|moatads|scorecardresearch)");
 
+    private static final Pattern INSTAGRAM = Pattern.compile(
+            "(?i)^https?://(?:www\\.|m\\.)?instagram\\.com/(?:(?!share/)[A-Za-z0-9_.]+/)?(p|reels?|tv)/([A-Za-z0-9_-]+)(/embed)?.*$");
+
+    /**
+     * O Instagram exige login no site e mostra "abra no app" em vez do vídeo.
+     * A versão "embed" (a que outros sites usam para incorporar posts) toca sem login.
+     * Devolve o link embed, ou null se não for um post/reel do Instagram (ou se já for embed).
+     */
+    public static String instagramEmbed(String url) {
+        java.util.regex.Matcher m = INSTAGRAM.matcher(url);
+        if (!m.matches() || m.group(3) != null) return null;
+        String tipo = m.group(1).toLowerCase(java.util.Locale.US).startsWith("reel") ? "reel" : m.group(1).toLowerCase(java.util.Locale.US);
+        return "https://www.instagram.com/" + tipo + "/" + m.group(2) + "/embed/captioned/";
+    }
+
     /** Faz o site acreditar que está sempre visível e em foco. */
     static final String JS_SEMPRE_VISIVEL =
             "(function(){if(window.__tocador)return;window.__tocador=1;" +
@@ -108,6 +123,9 @@ public class Navegador extends WebView {
                 v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
             }
             @Override public boolean shouldOverrideUrlLoading(WebView v, WebResourceRequest r) {
+                // Links curtos do Instagram (instagram.com/share/…) redirecionam para o post: troca pelo embed.
+                String embed = r.isForMainFrame() ? instagramEmbed(r.getUrl().toString()) : null;
+                if (embed != null) { v.loadUrl(embed); return true; }
                 String esq = r.getUrl().getScheme();
                 // Links "intent:", "vnd.youtube:" etc. abririam o app oficial; ficamos no navegador.
                 return esq == null || !(esq.equals("http") || esq.equals("https"));

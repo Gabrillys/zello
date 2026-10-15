@@ -60,6 +60,18 @@ select{font-family:inherit;font-size:15px;background:var(--fundo);color:var(--te
 .desligado .trilho .cheio{background:var(--linha)}
 .desligado .trilho .bola{background:var(--suave);box-shadow:none}
 .aviso{font-size:14px;color:var(--suave);margin-top:8px}
+.barra{height:8px;border-radius:4px;background:var(--cartao2);overflow:hidden;margin-top:6px}
+.barra i{display:block;height:100%;background:linear-gradient(90deg,var(--destaque),var(--destaque2));transition:width .4s}
+.barra.indet i{width:35%!important;animation:vai 1.2s linear infinite}
+@keyframes vai{from{transform:translateX(-100%)}to{transform:translateX(290%)}}
+.down{padding:10px 0;border-top:1px solid var(--linha)}
+.down:first-of-type{border-top:0}
+.down .n{font-size:15px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.down .s{font-size:13px;color:var(--suave);display:flex;justify-content:space-between;gap:8px;align-items:center}
+.down .s.erro{color:var(--vermelho)}
+.down .s.ok{color:var(--verde)}
+#toast{position:fixed;left:14px;right:14px;bottom:16px;background:#2A3140;color:var(--texto);padding:12px 14px;border-radius:12px;font-size:15px;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9}
+#toast.on{opacity:1;transform:none}
 .recente{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--linha);font-size:14px}
 .recente:first-of-type{border-top:0}
 .recente .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave)}
@@ -124,6 +136,8 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
       <input type="range" id="vol" min="0" max="200" value="100">
     </div>
     <div id="erroBox" class="aviso oculto">Não consegui tocar esse link no player. <button class="peq" id="tentarSite">Abrir como site</button></div>
+    <div id="baixarBox" class="mt oculto"><button id="baixar" style="width:100%">⬇ Baixar este áudio/vídeo</button></div>
+    <div id="aoVivo" class="aviso oculto">Transmissão ao vivo: não há arquivo para baixar.</div>
     <div id="voltarBox" class="mt oculto"><button class="peq" id="voltar">← Voltar para a página</button></div>
   </div>
 
@@ -148,6 +162,13 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
     <div class="aviso" id="eqAviso"></div>
   </div>
 
+  <div class="cartao oculto" id="downBox">
+    <div class="eqtopo"><h2 style="margin:0">Downloads</h2><button class="peq" id="limpar">Limpar lista</button></div>
+    <div id="downs"></div>
+    <div class="linha mt"><button class="peq" id="pasta">📁 Abrir pasta de downloads</button></div>
+    <div class="aviso">Os arquivos ficam em <b>Download/Tocador</b>. Vídeos de lista .m3u8 são salvos como <b>.ts</b> (abrem no VLC e na maioria dos players).</div>
+  </div>
+
   <div class="cartao" id="recBox">
     <h2>Recentes</h2>
     <div id="recentes"><div class="aviso" style="margin:0">Os links que você tocar aparecem aqui.</div></div>
@@ -165,6 +186,7 @@ body.compacto #compacto{display:flex;align-items:center;gap:10px}
   </div>
 </div>
 
+<div id="toast"></div>
 <script>
 var T = window.Tocador || null;
 function $(i){ return document.getElementById(i); }
@@ -201,6 +223,11 @@ $('tp').onclick=$('cTp').onclick=function(){ T&&T.tocarPausar(); };
 $('parar').onclick=function(){ T&&T.parar(); };
 $('voltar').onclick=function(){ T&&T.voltarPagina(); };
 $('bateria').onclick=function(){ T&&T.bateria(); };
+$('baixar').onclick=function(){ T&&T.baixarAtual(); avisar('Download iniciado. Acompanhe abaixo ou na notificação.'); };
+$('limpar').onclick=function(){ T&&T.limparDownloads(); downAnt=''; atualizar(); };
+$('pasta').onclick=function(){ T&&T.abrirDownloads(); };
+var tToast;
+window.avisar=function(m){ var t=$('toast'); t.textContent=m; t.classList.add('on'); clearTimeout(tToast); tToast=setTimeout(function(){ t.classList.remove('on'); },3200); };
 $('cAbrir').onclick=function(){ T&&T.expandir(true); };
 $('cMidias').onclick=function(){ T&&T.expandir(true); };
 $('recolher').onclick=function(){ T&&T.expandir(false); };
@@ -241,10 +268,33 @@ function atualizar(){
   $('midiasBox').classList.toggle('oculto', !(e.modo==='web'&&md.length));
   $('cMidias').style.display=(e.modo==='web'&&md.length)?'':'none';
   if(mk!==midiasAnt){ midiasAnt=mk;
-    $('midias').innerHTML=md.map(function(m,i){return '<div class="midia"><div class="m"><b>'+esc(m.host)+'</b><br>'+esc(m.arquivo)+'</div><button class="peq pri" data-i="'+i+'">▶ VLC</button></div>';}).join('');
-    [].forEach.call($('midias').querySelectorAll('button'),function(b){ b.onclick=function(){ T.tocarMidia(+b.dataset.i); }; });
+    $('midias').innerHTML=md.map(function(m,i){return '<div class="midia"><div class="m"><b>'+esc(m.host)+'</b><br>'+esc(m.arquivo)+'</div><button class="peq" data-b="'+i+'" aria-label="Baixar">⬇</button><button class="peq pri" data-i="'+i+'">▶ VLC</button></div>';}).join('');
+    [].forEach.call($('midias').querySelectorAll('button[data-i]'),function(b){ b.onclick=function(){ T.tocarMidia(+b.dataset.i); }; });
+    [].forEach.call($('midias').querySelectorAll('button[data-b]'),function(b){ b.onclick=function(){ T.baixarMidia(+b.dataset.b); avisar('Download iniciado. Se for ao vivo, o app avisa.'); }; });
   }
+  $('baixarBox').classList.toggle('oculto', !e.podeBaixar);
+  $('aoVivo').classList.toggle('oculto', !(vlc&&!e.podeBaixar&&(sit==='tocando'||sit==='pausado')&&!(e.duracao>0)));
+  mostrarDownloads(e.downloads||[]);
   if(e.modo!==modoAnterior){ modoAnterior=e.modo; carregarEq(); }
+}
+
+// ------------------------------------------------ downloads
+var downAnt='';
+function mb(b){ return (b/1048576).toFixed(1)+' MB'; }
+function mostrarDownloads(l){
+  var k=JSON.stringify(l); if(k===downAnt) return; downAnt=k;
+  $('downBox').classList.toggle('oculto',!l.length);
+  $('downs').innerHTML=l.slice().reverse().map(function(d){
+    var pct=d.total>0?Math.floor(d.feitos*100/d.total):0, txt, cls='';
+    if(d.estado==='baixando') txt=d.total>0?(pct+'%'+(d.pedacos?' · '+d.feitos+'/'+d.total+' partes':' · '+mb(d.feitos)+' de '+mb(d.total))):(d.feitos>0?mb(d.feitos):'iniciando…');
+    else if(d.estado==='concluido'){ txt='✓ concluído'; cls='ok'; }
+    else if(d.estado==='erro'){ txt=d.erro||'falhou'; cls='erro'; }
+    else txt=d.estado;
+    var ativo=d.estado==='baixando'||d.estado==='na fila';
+    return '<div class="down"><div class="n">'+esc(d.nome)+'</div>'+(d.estado==='baixando'?'<div class="barra'+(d.total>0?'':' indet')+'"><i style="width:'+pct+'%"></i></div>':'')+
+      '<div class="s '+cls+'"><span>'+esc(txt)+'</span>'+(ativo?'<button class="peq" data-c="'+d.id+'">Cancelar</button>':'')+'</div></div>';
+  }).join('');
+  [].forEach.call($('downs').querySelectorAll('button[data-c]'),function(b){ b.onclick=function(){ T.cancelarDownload(+b.dataset.c); }; });
 }
 
 // ------------------------------------------------ equalizador
