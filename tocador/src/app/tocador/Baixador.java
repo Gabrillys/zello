@@ -227,6 +227,7 @@ final class Baixador {
                 v.put(MediaStore.MediaColumns.IS_PENDING, 0);
                 cr.update(u, v, null, null);
                 f.delete();
+                registrar(ctx, u.toString());
                 return u.toString();
             }
             File pasta = new File(Environment.getExternalStoragePublicDirectory(audio ? Environment.DIRECTORY_MUSIC : Environment.DIRECTORY_MOVIES),
@@ -235,11 +236,36 @@ final class Baixador {
             File destino = new File(pasta, nome);
             if (!f.renameTo(destino)) { copiar(new FileInputStream(f), new FileOutputStream(destino)); f.delete(); }
             android.media.MediaScannerConnection.scanFile(ctx, new String[] { destino.getPath() }, new String[] { mime }, null);
+            registrar(ctx, Uri.fromFile(destino).toString());
             return Uri.fromFile(destino).toString();
         } catch (Exception e) {
             Diagnostico.anotar("Download: não consegui guardar " + nome + ": " + e);
             return null;
         }
+    }
+
+    // ------------------------------------------------------------ registro do que o app baixou
+
+    /**
+     * Guarda o endereço de cada arquivo que o próprio Tocador baixou. Só esses podem ser apagados pelo app:
+     * vídeos da câmera, músicas de outros apps e qualquer outro arquivo do celular nunca entram aqui.
+     */
+    static synchronized void registrar(Context c, String uri) {
+        android.content.SharedPreferences p = c.getSharedPreferences("baixados", Context.MODE_PRIVATE);
+        java.util.Set<String> s = new java.util.HashSet<String>(p.getStringSet("uris", new java.util.HashSet<String>()));
+        s.add(uri);
+        p.edit().putStringSet("uris", s).apply();
+    }
+
+    static synchronized boolean foiBaixadoPeloApp(Context c, String uri) {
+        return c.getSharedPreferences("baixados", Context.MODE_PRIVATE).getStringSet("uris", new java.util.HashSet<String>()).contains(uri);
+    }
+
+    static synchronized void esquecer(Context c, String uri) {
+        android.content.SharedPreferences p = c.getSharedPreferences("baixados", Context.MODE_PRIVATE);
+        java.util.Set<String> s = new java.util.HashSet<String>(p.getStringSet("uris", new java.util.HashSet<String>()));
+        s.remove(uri);
+        p.edit().putStringSet("uris", s).apply();
     }
 
     private static void copiar(InputStream in, OutputStream out) throws Exception {

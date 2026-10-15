@@ -377,8 +377,8 @@ window.guardarRecente=guardarRecente;
 var bibliotecaListas=[];
 function confirmarApagar(id){
   var l=null; bibliotecaListas.forEach(function(x){ if(x.id===id) l=x; }); if(!l){ try{ JSON.parse(T.listas()).listas.forEach(function(x){ if(x.id===id) l=x; }); }catch(e){} } if(!l) return;
-  abrirGaveta('apagar','Apagar lista','<div class="nota" style="margin-top:0">Apagar <b>'+esc(l.nome)+'</b> ('+l.n+' itens) da Biblioteca?</div>'+
-    (l.baixada?'<div class="chave-linha"><span>Apagar também os arquivos baixados<br><small style="color:var(--fraco);font-weight:400">As músicas/vídeos saem do aparelho</small></span><label class="chave"><input type="checkbox" id="apArq"><span></span></label></div>':'<div class="nota">Só a lista sai do app; nada é apagado da internet nem do aparelho.</div>')+
+  abrirGaveta('apagar','Apagar lista','<div class="nota" style="margin-top:0">Tirar a lista <b>'+esc(l.nome)+'</b> ('+l.n+' itens) da Biblioteca do Tocador?</div>'+
+    (l.baixada&&l.doApp>0?'<div class="chave-linha"><span>Apagar também os '+l.doApp+' arquivo(s) que o Tocador baixou para esta lista<br><small style="color:var(--fraco);font-weight:400">Só esses. Fotos, vídeos da câmera e arquivos de outros apps nunca são apagados.</small></span><label class="chave"><input type="checkbox" id="apArq"><span></span></label></div>':'<div class="nota">Só a lista sai do app. Nenhum arquivo do seu celular é apagado.</div>')+
     '<div class="linha mt"><button id="apNao">Cancelar</button><button class="perigo" id="apSim">'+IC.lixo+'<span>Apagar</span></button></div>');
   $('apNao').onclick=fecharGaveta;
   $('apSim').onclick=function(){ T.apagarLista(id,!!($('apArq')&&$('apArq').checked)); fecharGaveta(); setTimeout(mostrarBiblioteca,200); };

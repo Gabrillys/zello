@@ -953,17 +953,30 @@ public class Principal extends Activity {
         fila.definirRepetir(repetir);
     }
 
-    /** Apaga a lista; nas listas de downloads, pode apagar também os arquivos do aparelho. */
+    /** Quantos itens da lista são arquivos que o próprio app baixou (os únicos que ele pode apagar). */
+    int contarDoApp(Listas.Lista l) {
+        int n = 0;
+        if (l.origem.startsWith("baixados:")) for (Listas.Item it : l.itens) if (Baixador.foiBaixadoPeloApp(this, it.url)) n++;
+        return n;
+    }
+
+    /** Apaga a lista; nas listas de downloads, pode apagar também os arquivos que o app baixou (e só esses). */
     void apagarLista(String id, boolean arquivos) {
         Listas.Lista l = listas().porId(id);
         if (l == null) return;
         int apagados = 0;
+        int protegidos = 0;
         if (arquivos && l.origem.startsWith("baixados:")) for (Listas.Item it : l.itens) {
+            // Regra de segurança: só apaga o que o próprio Tocador baixou e registrou. Qualquer outro arquivo é ignorado.
+            if (!Baixador.foiBaixadoPeloApp(this, it.url)) { protegidos++; continue; }
             try {
-                if (it.url.startsWith("content://")) { if (getContentResolver().delete(Uri.parse(it.url), null, null) > 0) apagados++; }
-                else if (it.url.startsWith("file://")) { if (new java.io.File(Uri.parse(it.url).getPath()).delete()) apagados++; }
+                boolean ok = false;
+                if (it.url.startsWith("content://")) ok = getContentResolver().delete(Uri.parse(it.url), null, null) > 0;
+                else if (it.url.startsWith("file://")) ok = new java.io.File(Uri.parse(it.url).getPath()).delete();
+                if (ok) { apagados++; Baixador.esquecer(this, it.url); }
             } catch (Exception e) { Diagnostico.anotar("Não apaguei " + it.nome + ": " + e.getMessage()); }
         }
+        if (protegidos > 0) Diagnostico.anotar("Apagar lista: " + protegidos + " arquivo(s) não baixados pelo app foram preservados");
         if (id.equals(filaLista)) { filaLista = null; filaIndice = -1; }
         listas().apagar(id);
         avisar("Lista \"" + l.nome + "\" apagada" + (arquivos ? " (" + apagados + " arquivo(s) removidos do aparelho)" : "") + ".");
@@ -1412,7 +1425,7 @@ public class Principal extends Activity {
                 for (Listas.Lista l : Principal.this.listas().todas())
                     a.put(new JSONObject().put("id", l.id).put("nome", l.nome).put("tipo", l.tipo).put("n", l.itens.size())
                             .put("origem", l.origem.startsWith("content:") ? "arquivo do aparelho" : l.origem).put("web", l.origem.startsWith("http"))
-                            .put("baixada", l.origem.startsWith("baixados:")));
+                            .put("baixada", l.origem.startsWith("baixados:")).put("doApp", contarDoApp(l)));
                 JSONArray tipos = new JSONArray();
                 for (String[] t : Listas.TIPOS) tipos.put(new JSONObject().put("chave", t[0]).put("nome", t[1]));
                 return new JSONObject().put("listas", a).put("tipos", tipos).toString();
@@ -1699,7 +1712,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.7 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.8 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
