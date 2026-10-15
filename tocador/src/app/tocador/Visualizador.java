@@ -15,10 +15,15 @@ final class Visualizador {
 
     private Visualizer v;
     private final float[] suave = new float[BANDAS];
+    /** Quadros recebidos e quadros com som de verdade (para saber se a sessão escolhida está entregando dados). */
+    volatile int quadros, comSom;
+    volatile int sessaoAtual = -1;
 
     /** Liga na sessão de áudio informada. Devolve "ok" ou o motivo de não ter ligado. */
     synchronized String ligar(int sessao, final Saida saida) {
         desligar();
+        quadros = 0; comSom = 0;
+        sessaoAtual = sessao;
         try {
             v = new Visualizer(sessao);
             v.setEnabled(false);
@@ -30,6 +35,11 @@ final class Visualizador {
                 byte[] onda;
                 @Override public void onWaveFormDataCapture(Visualizer x, byte[] w, int t) { onda = w; }
                 @Override public void onFftDataCapture(Visualizer x, byte[] fft, int t) {
+                    quadros++;
+                    boolean som = false;
+                    for (int i = 2; i < fft.length && !som; i++) if (fft[i] != 0) som = true;
+                    if (!som) return; // só zeros: a sessão não está recebendo o som; a página segue no modo ambiente
+                    comSom++;
                     saida.quadro(bandas(fft), onda == null ? "[]" : onda(onda));
                 }
             }, taxa, true, true);

@@ -492,7 +492,8 @@ $('dlResumo').onclick=function(){ abrirBaixar(''); };
 // ------------------------------------------------ animação da rádio (estilo Windows Media Player)
 var EFEITOS=['Alquimia','Barras e ondas','Batalha','Ondas'], efeito=0, vizBandas=new Float32Array(48), vizAlvoB=new Float32Array(48), vizOnda=new Float32Array(96), vizAlvoW=new Float32Array(96), vizReal=false, vizUltimo=0, palcoVisivel=false, rafId=0, tEf=0;
 try{ efeito=+(localStorage.getItem('efeito')||0)%EFEITOS.length; }catch(x){}
-window.vizQuadro=function(b,w){ for(var i=0;i<48&&i<b.length;i++) vizAlvoB[i]=b[i]; for(var j=0;j<96&&j<w.length;j++) vizAlvoW[j]=w[j]; vizReal=true; vizUltimo=Date.now(); };
+window.vizQuadro=function(b,w){ var soma=0; for(var k=0;k<b.length;k++) soma+=b[k]; if(soma<0.05) return; // silêncio: segue no modo ambiente
+  for(var i=0;i<48&&i<b.length;i++) vizAlvoB[i]=b[i]; for(var j=0;j<96&&j<w.length;j++) vizAlvoW[j]=w[j]; vizReal=true; vizUltimo=Date.now(); };
 function ambiente(t){ // sem dados reais: movimento suave, com "batidas" de mentira
   var batida=Math.pow(Math.max(0,Math.sin(t*2*Math.PI*1.9)),8);
   for(var i=0;i<48;i++){ var f=i/47; vizAlvoB[i]=Math.max(0,Math.min(1,(0.55-0.35*f)+0.18*Math.sin(t*1.7+i*0.45)+0.12*Math.sin(t*3.1-i*0.9)+batida*(1-f)*0.5)); }
@@ -575,7 +576,10 @@ document.addEventListener('visibilitychange',function(){ if(!palcoVisivel) retur
 var radioAnt='';
 function atualizarRadio(){
   var R; try{ R=JSON.parse(T.radio()); }catch(x){ return; }
-  $('vizAviso').classList.toggle('oculto',!(R.vizMotivo==='sem-permissao'));
+  var semPerm=R.vizMotivo==='sem-permissao', semDados=R.vizMotivo==='sem-dados';
+  $('vizAviso').classList.toggle('oculto',!semPerm&&!semDados);
+  $('vizAviso').firstChild.textContent=semPerm?'Modo ambiente. Para a animação dançar com a música, permita o áudio.':'Modo ambiente: este celular não entregou o som para a animação.';
+  $('vizPermitir').classList.toggle('oculto',!semPerm);
   var k=JSON.stringify([R.nome,R.agora,R.genero,R.local,R.logo,R.bitrate]); if(k===radioAnt) return; radioAnt=k;
   $('rNome').textContent=R.nome||'Rádio';
   var ag=$('rAgora'); ag.firstChild.textContent=R.agora?'♪ '+R.agora:(R.descricao||''); ag.classList.remove('rola');

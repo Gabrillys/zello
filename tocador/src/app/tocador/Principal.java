@@ -420,6 +420,7 @@ public class Principal extends Activity {
     protected void onStart() {
         super.onStart();
         if ("vlc".equals(Controle.modo)) motor.anexar(superficie, superficieLegendas, superficie.getWidth(), superficie.getHeight());
+        if (vizQuer) ligarAnimacao(true); // a tela voltou: a animação volta junto
     }
 
     @Override
@@ -436,6 +437,8 @@ public class Principal extends Activity {
 
     private final Visualizador visualizador = new Visualizador();
     private boolean vizLigada;
+    /** A página está mostrando a animação (independe de a tela estar apagada). */
+    private boolean vizQuer;
     private String vizMotivo = "";
     private String radioUrlBuscada = "";
     private volatile JSONObject radioInfo = new JSONObject();
@@ -447,7 +450,8 @@ public class Principal extends Activity {
     };
 
     void ligarAnimacao(boolean sim) {
-        if (!sim) { visualizador.desligar(); vizLigada = false; return; }
+        vizQuer = sim;
+        if (!sim) { visualizador.desligar(); vizLigada = false; h.removeCallbacks(conferirAnimacao); return; }
         if (vizLigada) return;
         if (checkSelfPermission("android.permission.RECORD_AUDIO") != PackageManager.PERMISSION_GRANTED) {
             if (!ajustes.getBoolean("vizPerguntou", false)) {
@@ -458,10 +462,34 @@ public class Principal extends Activity {
             return;
         }
         String r = visualizador.ligar(motor.sessaoAudio(), vizSaida);
+        if (!"ok".equals(r)) {
+            Diagnostico.anotar("Animação da rádio: sessão do VLC (" + motor.sessaoAudio() + ") recusada: " + r + "; tentando a saída geral");
+            r = visualizador.ligar(0, vizSaida);
+        }
         vizLigada = "ok".equals(r);
         vizMotivo = vizLigada ? "" : r;
-        if (!vizLigada) Diagnostico.anotar("Animação da rádio: " + r);
+        Diagnostico.anotar("Animação da rádio: " + (vizLigada ? "ligada na sessão " + visualizador.sessaoAtual : r));
+        h.removeCallbacks(conferirAnimacao);
+        if (vizLigada) h.postDelayed(conferirAnimacao, 3000);
     }
+
+    /** Se a sessão escolhida só entrega silêncio, tenta a saída geral de som (sessão 0). */
+    private final Runnable conferirAnimacao = new Runnable() {
+        public void run() {
+            if (!vizLigada) return;
+            Diagnostico.anotar("Animação da rádio: sessão " + visualizador.sessaoAtual + ", quadros=" + visualizador.quadros + ", com som=" + visualizador.comSom
+                    + ", tocando=" + Controle.tocando(Principal.this));
+            if (visualizador.comSom == 0 && Controle.tocando(Principal.this) && visualizador.sessaoAtual != 0) {
+                String r = visualizador.ligar(0, vizSaida);
+                vizLigada = "ok".equals(r);
+                vizMotivo = vizLigada ? "" : r;
+                Diagnostico.anotar("Animação da rádio: sem som na sessão do VLC; saída geral: " + r);
+                if (vizLigada) h.postDelayed(this, 3000);
+            } else if (visualizador.comSom == 0 && Controle.tocando(Principal.this)) {
+                vizMotivo = "sem-dados";
+            }
+        }
+    };
 
     @Override
     public void onRequestPermissionsResult(int pedido, String[] permissoes, int[] resultados) {
@@ -1531,7 +1559,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.3 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.4 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
