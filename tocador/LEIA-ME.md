@@ -21,8 +21,10 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 
 - Toque em **Importar lista** e cole o endereço da lista (ou escolha um arquivo do aparelho). Funciona com listas de IPTV (com logotipo e grupos), de rádios, de músicas e com listas simples de endereços.
 - Escolha o **estilo**: Músicas, Rádios, TVs, Câmeras ou Outros (ou *Automático*, que adivinha pelo conteúdo). Em **Músicas**, as faixas tocam em sequência; nos outros estilos, um item de cada vez.
-- Dentro da lista: **busca** (sem se importar com acentos), **grupos** e, no player, os botões **anterior/próximo**.
-- Em *Gerenciar lista*: renomear, trocar o estilo, **atualizar** (baixa de novo do mesmo endereço) e apagar.
+- Dentro da lista: **Tocar todos**, **Aleatório**, **busca** (sem se importar com acentos) e **grupos**.
+- No player: **anterior/próximo**, **aleatório** (sorteia sem repetir faixa até passar por todas; o "anterior" volta para a faixa que tocou antes) e **repetir** (desligado → lista toda → só a faixa, com um "1" no ícone).
+- **Apagar uma lista**: na lixeira ao lado dela na Biblioteca (ou dentro da lista). Nas listas de downloads, dá para apagar também os arquivos do aparelho.
+- Em *Gerenciar lista*: renomear, trocar o estilo e **atualizar** (baixa de novo do mesmo endereço).
 - Se o endereço for de uma transmissão (um único canal `.m3u8`), ele toca direto.
 
 ## Baixar músicas, vídeos e playlists
@@ -117,6 +119,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `VozNeural`: vozes neurais (protocolo do projeto edge-tts);
   - `Roteiro`: falas e horários;
   - `Listas`: listas M3U/M3U8/PLS (leitura, estilos, busca);
+  - `Fila`: ordem de reprodução (sequência, aleatório, repetir);
   - `Legendador`: legenda de arquivos com o Whisper (.srt/.txt);
   - `Anuncios`: bloqueio de anúncios;
   - `Visualizador` + `Estacoes`: animação da rádio (espectro pelo Visualizer do Android) e dados da rádio (Radio Browser);

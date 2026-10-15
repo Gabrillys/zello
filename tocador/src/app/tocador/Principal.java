@@ -731,8 +731,30 @@ public class Principal extends Activity {
         } });
     }
 
-    /** Toca o item i da lista (músicas seguem em sequência; o resto toca um de cada vez). */
+    private final Fila fila = new Fila();
+    /** "Tocar todos" foi usado: segue para o próximo em qualquer estilo de lista (não só Músicas). */
+    private boolean filaTodos;
+
+    /** Toca o item i da lista escolhido pela pessoa (no aleatório, o resto da lista vem sorteado depois dele). */
     void tocarDaLista(String id, int i) {
+        Listas.Lista l = listas().porId(id);
+        if (l == null || i < 0 || i >= l.itens.size()) return;
+        filaTodos = false;
+        fila.definirRepetir(ajustes.getString("repetir", Fila.NAO));
+        tocarItemDaFila(id, fila.iniciar(l.itens.size(), i, ajustes.getBoolean("aleatorio", false)));
+    }
+
+    /** Botões "Tocar todos" e "Aleatório" da lista. */
+    void tocarTodos(String id, boolean aleatorio) {
+        Listas.Lista l = listas().porId(id);
+        if (l == null || l.itens.isEmpty()) return;
+        ajustes.edit().putBoolean("aleatorio", aleatorio).apply();
+        fila.definirRepetir(ajustes.getString("repetir", Fila.NAO));
+        filaTodos = true;
+        tocarItemDaFila(id, fila.iniciar(l.itens.size(), -1, aleatorio));
+    }
+
+    private void tocarItemDaFila(String id, int i) {
         Listas.Lista l = listas().porId(id);
         if (l == null || i < 0 || i >= l.itens.size()) return;
         Listas.Item it = l.itens.get(i);
@@ -743,15 +765,40 @@ public class Principal extends Activity {
         if ("vlc".equals(Controle.modo)) motor.definirTitulo(it.nome);
     }
 
-    /** dir = +1 próximo, -1 anterior. "sozinho" = o item acabou (só segue em listas de músicas). */
+    /** dir = +1 próximo, -1 anterior. "sozinho" = o item acabou (segue em listas de Músicas ou depois de "Tocar todos"). */
     void proximoDaFila(int dir, boolean sozinho) {
         if (filaLista == null) return;
         Listas.Lista l = listas().porId(filaLista);
         if (l == null) return;
-        if (sozinho && !"musica".equals(l.tipo)) return;
-        int n = filaIndice + dir;
-        if (n < 0 || n >= l.itens.size()) { if (sozinho) avisar("Fim da lista."); return; }
-        tocarDaLista(filaLista, n);
+        if (sozinho && !"musica".equals(l.tipo) && !filaTodos) return;
+        if (fila.tamanho() != l.itens.size()) fila.iniciar(l.itens.size(), filaIndice, fila.aleatorio()); // a lista mudou
+        // Item com erro não fica repetindo: segue para o próximo mesmo com "repetir faixa".
+        boolean erro = sozinho && "erro".equals(motor.estado().optString("situacao"));
+        int n = fila.avancar(dir, sozinho && !erro);
+        if (n < 0) { if (sozinho) avisar("Fim da lista."); return; }
+        tocarItemDaFila(filaLista, n);
+    }
+
+    void modoFila(boolean aleatorio, String repetir) {
+        ajustes.edit().putBoolean("aleatorio", aleatorio).putString("repetir", repetir).apply();
+        fila.definirAleatorio(aleatorio);
+        fila.definirRepetir(repetir);
+    }
+
+    /** Apaga a lista; nas listas de downloads, pode apagar também os arquivos do aparelho. */
+    void apagarLista(String id, boolean arquivos) {
+        Listas.Lista l = listas().porId(id);
+        if (l == null) return;
+        int apagados = 0;
+        if (arquivos && l.origem.startsWith("baixados:")) for (Listas.Item it : l.itens) {
+            try {
+                if (it.url.startsWith("content://")) { if (getContentResolver().delete(Uri.parse(it.url), null, null) > 0) apagados++; }
+                else if (it.url.startsWith("file://")) { if (new java.io.File(Uri.parse(it.url).getPath()).delete()) apagados++; }
+            } catch (Exception e) { Diagnostico.anotar("Não apaguei " + it.nome + ": " + e.getMessage()); }
+        }
+        if (id.equals(filaLista)) { filaLista = null; filaIndice = -1; }
+        listas().apagar(id);
+        avisar("Lista \"" + l.nome + "\" apagada" + (arquivos ? " (" + apagados + " arquivo(s) removidos do aparelho)" : "") + ".");
     }
 
     // ------------------------------------------------------------ downloads
@@ -1008,7 +1055,8 @@ public class Principal extends Activity {
                 o.put("modo", Controle.modo);
                 if (filaLista != null) {
                     Listas.Lista l = Principal.this.listas().porId(filaLista);
-                    if (l != null) o.put("fila", new JSONObject().put("nome", l.nome).put("tipo", l.tipo).put("indice", filaIndice).put("total", l.itens.size()));
+                    if (l != null) o.put("fila", new JSONObject().put("nome", l.nome).put("tipo", l.tipo).put("indice", filaIndice).put("total", l.itens.size())
+                            .put("ordem", fila.posicao()).put("aleatorio", ajustes.getBoolean("aleatorio", false)).put("repetir", ajustes.getString("repetir", Fila.NAO)));
                 }
                 o.put("anuncios", Anuncios.ligado);
                 o.put("expandido", expandido);
@@ -1195,7 +1243,8 @@ public class Principal extends Activity {
                 JSONArray a = new JSONArray();
                 for (Listas.Lista l : Principal.this.listas().todas())
                     a.put(new JSONObject().put("id", l.id).put("nome", l.nome).put("tipo", l.tipo).put("n", l.itens.size())
-                            .put("origem", l.origem.startsWith("content:") ? "arquivo do aparelho" : l.origem).put("web", l.origem.startsWith("http")));
+                            .put("origem", l.origem.startsWith("content:") ? "arquivo do aparelho" : l.origem).put("web", l.origem.startsWith("http"))
+                            .put("baixada", l.origem.startsWith("baixados:")));
                 JSONArray tipos = new JSONArray();
                 for (String[] t : Listas.TIPOS) tipos.put(new JSONObject().put("chave", t[0]).put("nome", t[1]));
                 return new JSONObject().put("listas", a).put("tipos", tipos).toString();
@@ -1241,7 +1290,19 @@ public class Principal extends Activity {
         public void editarLista(String id, String nome, String tipo) { Principal.this.listas().renomear(id, nome, tipo); }
 
         @JavascriptInterface
-        public void apagarLista(String id) { Principal.this.listas().apagar(id); }
+        public void apagarLista(final String id, final boolean arquivos) { naTela(new Runnable() { public void run() { Principal.this.apagarLista(id, arquivos); } }); }
+
+        @JavascriptInterface
+        public void tocarTodos(final String id, final boolean aleatorio) { naTela(new Runnable() { public void run() { Principal.this.tocarTodos(id, aleatorio); } }); }
+
+        @JavascriptInterface
+        public void modoFila(final boolean aleatorio, final String repetir) { naTela(new Runnable() { public void run() { Principal.this.modoFila(aleatorio, repetir); } }); }
+
+        @JavascriptInterface
+        public String modoFilaAtual() {
+            try { return new JSONObject().put("aleatorio", ajustes.getBoolean("aleatorio", false)).put("repetir", ajustes.getString("repetir", Fila.NAO)).toString(); }
+            catch (Exception e) { return "{}"; }
+        }
 
         @JavascriptInterface
         public void atualizarLista(String id) {
@@ -1470,7 +1531,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.2 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.3 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
