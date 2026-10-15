@@ -60,6 +60,11 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     /** Tamanho do vídeo informado pelo VLC, para a tela não esticar (vídeo em pé, 4:3, 21:9…). */
     private volatile int vLarg, vAlt, visLarg, visAlt, sarNum = 1, sarDen = 1;
     private Runnable aoMudarLayout, aoTerminar;
+    private final int sessaoAudio;
+    /** Informações que a rádio manda junto com o som (cabeçalhos ICY): nome, gênero, descrição, música de agora. */
+    private volatile String metaNome = "", metaGenero = "", metaDescricao = "", metaAgora = "", metaArte = "";
+
+    public int sessaoAudio() { return sessaoAudio; }
     private int preset;
     private SurfaceView superficie;
     /** Streams adaptativos (m3u8/DASH): sempre a maior qualidade, em vez de variar com a conexão. */
@@ -73,6 +78,9 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         op.add("--http-reconnect");
         op.add("--audio-time-stretch");
         op.add("--no-stats");
+        // Saída de som com uma "sessão" conhecida, para a animação da rádio (Visualizer do Android) ouvir o que o VLC toca.
+        sessaoAudio = am.generateAudioSessionId();
+        if (sessaoAudio > 0) { op.add("--aout=android_audiotrack"); op.add("--audiotrack-session-id=" + sessaoAudio); }
         vlc = new LibVLC(c, op);
         mp = new MediaPlayer(vlc);
         mp.setEventListener(this);
@@ -103,6 +111,7 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
     public void tocar(String u, String userAgent, String ref, String audio, String legenda) {
         url = u; ua = userAgent; referer = ref; audioExtra = audio; legendaExtra = legenda;
         titulo = ""; tituloFixo = null; jaTocou = false;
+        metaNome = ""; metaGenero = ""; metaDescricao = ""; metaAgora = ""; metaArte = "";
         Diagnostico.anotar("VLC: abrir " + Diagnostico.curto(u) + (audio != null ? " + som separado " + Diagnostico.curto(audio) : "")); temVideo = false; tentativas = 0;
         querTocando = true;
         iniciarMidia();
@@ -360,6 +369,11 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
         try {
             String agora = m.getMeta(IMedia.Meta.NowPlaying);
             String t = m.getMeta(IMedia.Meta.Title);
+            metaAgora = limpo(agora);
+            metaNome = limpo(t);
+            metaGenero = limpo(m.getMeta(IMedia.Meta.Genre));
+            metaDescricao = limpo(m.getMeta(IMedia.Meta.Description));
+            metaArte = limpo(m.getMeta(IMedia.Meta.ArtworkURL));
             String novo = agora != null && agora.length() > 0 ? agora : tituloFixo != null ? tituloFixo : (t != null ? t : "");
             if (!novo.equals(titulo)) { titulo = novo; Servico.atualizar(ctx); }
         } finally { m.release(); }
@@ -382,6 +396,21 @@ public final class Motor implements MediaPlayer.EventListener, AudioManager.OnAu
             o.put("volume", mp.getVolume());
             o.put("proporcao", proporcao());
         } catch (Exception e) { }
+        return o;
+    }
+
+    private static String limpo(String s) {
+        if (s == null) return "";
+        s = s.trim();
+        // O VLC usa o nome do arquivo/endereço como título quando a rádio não manda um.
+        if (s.startsWith("http") || s.matches("(?i).*\\.(m3u8?|pls|mp3|aac|ogg|opus)$") || s.matches("(?i)stream|listen|live|;|-")) return "";
+        return s;
+    }
+
+    /** Dados da transmissão para o rodapé da animação. */
+    public JSONObject meta() {
+        JSONObject o = new JSONObject();
+        try { o.put("nome", metaNome).put("genero", metaGenero).put("descricao", metaDescricao).put("agora", metaAgora).put("arte", metaArte); } catch (Exception e) { }
         return o;
     }
 

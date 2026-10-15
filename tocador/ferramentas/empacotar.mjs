@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 14,
-  versionName: '3.1',
+  versionCode: 15,
+  versionName: '3.2',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -67,6 +67,8 @@ function manifesto(o) {
     perm('android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'),
     perm('android.permission.POST_NOTIFICATIONS'),
     perm('android.permission.MODIFY_AUDIO_SETTINGS'),
+    // Animação da rádio: o Android só entrega o espectro do som (Visualizer) com esta permissão.
+    perm('android.permission.RECORD_AUDIO'),
     // Só Android 9 ou anterior precisa disto para salvar legendas na pasta Download.
     el('uses-permission', [A('name', 'str', 'android.permission.WRITE_EXTERNAL_STORAGE'), A('maxSdkVersion', 'int', 28)]),
     // Android 11+: sem isto o app não enxerga os motores de voz instalados (usados na dublagem).

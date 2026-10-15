@@ -48,16 +48,9 @@ Falta no celular:
 - Não testado aqui: a política do ambiente não deixou rodar o yt-dlp baixado, e o YouTube é bloqueado nesta rede. Falta ver no celular: o processo Python rodando, o download de uma playlist, a gravação em Música/Tocador e a lista na Biblioteca.
 - O APK passou de 45 para 96 MB (perto do limite de 100 MB por arquivo do GitHub).
 
-## Para fazer depois (pedido do usuário): visualização animada na rádio
+## Versão 3.2: animação da rádio, falta testar no celular
 
-Hoje a rádio mostra só o player simples, com a bolinha de "ao vivo" oscilando. O pedido é um efeito animado, como o do antigo Windows Media Player, com o nome da transmissão no rodapé.
-
-Plano:
-1. **Efeito:** o libVLC do app já traz módulos de visualização (`audio-visual`, `visual`/`spectrometer`, `glspectrum` e referências ao `projectM`, o motor estilo MilkDrop/Winamp). Com `--audio-visual=...`, o VLC desenha o efeito como se fosse vídeo, na mesma superfície. Não precisa de nenhuma permissão, ao contrário do Visualizer do Android, que exige o microfone.
-   - Confirmar no aparelho qual módulo está compilado: projectM pode não ter os presets; nesse caso, usar `visual` com espectro + osciloscópio, ou desenhar o nosso efeito (barras/ondas em OpenGL ou Canvas) com o som entregue pelo VLC.
-   - Dar uma escolha de efeitos e a tela cheia com o efeito.
-2. **Nome da transmissão no rodapé:**
-   - os cabeçalhos ICY da rádio: `icy-name` (nome da rádio), `icy-genre`, `icy-description` e a música tocando agora (`StreamTitle`). O VLC já entrega como Title, Genre e NowPlaying (o `Motor.lerTitulo` já lê parte disso);
-   - se faltar, o nome da lista M3U de onde a rádio veio;
-   - opcional: o Radio Browser (api.radio-browser.info, aberto) pelo endereço do stream, para logotipo, país e cidade.
-   - Rodapé: nome da rádio, gênero e "tocando agora", com rolagem quando for longo.
+- O libVLC do app vem sem projectM e sem goom (compilado com --disable-projectm/--disable-goom). Por isso a animação é nossa: quatro efeitos em canvas no painel, alimentados pelo Visualizer do Android na sessão de áudio do VLC (--aout=android_audiotrack --audiotrack-session-id). Precisa da permissão de áudio; sem ela, modo ambiente.
+- Rodapé: metadados ICY do VLC (Title, Genre, Description, NowPlaying, ArtworkURL), o nome do item da lista M3U e o Radio Browser (byurl e byname).
+- Testado aqui: os quatro efeitos e a tela cheia no Chromium, com som simulado e no modo ambiente.
+- Falta no celular: o Visualizer na sessão do VLC (e se a troca de saída de som para AudioTrack não mudou nada no som), os metadados reais das rádios e o Radio Browser.

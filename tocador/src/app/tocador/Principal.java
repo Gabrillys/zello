@@ -427,7 +427,81 @@ public class Principal extends Activity {
         // Tela apagada / outro app na frente: o vídeo do VLC sai, o som continua.
         // O navegador NÃO é pausado de propósito, para o som do site continuar.
         if ("vlc".equals(Controle.modo)) motor.desanexar();
+        visualizador.desligar(); // a animação não gasta bateria com a tela apagada; volta sozinha ao reabrir
+        vizLigada = false;
         super.onStop();
+    }
+
+    // ------------------------------------------------------------ animação da rádio
+
+    private final Visualizador visualizador = new Visualizador();
+    private boolean vizLigada;
+    private String vizMotivo = "";
+    private String radioUrlBuscada = "";
+    private volatile JSONObject radioInfo = new JSONObject();
+
+    private final Visualizador.Saida vizSaida = new Visualizador.Saida() {
+        public void quadro(final String b, final String w) {
+            h.post(new Runnable() { public void run() { if (vizLigada) js(painel, "window.vizQuadro&&vizQuadro(" + b + "," + w + ")"); } });
+        }
+    };
+
+    void ligarAnimacao(boolean sim) {
+        if (!sim) { visualizador.desligar(); vizLigada = false; return; }
+        if (vizLigada) return;
+        if (checkSelfPermission("android.permission.RECORD_AUDIO") != PackageManager.PERMISSION_GRANTED) {
+            if (!ajustes.getBoolean("vizPerguntou", false)) {
+                ajustes.edit().putBoolean("vizPerguntou", true).apply();
+                requestPermissions(new String[] { "android.permission.RECORD_AUDIO" }, 4);
+            }
+            vizMotivo = "sem-permissao";
+            return;
+        }
+        String r = visualizador.ligar(motor.sessaoAudio(), vizSaida);
+        vizLigada = "ok".equals(r);
+        vizMotivo = vizLigada ? "" : r;
+        if (!vizLigada) Diagnostico.anotar("Animação da rádio: " + r);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int pedido, String[] permissoes, int[] resultados) {
+        super.onRequestPermissionsResult(pedido, permissoes, resultados);
+        if (pedido == 4 && resultados.length > 0 && resultados[0] == PackageManager.PERMISSION_GRANTED) ligarAnimacao(true);
+    }
+
+    /** Nome, gênero e música de agora (da própria rádio), mais logotipo e local (Radio Browser). */
+    JSONObject infoRadio() {
+        JSONObject o = new JSONObject();
+        try {
+            JSONObject m = motor.meta();
+            String nomeLista = "";
+            if (filaLista != null) {
+                Listas.Lista l = listas().porId(filaLista);
+                if (l != null && filaIndice >= 0 && filaIndice < l.itens.size()) nomeLista = l.itens.get(filaIndice).nome;
+            }
+            final String url = motor.url() == null ? "" : motor.url();
+            final String nomeBusca = m.optString("nome").length() > 0 ? m.optString("nome") : nomeLista;
+            if (url.startsWith("http") && !url.equals(radioUrlBuscada)) {
+                radioUrlBuscada = url;
+                radioInfo = new JSONObject();
+                new Thread(new Runnable() { public void run() {
+                    JSONObject r = Estacoes.buscar(url, nomeBusca);
+                    if (url.equals(radioUrlBuscada)) radioInfo = r;
+                } }, "tocador-estacao").start();
+            }
+            JSONObject rb = radioInfo;
+            String nome = m.optString("nome");
+            if (nome.length() == 0) nome = nomeLista;
+            if (nome.length() == 0) nome = rb.optString("nome");
+            if (nome.length() == 0) nome = Listas.nomeDe(url);
+            String genero = m.optString("genero");
+            if (genero.length() == 0) genero = rb.optString("tags");
+            o.put("nome", nome).put("agora", m.optString("agora")).put("genero", genero).put("descricao", m.optString("descricao"))
+             .put("logo", rb.optString("logo").length() > 0 ? rb.optString("logo") : m.optString("arte"))
+             .put("local", rb.optString("local")).put("bitrate", rb.optInt("bitrate")).put("codec", rb.optString("codec"))
+             .put("viz", vizLigada).put("vizMotivo", vizMotivo);
+        } catch (Exception e) { }
+        return o;
     }
 
     @Override
@@ -1177,6 +1251,22 @@ public class Principal extends Activity {
             importarLista(l.origem, l.nome, l.tipo);
         }
 
+        // ---- animação da rádio
+        @JavascriptInterface
+        public String radio() { return infoRadio().toString(); }
+
+        @JavascriptInterface
+        public void animacao(final boolean sim) { naTela(new Runnable() { public void run() { ligarAnimacao(sim); } }); }
+
+        @JavascriptInterface
+        public void pedirPermissaoAnimacao() {
+            naTela(new Runnable() { public void run() { ajustes.edit().putBoolean("vizPerguntou", false).apply(); ligarAnimacao(true); } });
+        }
+
+        /** Tela cheia só com a animação (some a barra do Android). */
+        @JavascriptInterface
+        public void telaCheiaAnimacao(final boolean sim) { naTela(new Runnable() { public void run() { imersivo(sim); } }); }
+
         // ---- downloads (yt-dlp)
         @JavascriptInterface
         public String downloads() {
@@ -1380,7 +1470,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.1 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.2 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

@@ -11,6 +11,12 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - Pode **apagar a tela** ou trocar de app: o som continua. A notificação, os fones e a tela de bloqueio controlam a reprodução.
 - O botão **voltar** não fecha o app. Para encerrar, use **Parar**.
 
+## Rádio com animação
+
+- Enquanto uma rádio (ou música) toca no player VLC, a tela mostra uma **animação que dança com o som**, no estilo do antigo Windows Media Player. São quatro efeitos: **Alquimia**, **Barras e ondas**, **Batalha** e **Ondas**. Toque na animação (ou no botão de setas) para trocar; o botão de tela cheia mostra só a animação.
+- **Rodapé**: nome da rádio, a música tocando agora (rolando quando é comprida), estilo, cidade/país, qualidade (kbps) e logotipo. Esses dados vêm da própria rádio e, quando faltam, do **Radio Browser**, um catálogo aberto de rádios.
+- Para a animação reagir à música, o Android exige a permissão de áudio (pedida uma vez). Sem ela, a animação segue num modo ambiente, sem reagir ao som. Com a tela apagada, a animação para e não gasta bateria.
+
 ## Biblioteca: listas M3U, M3U8 e PLS
 
 - Toque em **Importar lista** e cole o endereço da lista (ou escolha um arquivo do aparelho). Funciona com listas de IPTV (com logotipo e grupos), de rádios, de músicas e com listas simples de endereços.
@@ -113,6 +119,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Listas`: listas M3U/M3U8/PLS (leitura, estilos, busca);
   - `Legendador`: legenda de arquivos com o Whisper (.srt/.txt);
   - `Anuncios`: bloqueio de anúncios;
+  - `Visualizador` + `Estacoes`: animação da rádio (espectro pelo Visualizer do Android) e dados da rádio (Radio Browser);
   - `Baixador`: downloads com o yt-dlp (Python/QuickJS/FFmpeg do youtubedl-android, wheels do PyPI);
   - `AgenteCH`: Client Hints da versão para computador;
   - `Arquivos`: salvar na pasta Download;
