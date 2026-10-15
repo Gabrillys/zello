@@ -680,6 +680,38 @@ public class Principal extends Activity {
         tocarDaLista(filaLista, n);
     }
 
+    // ------------------------------------------------------------ downloads
+
+    void baixar(String texto, String tipo, boolean playlist) {
+        String url = extrairLink(texto == null ? "" : texto);
+        if (url == null) { avisar("Cole o link do vídeo, da playlist ou do canal."); return; }
+        if (!Baixador.disponivel()) { avisar("O download precisa de um celular de 64 bits."); return; }
+        if (!permissaoGravar()) return;
+        Baixador.de(this).baixar(url, tipo, playlist, new Baixador.Pronto() {
+            public void terminou(final String nome, final String tipo, final String origem, final java.util.List<String[]> arquivos) {
+                runOnUiThread(new Runnable() { public void run() { guardarNaBiblioteca(nome, tipo, origem, arquivos); } });
+            }
+        });
+        avisar("Download iniciado. Acompanhe em Downloads.");
+    }
+
+    /** O que foi baixado vira uma lista na Biblioteca (playlist com o nome dela; vídeos avulsos em "Baixados"). */
+    private void guardarNaBiblioteca(String nome, String tipo, String origem, java.util.List<String[]> arquivos) {
+        boolean audio = "audio".equals(tipo);
+        String chave = nome != null && nome.length() > 0 ? "baixados:" + origem : "baixados:" + (audio ? "musicas" : "videos");
+        String titulo = nome != null && nome.length() > 0 ? nome : audio ? "Músicas baixadas" : "Vídeos baixados";
+        java.util.List<Listas.Item> itens = new java.util.ArrayList<Listas.Item>();
+        for (Listas.Lista l : listas().todas()) if (chave.equals(l.origem)) itens.addAll(l.itens);
+        for (String[] a : arquivos) {
+            boolean ja = false;
+            for (Listas.Item i : itens) if (i.url.equals(a[1])) ja = true;
+            if (!ja) itens.add(new Listas.Item(a[0], a[1], "", ""));
+        }
+        listas().adicionar(titulo, chave, audio ? "musica" : "outro", itens);
+        js(painel, "window.listaImportada&&listaImportada('')");
+        avisar(arquivos.size() + " arquivo(s) baixados. Estão na Biblioteca, em \"" + titulo + "\".");
+    }
+
     // ------------------------------------------------------------ legendador
 
     void legendar(boolean traduzir) {
@@ -1145,6 +1177,28 @@ public class Principal extends Activity {
             importarLista(l.origem, l.nome, l.tipo);
         }
 
+        // ---- downloads (yt-dlp)
+        @JavascriptInterface
+        public String downloads() {
+            try {
+                JSONObject o = Baixador.de(Principal.this).estado();
+                String atual = "web".equals(Controle.modo) ? Navegador.enderecoAgora : "vlc".equals(Controle.modo) ? motor.url() : "";
+                if (atual == null || !atual.startsWith("http")) atual = "";
+                return o.put("endereco", atual).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void baixar(final String url, final String tipo, final boolean playlist) {
+            naTela(new Runnable() { public void run() { Principal.this.baixar(url, tipo, playlist); } });
+        }
+
+        @JavascriptInterface
+        public void cancelarDownload() { Baixador.de(Principal.this).cancelar(); }
+
+        @JavascriptInterface
+        public void atualizarMotor() { Baixador.de(Principal.this).atualizarMotor(); }
+
         // ---- legendador (Whisper)
         @JavascriptInterface
         public String legendador() {
@@ -1326,7 +1380,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.0 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.1 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

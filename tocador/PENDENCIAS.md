@@ -40,3 +40,10 @@ Falta no celular:
 - legendador: decodificação com o MediaCodec e desempenho do Whisper;
 - bloqueio de anúncios no YouTube real (script de início do WebView) e o contador;
 - recorte da câmera na horizontal (agora o app nunca desenha embaixo dele fora da tela cheia).
+
+## Versão 3.1: downloads com o yt-dlp, falta testar no celular
+
+- Motor: youtubedl-android 0.18.1 (Maven Central: Python 3.12, QuickJS, FFmpeg, só arm64) + yt-dlp 2026.8.19 e yt-dlp-ejs 0.8.0 (wheels do PyPI, usados direto pelo PYTHONPATH). Atualização pelo app via PyPI.
+- Testado aqui: extração do Python com os atalhos (symlinks) lida do diretório central do zip (942 arquivos idênticos ao original), comparação de versões, tela.
+- Não testado aqui: a política do ambiente não deixou rodar o yt-dlp baixado, e o YouTube é bloqueado nesta rede. Falta ver no celular: o processo Python rodando, o download de uma playlist, a gravação em Música/Tocador e a lista na Biblioteca.
+- O APK passou de 45 para 96 MB (perto do limite de 100 MB por arquivo do GitHub).

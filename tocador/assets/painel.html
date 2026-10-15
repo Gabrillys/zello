@@ -25,6 +25,7 @@ button.ic{width:44px;height:44px;padding:0;border-radius:50%}
 .marca i{width:32px;height:32px;border-radius:10px;box-shadow:0 4px 14px rgba(245,165,36,.35);flex:0 0 32px;background:linear-gradient(135deg,var(--cor2),var(--cor));display:flex;align-items:center;justify-content:center;color:var(--corTx)}
 .marca i svg{width:16px;height:16px;fill:currentColor;stroke:none}
 .chip{font-size:12.5px;font-weight:650;padding:5px 10px;border-radius:99px;background:var(--sup2);color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
+.topo .chip,.topo .ic{flex:0 0 auto}
 .chip.on{background:rgba(61,214,140,.14);color:var(--verde)}
 .cartao{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--sup);border:1px solid var(--linha);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 10px 30px rgba(0,0,0,.25);min-width:0}
 h2{font-size:11.5px;margin:0 0 10px;color:var(--fraco);font-weight:750;text-transform:uppercase;letter-spacing:1.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -190,7 +191,9 @@ input.campo:focus{outline:none;border-color:var(--cor)}
       <div class="acoes-inicio">
         <button id="abrirArq"></button>
         <button id="novaLista"></button>
+        <button id="abrirBaixar" style="grid-column:span 2"></button>
       </div>
+      <div id="dlResumo" class="fila oculto" style="cursor:pointer"><div class="txt" id="dlResumoTxt"></div></div>
     </div>
 
     <div class="cartao">
@@ -253,6 +256,7 @@ input.campo:focus{outline:none;border-color:var(--cor)}
         <button class="acao" id="aLink"><span></span>Novo link</button>
         <button class="acao" id="aParar"><span></span>Parar</button>
       </div>
+      <button id="aBaixar" class="oculto" style="width:100%;margin-top:8px"></button>
     </div>
   </section>
 </div>
@@ -298,6 +302,7 @@ var IC={
  tv:'<svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2.5"/><path d="M8 21h8M9 3l3 3 3-3"/></svg>',
  camera:'<svg viewBox="0 0 24 24"><path d="M3.5 9.5l13-4 2 6-13 4z"/><path d="M7 15l1 5h3M18.5 11.5l2-.6"/></svg>',
  outro:'<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><path d="M10 9l5 3-5 3z" fill="currentColor"/></svg>',
+ nuvem:'<svg viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z"/><path d="M12 10.5v6M9.5 14l2.5 2.5 2.5-2.5"/></svg>',
  escudo:'<svg viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M8.8 12l2.2 2.2 4.4-4.4"/></svg>'
 };
 function icone(el,nome,texto){ el.innerHTML=IC[nome]+(texto?'<span>'+texto+'</span>':''); }
@@ -308,6 +313,7 @@ icone($('cCheio'),'cheio'); icone($('cLeg'),'cc'); icone($('cMais'),'cima'); ico
 [['aCheio','cheio'],['aLeg','cc'],['aQual','hd'],['aEq','eq'],['aLink','link'],['aParar','parar']].forEach(function(p){ $(p[0]).firstChild.outerHTML=IC[p[1]]; });
 $('setaDicas').innerHTML=IC.baixo;
 icone($('abrirArq'),'pasta','Abrir arquivo'); icone($('novaLista'),'lista','Importar lista');
+icone($('abrirBaixar'),'nuvem','Baixar músicas, vídeos e playlists'); icone($('aBaixar'),'nuvem','Baixar este vídeo ou playlist');
 icone($('filaAnt'),'ant'); icone($('filaProx'),'prox');
 
 // ------------------------------------------------ atalhos e recentes
@@ -384,6 +390,44 @@ $('abrirArq').onclick=function(){ T&&T.abrirArquivo(); };
 $('filaAnt').onclick=function(){ T&&T.pularNaFila(-1); };
 $('filaProx').onclick=function(){ T&&T.pularNaFila(1); };
 
+// ------------------------------------------------ downloads (yt-dlp)
+function ehLista(u){ return /[?&]list=|\/playlist|\/@|\/channel\/|\/c\/|\/user\/|music\.youtube\.com\/browse/.test(u||''); }
+function abrirBaixar(sugestao){
+  var D; try{ D=JSON.parse(T.downloads()); }catch(x){ D={}; }
+  var u=sugestao||D.endereco||'', tipo='audio';
+  abrirGaveta('baixar','Baixar','<div id="dlForm"><input class="campo" id="dlUrl" placeholder="Link do vídeo, da playlist ou do canal" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(u)+'">'+
+    '<div class="chips" id="dlTipo"><button data-t="audio" class="sel">'+IC.musica+' Música (áudio)</button><button data-t="video">'+IC.tv+' Vídeo (até 1080p)</button></div>'+
+    '<div class="chave-linha"><span>Playlist ou canal inteiro<br><small style="color:var(--fraco);font-weight:400">Todas as músicas de um cantor: use a playlist ou o canal dele</small></span><label class="chave"><input type="checkbox" id="dlLista"><span></span></label></div>'+
+    '<div class="linha"><button id="dlColar">'+IC.colar+'<span>Colar</span></button><button class="pri" id="dlIr">'+IC.baixar+'<span>Baixar</span></button></div></div>'+
+    '<div id="dlAndamento" class="oculto"><div class="nota" id="dlEstado" style="margin-top:0"></div><div class="medidor"><i id="dlProg"></i></div><button id="dlCancelar" style="width:100%">Cancelar</button></div>'+
+    '<div class="nota" id="dlFim"></div>'+
+    '<details class="mais"><summary>Motor de download</summary><div class="nota" id="dlVersao"></div><button id="dlAtualizar" style="width:100%">Atualizar o motor (yt-dlp)</button>'+
+    '<div class="nota">Usa o yt-dlp, o mesmo motor de código aberto de sites como o Cobalt, rodando no próprio celular. As músicas vão para <b>Música/Tocador</b> (m4a, com artista e título) e os vídeos para <b>Filmes/Tocador</b> (mp4). Tudo o que for baixado também aparece na Biblioteca. Se o YouTube mudar algo e os downloads falharem, atualize o motor.</div></details>');
+  $('dlLista').checked=ehLista(u);
+  $('dlUrl').oninput=function(){ $('dlLista').checked=ehLista(this.value); };
+  [].forEach.call($('dlTipo').children,function(b){ b.onclick=function(){ tipo=b.dataset.t; [].forEach.call($('dlTipo').children,function(x){ x.classList.toggle('sel',x===b); }); }; });
+  $('dlColar').onclick=function(){ var c=T.colar(); if(c){ $('dlUrl').value=c; $('dlLista').checked=ehLista(c); } };
+  $('dlIr').onclick=function(){ var v=$('dlUrl').value.trim(); if(!v){ $('dlUrl').focus(); return; } T.baixar(v,tipo,$('dlLista').checked); setTimeout(atualizarDownloads,400); };
+  $('dlCancelar').onclick=function(){ T.cancelarDownload(); };
+  $('dlAtualizar').onclick=function(){ T.atualizarMotor(); avisar('Procurando a versão mais nova…'); setTimeout(atualizarDownloads,400); };
+  atualizarDownloads();
+}
+function atualizarDownloads(){
+  var D; try{ D=JSON.parse(T.downloads()); }catch(x){ return; }
+  var trab=!!D.trabalhando;
+  $('dlResumo').classList.toggle('oculto',!trab&&!D.estado);
+  $('dlResumoTxt').textContent=trab?(D.total>1?'Baixando '+D.atual+' de '+D.total+' · '+Math.round(D.pct||0)+'%':'Baixando… '+Math.round(D.pct||0)+'%')+(D.titulo?' · '+D.titulo:''):(D.estado||'');
+  if(gavetaAberta!=='baixar') return;
+  $('dlForm').classList.toggle('oculto',trab); $('dlAndamento').classList.toggle('oculto',!trab);
+  $('dlEstado').textContent=D.estado||''; $('dlProg').style.width=Math.max(2,D.pct||0)+'%';
+  $('dlFim').textContent=trab?'':(D.estado||'');
+  $('dlVersao').textContent=D.disponivel?'Versão do yt-dlp: '+(D.versao||'—'):'O download precisa de um celular de 64 bits.';
+  $('dlAtualizar').disabled=trab;
+}
+$('abrirBaixar').onclick=function(){ abrirBaixar(''); };
+$('aBaixar').onclick=function(){ abrirBaixar(''); };
+$('dlResumo').onclick=function(){ abrirBaixar(''); };
+
 // ------------------------------------------------ anúncios
 function mostrarAnuncios(){ if(!T) return; var A; try{ A=JSON.parse(T.anuncios()); }catch(x){ return; }
   if(document.activeElement!==$('adChk')) $('adChk').checked=!!A.ligado;
@@ -446,6 +490,8 @@ function atualizar(){
   if(e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
   $('volBox').classList.toggle('oculto', !vlc);
   $('filaBox').classList.toggle('oculto', !e.fila);
+  $('aBaixar').classList.toggle('oculto', !(e.modo==='web'||(vlc&&/^https?:/.test(e.url||''))));
+  atualizarDownloads();
   if(e.fila) $('filaTxt').textContent=e.fila.nome+' · '+(e.fila.indice+1)+' de '+e.fila.total;
   if(verInicio&&(++contaInicio%5===1)){ mostrarAnuncios(); }
   if(vlc&&e.volume>=0&&document.activeElement!==$('vol')){ $('vol').value=e.volume; $('volTxt').textContent=e.volume+'%'; }

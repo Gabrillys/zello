@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 13,
-  versionName: '3.0',
+  versionCode: 14,
+  versionName: '3.1',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -249,6 +249,7 @@ async function main() {
   andar(path.join(RAIZ, 'assets'), '');
   const aarAssets = path.join(aarDir, 'assets');
   if (fs.existsSync(aarAssets)) andar(aarAssets, '');
+  for (const e of extras) if (fs.existsSync(path.join(e, 'assets'))) andar(path.join(e, 'assets'), '');
   arquivos.push({ name: 'res/mipmap/ic_launcher.png', data: fs.readFileSync(path.join(RAIZ, 'res', 'icone.png')), store: true });
   for (const abi of CONFIG.abis) {
     for (const base of [aarDir, ...extras]) {

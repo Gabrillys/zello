@@ -19,6 +19,17 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - Em *Gerenciar lista*: renomear, trocar o estilo, **atualizar** (baixa de novo do mesmo endereço) e apagar.
 - Se o endereço for de uma transmissão (um único canal `.m3u8`), ele toca direto.
 
+## Baixar músicas, vídeos e playlists
+
+- Na tela inicial, toque em **Baixar músicas, vídeos e playlists**. No player, use **Baixar este vídeo ou playlist**.
+- Cole o link de um vídeo, de uma **playlist** ou de um **canal**. Para todas as músicas de um cantor, use a playlist dele (por exemplo, o álbum ou a página "Músicas" no YouTube Music) ou o canal, e ligue **Playlist ou canal inteiro**.
+- **Música (áudio)**: m4a na melhor qualidade, com artista e título, em **Música/Tocador/<nome da playlist>**.
+- **Vídeo**: mp4 até 1080p (vídeo e áudio juntados no próprio celular), em **Filmes/Tocador**.
+- O que for baixado vira uma lista na **Biblioteca**, pronta para tocar em sequência.
+- O motor é o **yt-dlp** (código aberto, o mesmo de sites como o Cobalt), rodando no celular com Python, QuickJS e FFmpeg do projeto youtubedl-android. Se o YouTube mudar algo e os downloads falharem, toque em *Motor de download → Atualizar o motor*: o app baixa o yt-dlp mais novo do PyPI.
+- Só em celulares de 64 bits. Na primeira vez, o motor é instalado (leva alguns segundos).
+- Baixar vídeos do YouTube contraria os termos de uso do YouTube; use para fins pessoais.
+
 ## Vídeos e músicas do aparelho
 
 - **Abrir arquivo** abre o seletor do Android. O arquivo toca no player VLC e fica nos *Recentes*.
@@ -102,6 +113,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Listas`: listas M3U/M3U8/PLS (leitura, estilos, busca);
   - `Legendador`: legenda de arquivos com o Whisper (.srt/.txt);
   - `Anuncios`: bloqueio de anúncios;
+  - `Baixador`: downloads com o yt-dlp (Python/QuickJS/FFmpeg do youtubedl-android, wheels do PyPI);
   - `AgenteCH`: Client Hints da versão para computador;
   - `Arquivos`: salvar na pasta Download;
   - `EqSistema`: equalizador do Android;
