@@ -17,20 +17,55 @@ public final class Roteiro {
     public static final class Fala {
         public final long ini, fim;
         public final String texto;
-        Fala(long ini, long fim, String texto) { this.ini = ini; this.fim = fim; this.texto = texto; }
+        /** Texto no idioma do vídeo (quando veio do Whisper e ainda precisa ou precisou de tradução). */
+        public final String original;
+        public Fala(long ini, long fim, String texto) { this(ini, fim, texto, null); }
+        public Fala(long ini, long fim, String texto, String original) { this.ini = ini; this.fim = fim; this.texto = texto; this.original = original; }
         @Override public String toString() { return ini + "-" + fim + ":" + texto; }
     }
 
     /** Duração média de um caractere falado em velocidade normal (português). */
     static final double MS_POR_CARACTERE = 62;
 
-    private final List<Fala> falas;
+    private final ArrayList<Fala> falas;
     private int proxima = 0;
     private long ultimoTempo = -1;
 
-    public Roteiro(List<Fala> falas) { this.falas = falas; }
+    public Roteiro(List<Fala> falas) { this.falas = new ArrayList<Fala>(falas); }
 
-    public int tamanho() { return falas.size(); }
+    public synchronized int tamanho() { return falas.size(); }
+
+    public synchronized List<Fala> copia() { return new ArrayList<Fala>(falas); }
+
+    /** Acrescenta falas que chegaram depois (dublagem ao vivo), mantendo a ordem por horário. */
+    public synchronized void acrescentar(List<Fala> novas) {
+        for (Fala f : novas) {
+            int i = falas.size();
+            while (i > 0 && falas.get(i - 1).ini > f.ini) i--;
+            falas.add(i, f);
+            if (i < proxima) proxima++;
+        }
+    }
+
+    /** Troca uma fala (ex.: pela versão traduzida), sem mexer na posição. */
+    public synchronized void trocar(Fala velha, Fala nova) {
+        int i = falas.indexOf(velha);
+        if (i >= 0) falas.set(i, nova);
+    }
+
+    /** As próximas n falas a partir de um momento do vídeo (para preparar a voz com antecedência). */
+    public synchronized List<Fala> aPartirDe(long tempo, int n) {
+        ArrayList<Fala> r = new ArrayList<Fala>();
+        for (Fala f : falas) if (f.fim >= tempo && r.size() < n) r.add(f);
+        return r;
+    }
+
+    /** Fim permitido para uma fala: o começo da seguinte (ou o próprio fim + 1,5 s, se for a última). */
+    public synchronized long limite(Fala f) {
+        int i = falas.indexOf(f);
+        if (i >= 0 && i + 1 < falas.size()) return Math.max(f.fim, falas.get(i + 1).ini);
+        return f.fim + 1500;
+    }
 
     /**
      * Lê a legenda no formato json3 do YouTube e monta as falas.
@@ -65,7 +100,7 @@ public final class Roteiro {
                 atual = new Fala(atual.ini, Math.max(atual.fim, f.fim), f.texto);
                 continue;
             }
-            boolean colada = atual != null && f.ini - atual.fim < 300 && !atual.texto.matches(".*[.!?…]$") && atual.texto.length() + f.texto.length() < 110;
+            boolean colada = atual != null && f.ini - atual.fim < 600 && !atual.texto.matches(".*[.!?…]$") && atual.texto.length() + f.texto.length() < 160;
             if (colada) atual = new Fala(atual.ini, Math.max(atual.fim, f.fim), atual.texto + " " + f.texto);
             else { if (atual != null) out.add(atual); atual = f; }
         }

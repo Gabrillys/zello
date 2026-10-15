@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 10,
-  versionName: '2.4',
+  versionCode: 11,
+  versionName: '2.5',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -67,6 +67,9 @@ function manifesto(o) {
     perm('android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'),
     perm('android.permission.POST_NOTIFICATIONS'),
     perm('android.permission.MODIFY_AUDIO_SETTINGS'),
+    // Dublagem com o Whisper: ouvir o som do vídeo (captura da reprodução, Android 10+).
+    perm('android.permission.RECORD_AUDIO'),
+    perm('android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION'),
     // Só Android 9 ou anterior precisa disto para salvar legendas na pasta Download.
     el('uses-permission', [A('name', 'str', 'android.permission.WRITE_EXTERNAL_STORAGE'), A('maxSdkVersion', 'int', 28)]),
     // Android 11+: sem isto o app não enxerga os motores de voz instalados (usados na dublagem).
@@ -82,8 +85,8 @@ function manifesto(o) {
         el('intent-filter', [], [acao('android.intent.action.VIEW'), cat_('android.intent.category.DEFAULT'), cat_('android.intent.category.BROWSABLE'), dado('audio/*')]),
         el('intent-filter', [], [acao('android.intent.action.VIEW'), cat_('android.intent.category.DEFAULT'), cat_('android.intent.category.BROWSABLE'), dado('video/*')]),
       ]),
-      // foregroundServiceType 0x2 = mediaPlayback
-      el('service', [A('name', 'str', 'app.tocador.Servico'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x2)]),
+      // foregroundServiceType 0x2 = mediaPlayback, 0x20 = mediaProjection (gravar o som do vídeo para o Whisper)
+      el('service', [A('name', 'str', 'app.tocador.Servico'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x22)]),
     ]),
   ]);
 
@@ -233,8 +236,8 @@ async function assinarV2(z, assin) {
 
 // ---------------------------------------------------------------- montar
 async function main() {
-  const [dexPath, aarDir, saida] = process.argv.slice(2);
-  if (!dexPath || !aarDir || !saida) { console.error('uso: node empacotar.mjs <classes.dex> <pasta-aar> <saida.apk>'); process.exit(1); }
+  const [dexPath, aarDir, saida, ...extras] = process.argv.slice(2);
+  if (!dexPath || !aarDir || !saida) { console.error('uso: node empacotar.mjs <classes.dex> <pasta-aar> <saida.apk> [pastas com jni/<abi>/*.so…]'); process.exit(1); }
 
   const chavePath = path.join(RAIZ, 'chave-assinatura.json');
   let assin;
@@ -245,17 +248,17 @@ async function main() {
   arquivos.push({ name: 'AndroidManifest.xml', data: manifesto(CONFIG) });
   arquivos.push({ name: 'resources.arsc', data: arsc(CONFIG.pacote, 'res/mipmap/ic_launcher.png'), store: true });
   arquivos.push({ name: 'classes.dex', data: fs.readFileSync(dexPath) });
-  const assets = path.join(RAIZ, 'assets');
-  for (const f of fs.readdirSync(assets)) arquivos.push({ name: 'assets/' + f, data: fs.readFileSync(path.join(assets, f)) });
+  const andar = (d, rel) => { for (const f of fs.readdirSync(d).sort()) { const p = path.join(d, f); const r = rel + '/' + f; if (fs.statSync(p).isDirectory()) andar(p, r); else arquivos.push({ name: 'assets' + r, data: fs.readFileSync(p) }); } };
+  andar(path.join(RAIZ, 'assets'), '');
   const aarAssets = path.join(aarDir, 'assets');
-  if (fs.existsSync(aarAssets)) {
-    const andar = (d, rel) => { for (const f of fs.readdirSync(d)) { const p = path.join(d, f); const r = rel + '/' + f; if (fs.statSync(p).isDirectory()) andar(p, r); else arquivos.push({ name: 'assets' + r, data: fs.readFileSync(p) }); } };
-    andar(aarAssets, '');
-  }
+  if (fs.existsSync(aarAssets)) andar(aarAssets, '');
   arquivos.push({ name: 'res/mipmap/ic_launcher.png', data: fs.readFileSync(path.join(RAIZ, 'res', 'icone.png')), store: true });
   for (const abi of CONFIG.abis) {
-    const d = path.join(aarDir, 'jni', abi);
-    for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.so')).sort()) arquivos.push({ name: `lib/${abi}/${f}`, data: fs.readFileSync(path.join(d, f)) });
+    for (const base of [aarDir, ...extras]) {
+      const d = path.join(base, 'jni', abi);
+      if (!fs.existsSync(d)) continue;
+      for (const f of fs.readdirSync(d).filter((x) => x.endsWith('.so')).sort()) arquivos.push({ name: `lib/${abi}/${f}`, data: fs.readFileSync(path.join(d, f)) });
+    }
   }
 
   const z = zip(arquivos);

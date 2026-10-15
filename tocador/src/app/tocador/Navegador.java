@@ -60,7 +60,7 @@ public class Navegador extends WebView {
             "})();";
 
     /** O vídeo principal da página: o que está tocando, ou o maior. */
-    private static final String PRINCIPAL =
+    static final String PRINCIPAL =
             "function principal(){var vs=[].slice.call(document.querySelectorAll('video'));var b=null,ba=-1;" +
             "vs.forEach(function(v){var r=v.getBoundingClientRect();var a=r.width*r.height+(v.paused?0:1e9);if(a>ba){ba=a;b=v;}});return b;}";
 
@@ -96,7 +96,8 @@ public class Navegador extends WebView {
     /** Leitura rápida do tempo do vídeo (para a dublagem acompanhar a fala). */
     static final String JS_TEMPO = "(function(){" + PRINCIPAL + "var v=principal();if(!v)return {t:0,p:true};" +
             "var p=document.getElementById('movie_player'),vd=p&&p.getVideoData&&p.getVideoData();" +
-            "return {t:Math.round(v.currentTime*1000),p:v.paused||v.ended||v.readyState<3,r:v.playbackRate||1,vid:(vd&&vd.video_id)||''};})()";
+            "return {t:Math.round(v.currentTime*1000),p:v.paused||v.ended||v.readyState<3,r:v.playbackRate||1,vid:(vd&&vd.video_id)||''," +
+            "d:isFinite(v.duration)?Math.round(v.duration*1000):0,fim:v.ended,ad:!!(p&&p.classList&&p.classList.contains('ad-showing'))};})()";
 
     private static String jsComando(String acao) {
         return "(function(a){var m=[].slice.call(document.querySelectorAll('video,audio'));" +

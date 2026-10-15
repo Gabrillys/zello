@@ -13,6 +13,8 @@ import android.content.pm.ServiceInfo;
 import android.graphics.drawable.Icon;
 import android.media.AudioManager;
 import android.media.MediaMetadata;
+import android.media.projection.MediaProjection;
+import android.media.projection.MediaProjectionManager;
 import android.media.session.MediaSession;
 import android.media.session.PlaybackState;
 import android.net.wifi.WifiManager;
@@ -32,7 +34,68 @@ public class Servico extends Service {
     private static final String ACAO_ALTERNAR = "app.tocador.ALTERNAR";
     private static final String ACAO_PARAR = "app.tocador.PARAR";
 
+    private static final String ACAO_PROJECAO = "app.tocador.PROJECAO";
+
     private static volatile Servico vivo;
+
+    // ---- gravação do áudio do vídeo para o Whisper (autorização de "gravar a tela", só o som é usado)
+    interface AoProjetar { void pronto(MediaProjection p, String erro); }
+    private static volatile MediaProjection projecao;
+    private static volatile boolean projetando;
+    private static volatile AoProjetar aoProjetar;
+
+    /** Recebe a autorização dada pela pessoa e liga a gravação dentro do serviço (exigência do Android 10+). */
+    public static void ativarProjecao(Context c, int codigo, Intent dados, AoProjetar cb) {
+        aoProjetar = cb;
+        Intent i = new Intent(c, Servico.class).setAction(ACAO_PROJECAO).putExtra("codigo", codigo).putExtra("dados", dados);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) c.startForegroundService(i); else c.startService(i);
+        } catch (Exception e) { aoProjetar = null; cb.pronto(null, e.getMessage()); }
+    }
+
+    static MediaProjection projecao() { return projecao; }
+
+    static void pararProjecao() {
+        MediaProjection p = projecao;
+        projecao = null;
+        if (p != null) try { p.stop(); } catch (Exception e) { }
+        if (projetando) {
+            projetando = false;
+            final Servico s = vivo;
+            if (s != null) s.h.post(new Runnable() { public void run() { s.notificar(); } });
+        }
+    }
+
+    private void projetar(Intent intent) {
+        AoProjetar cb = aoProjetar;
+        aoProjetar = null;
+        String erro = null;
+        try {
+            projetando = true;
+            notificar(); // o serviço precisa estar como "gravação de tela" antes de pegar a autorização
+            MediaProjectionManager m = (MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+            final MediaProjection p = m.getMediaProjection(intent.getIntExtra("codigo", 0), (Intent) intent.getParcelableExtra("dados"));
+            if (p == null) throw new Exception("autorização recusada");
+            p.registerCallback(new MediaProjection.Callback() {
+                @Override public void onStop() {
+                    if (projecao != p) return;
+                    projecao = null;
+                    projetando = false;
+                    notificar();
+                    Dublador d = Dublador.seExistir();
+                    String md = d == null ? "" : d.modo();
+                    if (d != null && d.ativo() && ("aovivo".equals(md) || "preparar".equals(md))) d.parar("A gravação do áudio foi interrompida pelo Android.");
+                }
+            }, h);
+            projecao = p;
+        } catch (Exception e) {
+            projetando = false;
+            notificar();
+            erro = e.getMessage() == null ? e.toString() : e.getMessage();
+            Diagnostico.anotar("Gravação do áudio falhou: " + erro);
+        }
+        if (cb != null) cb.pronto(projecao, erro);
+    }
 
     public static void iniciar(Context c) {
         Intent i = new Intent(c, Servico.class);
@@ -94,6 +157,7 @@ public class Servico extends Service {
         String a = intent == null ? null : intent.getAction();
         if (ACAO_ALTERNAR.equals(a)) Controle.tocarPausar(this);
         else if (ACAO_PARAR.equals(a)) { Controle.parar(this); return START_NOT_STICKY; }
+        else if (ACAO_PROJECAO.equals(a)) { projetar(intent); return START_NOT_STICKY; }
         notificar();
         return START_NOT_STICKY;
     }
@@ -136,7 +200,8 @@ public class Servico extends Service {
                         "Parar", acao(ACAO_PARAR, 2)).build())
                 .setStyle(new Notification.MediaStyle().setMediaSession(sessao.getSessionToken()).setShowActionsInCompactView(0, 1));
         Notification n = b.build();
-        if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+        if (Build.VERSION.SDK_INT >= 29) startForeground(1, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK
+                | (projetando ? ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION : 0));
         else startForeground(1, n);
 
         // Mantém CPU e Wi-Fi acordados só enquanto há algo tocando ou carregando.
@@ -158,6 +223,7 @@ public class Servico extends Service {
     @Override
     public void onDestroy() {
         vivo = null;
+        pararProjecao();
         try { unregisterReceiver(barulho); } catch (Exception e) { }
         try { if (wake.isHeld()) wake.release(); } catch (Exception e) { }
         try { if (wifi != null && wifi.isHeld()) wifi.release(); } catch (Exception e) { }

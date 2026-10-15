@@ -1,22 +1,47 @@
 package app.tocador;
 
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.media.AudioAttributes;
+import android.media.MediaPlayer;
+import android.media.PlaybackParams;
+import android.media.projection.MediaProjection;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.speech.tts.TextToSpeech;
+import android.speech.tts.UtteranceProgressListener;
 import android.webkit.ValueCallback;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.FileInputStream;
+import java.io.ByteArrayOutputStream;
+import java.security.MessageDigest;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Dublagem automática: diz em voz alta, no momento certo, cada fala da legenda traduzida para português,
- * com o áudio original abaixado. Usa o mecanismo de voz do Android, que pode ser qualquer motor instalado
- * (Google, ou os de código aberto RHVoice e eSpeak NG, do F-Droid).
+ * Dublagem em português.
+ *
+ * De onde vem o texto:
+ *  - "legenda": legenda do YouTube traduzida pelo próprio YouTube (instantâneo, sincronizado);
+ *  - "aovivo": o Whisper ouve o vídeo enquanto ele toca (a voz vem alguns segundos depois da fala original);
+ *  - "preparar": o Whisper ouve o vídeo inteiro uma vez; depois ele recomeça dublado, com sincronia perfeita ("pronta").
+ * A voz: vozes neurais da Microsoft (naturais) ou, sem internet para elas, a voz do Android.
+ * Cada frase toca inteira, sem ser cortada pela seguinte; se precisar, a voz acelera um pouco para caber.
  */
 final class Dublador implements TextToSpeech.OnInitListener {
 
@@ -29,100 +54,605 @@ final class Dublador implements TextToSpeech.OnInitListener {
 
     static synchronized Dublador seExistir() { return unico; }
 
+    static final String VOZ_ANDROID = "android";
+
     private final Context ctx;
+    private final SharedPreferences prefs;
     private final Handler h = new Handler(Looper.getMainLooper());
-    private TextToSpeech tts;
-    private volatile boolean pronto, ativo;
-    private volatile String estado = "";
+    private final VozNeural neural = new VozNeural();
+    private final File pastaClipes;
+
+    private volatile boolean ativo;
+    private volatile String estado = "", modo = "";
     private volatile int volumeOriginal;
     private Roteiro roteiro;
     private Navegador nav;
     private String video = "";
     private int voltas;
 
+    // Relógio do vídeo (lido do site várias vezes por segundo)
+    private volatile long tempoLido, lidoEm, duracao;
+    private volatile boolean pausado = true;
+    private volatile double ritmo = 1;
+
+    // Whisper
+    private volatile Transcritor transcritor;
+    private volatile Escuta escuta;
+    private Whisper whisper;
+    private volatile String idiomaVideo = "";
+    private volatile boolean terminandoPreparo;
+    private final java.util.concurrent.atomic.AtomicInteger falasPendentes = new java.util.concurrent.atomic.AtomicInteger();
+
+    // Voz
+    private final Map<Roteiro.Fala, File> clipes = new ConcurrentHashMap<Roteiro.Fala, File>();
+    private ExecutorService traducao;
+    private Thread sintese;
+    private volatile int falhasNeural;
+    private volatile String avisoVoz = "";
+    private TextToSpeech tts;
+    private volatile boolean ttsPronto;
+
+    // Reprodução
+    private MediaPlayer mp;
+    private boolean pausouClipe;
+    private final LinkedList<Roteiro.Fala> fila = new LinkedList<Roteiro.Fala>();
+    private volatile long ultimoIniTocado = Long.MIN_VALUE;
+    private boolean pausouParaWhisper;
+    private String estadoAntesDaPausa = "";
+    private long tempoAnterior = -1;
+
     private Dublador(Context c) {
         ctx = c;
-        volumeOriginal = c.getSharedPreferences("ajustes", Context.MODE_PRIVATE).getInt("volumeOriginal", 15);
+        prefs = c.getSharedPreferences("ajustes", Context.MODE_PRIVATE);
+        volumeOriginal = prefs.getInt("volumeOriginal", 15);
+        pastaClipes = new File(c.getCacheDir(), "dublagem");
     }
 
+    // ------------------------------------------------------------ configurações
+
+    String voz() { return prefs.getString("voz", VozNeural.VOZES[0][0]); }
+    void definirVoz(String v) { prefs.edit().putString("voz", v).apply(); }
+    String modelo() { return prefs.getString("modelo", "base"); }
+    void definirModelo(String m) { prefs.edit().putString("modelo", m).apply(); }
+    String idiomaFonte() { return prefs.getString("idiomaFonte", ""); }
+    void definirIdiomaFonte(String i) { prefs.edit().putString("idiomaFonte", i).apply(); }
+    double velocidadePreparo() { return prefs.getFloat("velPreparo", 1.0f); }
+    void definirVelocidadePreparo(double v) { prefs.edit().putFloat("velPreparo", (float) v).apply(); }
+
     boolean ativo() { return ativo; }
-    String estado() { return estado; }
+    String modo() { return modo; }
     int volumeOriginal() { return volumeOriginal; }
+    float nivelCaptura() { Escuta e = escuta; return e == null ? -1 : e.nivel(); }
     void definirEstado(String e) { estado = e; }
 
-    void iniciar(Navegador n, List<Roteiro.Fala> falas, String origem, String idVideo) {
+    String estado() {
+        if (!ativo) return estado;
+        StringBuilder s = new StringBuilder(estado);
+        if ("preparar".equals(modo) && !terminandoPreparo) {
+            long t = tempoAgora();
+            if (duracao > 0) s.append(String.format(Locale.ROOT, " %d%% (%s de %s)", Math.min(100, t * 100 / duracao), hora(t), hora(duracao)));
+        }
+        Roteiro r = roteiro;
+        if (r != null && !"legenda".equals(modo)) s.append(" · ").append(r.tamanho()).append(" falas");
+        Transcritor tr = transcritor;
+        if (tr != null && tr.ritmo().length() > 0) s.append(" · Whisper ").append(tr.ritmo()).append(" do tempo real");
+        if (tr != null && tr.pendenteSeg() > 20) s.append(" · ").append(tr.pendenteSeg()).append(" s na fila");
+        if (idiomaVideo.length() > 0) s.append(" · idioma: ").append(idiomaVideo);
+        if (avisoVoz.length() > 0) s.append("\n").append(avisoVoz);
+        return s.toString();
+    }
+
+    private static String hora(long ms) { long s = ms / 1000; return String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60); }
+
+    // ------------------------------------------------------------ início e fim
+
+    /** Dublagem a partir da legenda do vídeo (já em português). */
+    void iniciarLegenda(Navegador n, List<Roteiro.Fala> falas, String origem, String idVideo) {
+        parar(null);
+        comecar(n, idVideo, "legenda", new Roteiro(falas));
+        estado = "Dublando a partir da legenda (" + origem + ").";
+        Diagnostico.anotar("Dublagem (legenda): " + falas.size() + " falas, origem " + origem + ", voz " + voz());
+    }
+
+    /** Dublagem já preparada antes para este vídeo (sincronia perfeita). */
+    boolean iniciarPronta(Navegador n, String idVideo) {
+        List<Roteiro.Fala> falas = carregar(idVideo);
+        if (falas == null || falas.isEmpty()) return false;
+        parar(null);
+        comecar(n, idVideo, "pronta", new Roteiro(falas));
+        estado = "Dublagem preparada: sincronizada com o vídeo.";
+        return true;
+    }
+
+    /**
+     * Dublagem com o Whisper ouvindo o vídeo.
+     * @param preparar true: ouve o vídeo inteiro antes (do começo, na velocidade escolhida) e depois toca sincronizado.
+     */
+    void iniciarWhisper(Navegador n, String idVideo, final boolean preparar, final MediaProjection projecao) {
+        parar(null);
+        comecar(n, idVideo, preparar ? "preparar" : "aovivo", new Roteiro(new ArrayList<Roteiro.Fala>()));
+        estado = "Carregando o Whisper…";
+        String fixo = idiomaFonte();
+        idiomaVideo = fixo;
+        final String mod = modelo();
+        transcritor = new Transcritor(new Transcritor.Ouvido() {
+            public Whisper.Resultado transcrever(float[] audio, String idioma) throws Exception {
+                if (!ativo) throw new IllegalStateException("dublagem parada");
+                return carregarWhisper(mod).transcrever(audio, idioma);
+            }
+        }, new Transcritor.Saida() {
+            public void falas(List<Roteiro.Fala> novas, String idioma) { recebidas(novas, idioma); }
+            public void aviso(String texto) { Diagnostico.anotar("Whisper: " + texto); avisoVoz = texto; }
+        }, preparar ? 28000 : 8000, fixo.length() > 0 ? fixo : null);
+        final Transcritor tr = transcritor;
+        new Thread(new Runnable() { public void run() {
+            try {
+                carregarWhisper(mod);
+                if (!ativo || transcritor != tr) return;
+                tr.iniciar();
+                escuta = new Escuta(projecao, tr, new Escuta.Relogio() {
+                    public long tempoVideo() { return pausado ? -1 : tempoAgora(); }
+                    public double ritmo() { return ritmo; }
+                });
+                escuta.iniciar();
+                h.post(new Runnable() { public void run() {
+                    if (preparar) {
+                        estado = "Preparando: o Whisper está ouvindo o vídeo do começo ao fim.";
+                        nav.evaluateJavascript(jsMidia("m.currentTime=0;m.playbackRate=" + velocidadePreparo() + ";m.volume=1;var r=m.play();if(r&&r.catch)r.catch(function(){});"), null);
+                    } else estado = "Dublando ao vivo: a voz vem alguns segundos depois da fala original.";
+                } });
+                Diagnostico.anotar("Whisper " + mod + " pronto; modo " + modo);
+            } catch (Throwable e) {
+                Diagnostico.anotar("Whisper falhou ao iniciar: " + e);
+                final String msg = e instanceof UnsatisfiedLinkError
+                        ? "O Whisper não roda neste celular (precisa de processador de 64 bits)."
+                        : "Não consegui iniciar o Whisper: " + e.getMessage();
+                h.post(new Runnable() { public void run() { parar(msg); } });
+            }
+        } }, "tocador-whisper-carga").start();
+    }
+
+    private void comecar(Navegador n, String idVideo, String m, Roteiro r) {
         nav = n;
-        roteiro = new Roteiro(falas);
         video = idVideo == null ? "" : idVideo;
+        modo = m;
+        roteiro = r;
         ativo = true;
-        estado = "Dublando em português (" + falas.size() + " falas, a partir de: " + origem + ")";
-        if (tts == null) tts = new TextToSpeech(ctx, this);
-        else if (!pronto) estado = "Preparando a voz…";
+        avisoVoz = "";
+        falhasNeural = 0;
+        terminandoPreparo = false;
+        pausouParaWhisper = false;
+        fila.clear();
+        ultimoIniTocado = Long.MIN_VALUE;
+        tempoAnterior = -1;
+        clipes.clear();
+        limparCache();
+        traducao = Executors.newSingleThreadExecutor();
+        if (VOZ_ANDROID.equals(voz())) prepararTts();
+        sintese = new Thread(new Runnable() { public void run() { lacoSintese(); } }, "tocador-voz");
+        sintese.start();
         h.removeCallbacks(ciclo);
         h.post(ciclo);
-        Diagnostico.anotar("Dublagem iniciada: " + falas.size() + " falas, origem " + origem);
     }
 
     void parar(String motivo) {
+        boolean eraPreparo = "preparar".equals(modo);
         ativo = false;
         h.removeCallbacks(ciclo);
+        pararClipe();
+        fila.clear();
+        if (escuta != null) { escuta.parar(); escuta = null; }
+        if (transcritor != null) { transcritor.parar(); transcritor = null; }
+        Servico.pararProjecao();
+        if (traducao != null) { traducao.shutdownNow(); traducao = null; }
+        if (sintese != null) { sintese.interrupt(); sintese = null; }
         if (tts != null) tts.stop();
         aplicarVolume(1.0);
+        if (eraPreparo && nav != null) nav.evaluateJavascript(jsMidia("m.playbackRate=1;"), null);
+        liberarWhisper();
+        modo = "";
         estado = motivo == null ? "" : motivo;
     }
 
     void definirVolumeOriginal(int v) {
         volumeOriginal = Math.max(0, Math.min(100, v));
-        ctx.getSharedPreferences("ajustes", Context.MODE_PRIVATE).edit().putInt("volumeOriginal", volumeOriginal).apply();
-        if (ativo) aplicarVolume(volumeOriginal / 100.0);
+        prefs.edit().putInt("volumeOriginal", volumeOriginal).apply();
+        if (ativo && !"preparar".equals(modo)) aplicarVolume(volumeOriginal / 100.0);
+    }
+
+    // ------------------------------------------------------------ Whisper
+
+    private synchronized Whisper carregarWhisper(String mod) throws Exception {
+        if (whisper != null) return whisper;
+        if (!Modelos.pronto(ctx, mod)) throw new Exception("o modelo " + mod + " não foi baixado");
+        int nucleos = Runtime.getRuntime().availableProcessors();
+        whisper = new Whisper(Modelos.encoder(ctx, mod).getPath(), Modelos.decoder(ctx, mod).getPath(),
+                ctx.getAssets().open("whisper/mel80.bin"), ctx.getAssets().open("whisper/multilingual.tiktoken"),
+                51865, Math.max(2, Math.min(4, nucleos / 2)));
+        return whisper;
+    }
+
+    private synchronized void liberarWhisper() {
+        final Whisper w = whisper;
+        whisper = null;
+        // fecha numa linha separada: o close espera a janela em andamento terminar
+        if (w != null) new Thread(new Runnable() { public void run() { w.close(); } }).start();
+    }
+
+    /** Falas novas do Whisper: traduz para português (se preciso) e coloca no roteiro. */
+    private void recebidas(final List<Roteiro.Fala> novas, final String idioma) {
+        if (idioma.length() > 0) idiomaVideo = idioma;
+        final ExecutorService ex = traducao;
+        final Roteiro r = roteiro;
+        if (ex == null || r == null) return;
+        falasPendentes.addAndGet(novas.size());
+        try {
+            ex.submit(new Runnable() { public void run() {
+                List<Roteiro.Fala> prontas = new ArrayList<Roteiro.Fala>();
+                try {
+                    if (idioma.startsWith("pt")) prontas = novas;
+                    else {
+                        List<String> orig = new ArrayList<String>();
+                        for (Roteiro.Fala f : novas) orig.add(f.original);
+                        List<String> trad = null;
+                        for (int t = 0; t < 3 && trad == null; t++) {
+                            try { trad = Tradutor.traduzir(orig, t == 0 ? idioma : "auto", "pt"); }
+                            catch (Exception e) { avisoVoz = "Tradução falhou (" + e.getMessage() + "), tentando de novo…"; Thread.sleep(2000L * (t + 1)); }
+                        }
+                        if (trad == null) { Diagnostico.anotar("Tradução falhou para " + novas.size() + " falas"); return; }
+                        if (avisoVoz.startsWith("Tradução")) avisoVoz = "";
+                        for (int i = 0; i < novas.size(); i++) {
+                            Roteiro.Fala f = novas.get(i);
+                            String t = trad.get(i).trim();
+                            if (t.length() > 0) prontas.add(new Roteiro.Fala(f.ini, f.fim, t, f.original));
+                        }
+                    }
+                    r.acrescentar(prontas);
+                } catch (InterruptedException e) {
+                    // parou
+                } finally { falasPendentes.addAndGet(-novas.size()); }
+            } });
+        } catch (Exception e) { falasPendentes.addAndGet(-novas.size()); }
+    }
+
+    // ------------------------------------------------------------ preparo concluído
+
+    private void terminarPreparo() {
+        if (terminandoPreparo) return;
+        terminandoPreparo = true;
+        estado = "Terminando a transcrição…";
+        if (transcritor != null) transcritor.descarregar();
+        if (escuta != null) { escuta.parar(); escuta = null; }
+        h.postDelayed(new Runnable() { public void run() {
+            if (!ativo) return;
+            Transcritor tr = transcritor;
+            if ((tr != null && tr.ocupado()) || falasPendentes.get() > 0) { h.postDelayed(this, 500); return; }
+            if (tr != null) tr.parar();
+            transcritor = null;
+            Servico.pararProjecao();
+            liberarWhisper();
+            List<Roteiro.Fala> falas = roteiro.copia();
+            salvar(video, falas, idiomaVideo);
+            Diagnostico.anotar("Preparo concluído: " + falas.size() + " falas");
+            if (falas.isEmpty()) { parar("O Whisper não encontrou falas neste vídeo (o som chegou? veja o nível do áudio)."); return; }
+            modo = "pronta";
+            roteiro.reposicionar(0);
+            fila.clear();
+            estado = "Pronto! Assistindo dublado, com sincronia.";
+            nav.evaluateJavascript(jsMidia("m.playbackRate=1;m.currentTime=0;var r=m.play();if(r&&r.catch)r.catch(function(){});"), null);
+            aplicarVolume(volumeOriginal / 100.0);
+        } }, 500);
+    }
+
+    // ------------------------------------------------------------ dublagens guardadas
+
+    private File arquivo(String id) {
+        String nome = id.replaceAll("[^A-Za-z0-9_-]", "_");
+        if (nome.length() > 80) nome = hash(id);
+        return new File(ctx.getFilesDir(), "dublagens/" + nome + ".json");
+    }
+
+    boolean temPronta(String id) { return id != null && id.length() > 0 && arquivo(id).exists(); }
+
+    private void salvar(String id, List<Roteiro.Fala> falas, String idioma) {
+        try {
+            JSONArray a = new JSONArray();
+            for (Roteiro.Fala f : falas) a.put(new JSONObject().put("i", f.ini).put("f", f.fim).put("t", f.texto).put("o", f.original == null ? "" : f.original));
+            File arq = arquivo(id);
+            arq.getParentFile().mkdirs();
+            FileOutputStream o = new FileOutputStream(arq);
+            o.write(new JSONObject().put("idioma", idioma).put("falas", a).toString().getBytes("UTF-8"));
+            o.close();
+        } catch (Exception e) { Diagnostico.anotar("Não salvei a dublagem: " + e); }
+    }
+
+    private List<Roteiro.Fala> carregar(String id) {
+        try {
+            FileInputStream in = new FileInputStream(arquivo(id));
+            ByteArrayOutputStream b = new ByteArrayOutputStream();
+            byte[] buf = new byte[8192];
+            int n;
+            while ((n = in.read(buf)) > 0) b.write(buf, 0, n);
+            in.close();
+            JSONObject o = new JSONObject(new String(b.toByteArray(), "UTF-8"));
+            idiomaVideo = o.optString("idioma");
+            JSONArray a = o.getJSONArray("falas");
+            List<Roteiro.Fala> r = new ArrayList<Roteiro.Fala>();
+            for (int i = 0; i < a.length(); i++) {
+                JSONObject f = a.getJSONObject(i);
+                r.add(new Roteiro.Fala(f.getLong("i"), f.getLong("f"), f.getString("t"), f.optString("o")));
+            }
+            return r;
+        } catch (Exception e) { return null; }
+    }
+
+    // ------------------------------------------------------------ voz
+
+    /** Prepara as vozes das próximas falas com antecedência. */
+    private void lacoSintese() {
+        while (ativo && !Thread.currentThread().isInterrupted()) {
+            Roteiro r = roteiro;
+            Roteiro.Fala alvo = null;
+            if (r != null) {
+                List<Roteiro.Fala> candidatas;
+                if ("aovivo".equals(modo)) {
+                    // ao vivo as falas chegam atrasadas: prepara as que ainda não foram ditas
+                    candidatas = new ArrayList<Roteiro.Fala>();
+                    for (Roteiro.Fala f : r.copia()) if (f.ini > ultimoIniTocado && candidatas.size() < 6) candidatas.add(f);
+                } else candidatas = r.aPartirDe("preparar".equals(modo) ? 0 : tempoAgora() - 1000, "preparar".equals(modo) ? Integer.MAX_VALUE : 8);
+                for (Roteiro.Fala f : candidatas) if (!clipes.containsKey(f)) { alvo = f; break; }
+            }
+            if (alvo == null) { try { Thread.sleep(250); } catch (InterruptedException e) { return; } continue; }
+            File arq = sintetizar(alvo.texto);
+            if (arq != null) clipes.put(alvo, arq);
+            else try { Thread.sleep(1000); } catch (InterruptedException e) { return; }
+        }
+    }
+
+    /** Gera o áudio de uma frase (com cache em disco). */
+    File sintetizar(String texto) {
+        String v = voz();
+        boolean android = VOZ_ANDROID.equals(v) || falhasNeural >= 3;
+        File arq = new File(pastaClipes, hash((android ? VOZ_ANDROID : v) + "|" + texto) + (android ? ".wav" : ".mp3"));
+        if (arq.length() > 0) return arq;
+        pastaClipes.mkdirs();
+        if (!android) {
+            try {
+                byte[] mp3 = neural.falar(texto, v, 0);
+                FileOutputStream o = new FileOutputStream(arq);
+                o.write(mp3);
+                o.close();
+                falhasNeural = 0;
+                if (avisoVoz.startsWith("Voz neural")) avisoVoz = "";
+                return arq;
+            } catch (Exception e) {
+                falhasNeural++;
+                Diagnostico.anotar("Voz neural falhou: " + e.getMessage());
+                avisoVoz = "Voz neural indisponível agora (" + e.getMessage() + ")" + (falhasNeural >= 3 ? "; usando a voz do Android." : "; tentando de novo…");
+                if (falhasNeural < 3) return null;
+                h.post(new Runnable() { public void run() { prepararTts(); } });
+                arq = new File(pastaClipes, hash(VOZ_ANDROID + "|" + texto) + ".wav");
+            }
+        }
+        return sintetizarAndroid(texto, arq);
+    }
+
+    private File sintetizarAndroid(String texto, final File arq) {
+        if (tts == null) h.post(new Runnable() { public void run() { prepararTts(); } });
+        for (int i = 0; i < 50 && !ttsPronto; i++) try { Thread.sleep(100); } catch (InterruptedException e) { return null; }
+        if (!ttsPronto) return null;
+        final CountDownLatch fim = new CountDownLatch(1);
+        final String id = "d" + System.nanoTime();
+        synchronized (this) {
+            tts.setOnUtteranceProgressListener(new UtteranceProgressListener() {
+                public void onStart(String u) { }
+                public void onDone(String u) { if (id.equals(u)) fim.countDown(); }
+                public void onError(String u) { if (id.equals(u)) fim.countDown(); }
+            });
+            if (tts.synthesizeToFile(texto, new Bundle(), arq, id) != TextToSpeech.SUCCESS) return null;
+        }
+        try { fim.await(20, TimeUnit.SECONDS); } catch (InterruptedException e) { return null; }
+        return arq.length() > 44 ? arq : null;
+    }
+
+    private void prepararTts() {
+        if (tts == null) tts = new TextToSpeech(ctx, this);
     }
 
     @Override
     public void onInit(int status) {
-        if (status != TextToSpeech.SUCCESS) { estado = "Não encontrei um mecanismo de voz no aparelho. Instale um (Google, RHVoice ou eSpeak NG)."; return; }
-        tts.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH).build());
+        if (status != TextToSpeech.SUCCESS) { avisoVoz = "Não encontrei um mecanismo de voz no aparelho."; return; }
         int r = tts.setLanguage(new Locale("pt", "BR"));
         if (r < 0) r = tts.setLanguage(new Locale("pt"));
-        if (r < 0) {
-            estado = "O mecanismo de voz não tem português instalado. Em Escolher voz, baixe a voz em português.";
-            Diagnostico.anotar("Dublagem: voz em português indisponível (" + r + "), motor " + tts.getDefaultEngine());
-            return;
-        }
-        pronto = true;
-        Diagnostico.anotar("Dublagem: voz pronta, motor " + tts.getDefaultEngine());
-        if (ativo && estado.startsWith("Preparando")) estado = "Dublando em português";
+        if (r < 0) { avisoVoz = "O mecanismo de voz do Android não tem português instalado."; return; }
+        ttsPronto = true;
+    }
+
+    /** Toca um exemplo da voz escolhida. */
+    void ouvirExemplo() {
+        new Thread(new Runnable() { public void run() {
+            final File f = sintetizar("Olá! Esta é a voz que vai dublar os seus vídeos em português.");
+            h.post(new Runnable() { public void run() {
+                if (f == null) { estado = "Não consegui gerar o exemplo: " + avisoVoz; return; }
+                tocarArquivo(f, 1.0f);
+            } });
+        } }).start();
+    }
+
+    private void limparCache() {
+        File[] fs = pastaClipes.listFiles();
+        if (fs == null) return;
+        long total = 0;
+        for (File f : fs) total += f.length();
+        if (total > 150L << 20) for (File f : fs) f.delete();
+    }
+
+    // ------------------------------------------------------------ reprodução
+
+    private long tempoAgora() {
+        if (pausado) return tempoLido;
+        return tempoLido + Math.round((System.currentTimeMillis() - lidoEm) * ritmo);
     }
 
     private void aplicarVolume(double v) {
-        if (nav != null) nav.evaluateJavascript("(function(v){[].slice.call(document.querySelectorAll('video,audio')).forEach(function(m){m.volume=v})})(" + v + ")", null);
+        if (nav != null) nav.evaluateJavascript(jsMidia("m.volume=" + v + ";"), null);
     }
 
-    /** Acompanha o vídeo várias vezes por segundo e solta cada fala na hora dela. */
+    /** Executa um comando no vídeo principal da página (variável m). */
+    static String jsMidia(String comando) {
+        return "(function(){" + Navegador.PRINCIPAL + "var m=principal();if(!m)return;" + comando + "})()";
+    }
+
     private final Runnable ciclo = new Runnable() {
         public void run() {
             if (!ativo || nav == null) return;
-            // O YouTube às vezes devolve o volume ao trocar de qualidade/anúncio: reaplica de tempos em tempos.
-            if (voltas++ % 10 == 0) aplicarVolume(volumeOriginal / 100.0);
+            if (voltas++ % 10 == 0) {
+                // O YouTube às vezes devolve o volume (e a velocidade) ao trocar de qualidade ou depois de anúncio.
+                if ("preparar".equals(modo)) { if (!terminandoPreparo) nav.evaluateJavascript(jsMidia("m.volume=1;if(m.playbackRate!=" + velocidadePreparo() + ")m.playbackRate=" + velocidadePreparo() + ";"), null); }
+                else aplicarVolume(volumeOriginal / 100.0);
+            }
             nav.evaluateJavascript(Navegador.JS_TEMPO, new ValueCallback<String>() {
                 public void onReceiveValue(String v) {
                     if (!ativo) return;
-                    try {
-                        JSONObject o = new JSONObject(v);
-                        String vid = o.optString("vid");
-                        if (video.length() > 0 && vid.length() > 0 && !vid.equals(video)) {
-                            parar("O vídeo mudou. Toque em Dublar de novo para dublar este.");
-                            return;
-                        }
-                        if (o.optBoolean("p")) { if (tts != null && tts.isSpeaking()) tts.stop(); roteiro.reposicionar(o.optLong("t")); return; }
-                        Roteiro.Fala f = roteiro.falaPara(o.optLong("t"));
-                        if (f != null && pronto) {
-                            tts.setSpeechRate(Roteiro.velocidade(f) * (float) Math.max(1.0, o.optDouble("r", 1.0)));
-                            tts.speak(f.texto, TextToSpeech.QUEUE_FLUSH, new Bundle(), "f" + f.ini);
-                        }
-                    } catch (Exception e) { }
+                    try { passo(new JSONObject(v)); } catch (Exception e) { }
                 }
             });
-            h.postDelayed(this, 200);
+            h.postDelayed(this, 150);
         }
     };
+
+    private void passo(JSONObject o) {
+        String vid = o.optString("vid");
+        if (video.length() > 0 && vid.length() > 0 && !vid.equals(video) && !video.startsWith("url:")) {
+            parar("O vídeo mudou. Toque em dublar de novo para dublar este.");
+            return;
+        }
+        long t = o.optLong("t");
+        tempoLido = t;
+        lidoEm = System.currentTimeMillis();
+        pausado = o.optBoolean("p") || o.optBoolean("ad"); // anúncio: nem ouve, nem dubla
+        ritmo = Math.max(0.25, o.optDouble("r", 1.0));
+        if (o.optLong("d") > 0) duracao = o.optLong("d");
+
+        if ("preparar".equals(modo)) {
+            if (o.optBoolean("ad")) return;
+            boolean acabou = o.optBoolean("fim") || (duracao > 0 && t >= duracao - 400);
+            if (acabou && whisper != null && !pausouParaWhisper) { terminarPreparo(); return; }
+            // O Whisper ficou para trás: pausa o vídeo até ele alcançar (nada é perdido).
+            Transcritor tr = transcritor;
+            int fila = tr == null ? 0 : tr.pendenteSeg();
+            if (!terminandoPreparo && fila > 45 && !pausouParaWhisper) {
+                pausouParaWhisper = true;
+                estadoAntesDaPausa = estado;
+                estado = "Esperando o Whisper alcançar o vídeo…";
+                nav.evaluateJavascript(jsMidia("m.pause();"), null);
+            } else if (pausouParaWhisper && fila < 10) {
+                pausouParaWhisper = false;
+                estado = estadoAntesDaPausa;
+                nav.evaluateJavascript(jsMidia("var r=m.play();if(r&&r.catch)r.catch(function(){});"), null);
+            }
+            return;
+        }
+        if (pausado) {
+            if (mp != null && mp.isPlaying()) { mp.pause(); pausouClipe = true; }
+            return;
+        }
+        if (pausouClipe && mp != null) { mp.start(); pausouClipe = false; }
+
+        boolean pulou = tempoAnterior >= 0 && (t < tempoAnterior - 1500 || t > tempoAnterior + 3000);
+        tempoAnterior = t;
+        if (pulou) { pararClipe(); fila.clear(); ultimoIniTocado = t - 1; }
+
+        if ("aovivo".equals(modo)) { passoAoVivo(t); return; }
+
+        Roteiro.Fala f = roteiro.falaPara(t);
+        while (f != null) { fila.add(f); f = roteiro.falaPara(t); }
+        if (mp != null) return; // a frase atual termina inteira antes da próxima
+        while (!fila.isEmpty()) {
+            Roteiro.Fala prox = fila.peek();
+            File c = clipes.get(prox);
+            long atraso = t - prox.ini;
+            if (atraso > 4000 || (c == null && atraso > 2500)) { fila.poll(); continue; } // passou da hora
+            if (c == null) return; // a voz ainda está sendo gerada
+            fila.poll();
+            long disponivel = Math.max(600, roteiro.limite(prox) - Math.max(t, prox.ini)) ;
+            tocar(prox, c, disponivel, fila.size());
+            return;
+        }
+    }
+
+    /** Ao vivo: as falas chegam depois do momento delas; toca em ordem, sem pular nenhuma (a não ser que fique muito atrasado). */
+    private void passoAoVivo(long t) {
+        if (mp != null) return;
+        List<Roteiro.Fala> todas = roteiro.copia();
+        Roteiro.Fala prox = null;
+        int restantes = 0;
+        for (Roteiro.Fala f : todas) if (f.ini > ultimoIniTocado) { if (prox == null) prox = f; restantes++; }
+        if (prox == null) return;
+        if (t - prox.ini > 40000 && restantes > 1) { ultimoIniTocado = prox.ini; return; } // muito atrasado: alcança o vídeo
+        File c = clipes.get(prox);
+        if (c == null) return;
+        ultimoIniTocado = prox.ini;
+        long disponivel = Math.max(800, prox.fim - prox.ini + 400);
+        tocar(prox, c, disponivel, restantes - 1);
+    }
+
+    private void tocar(Roteiro.Fala f, File clipe, long disponivelMs, int esperando) {
+        float vel = 1f;
+        long dur = duracaoClipe(clipe);
+        if (dur > 0) vel = (float) Math.max(1.0, Math.min(1.3, dur / (double) disponivelMs));
+        if (esperando >= 2) vel = Math.max(vel, 1.15f); // fila crescendo: fala um pouco mais rápido
+        vel *= (float) Math.min(2.0, ritmo);
+        tocarArquivo(clipe, vel);
+    }
+
+    private static long duracaoClipe(File f) {
+        String n = f.getName();
+        if (n.endsWith(".mp3")) return f.length() * 8 / 48;           // 48 kbit/s constante
+        if (n.endsWith(".wav")) return Math.max(0, (f.length() - 44)) * 1000 / (2 * 22050); // aproximado
+        return 0;
+    }
+
+    private void tocarArquivo(File f, float vel) {
+        pararClipe();
+        try {
+            MediaPlayer p = new MediaPlayer();
+            AudioAttributes.Builder at = new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_MEDIA).setContentType(AudioAttributes.CONTENT_TYPE_SPEECH);
+            if (Build.VERSION.SDK_INT >= 29) at.setAllowedCapturePolicy(AudioAttributes.ALLOW_CAPTURE_BY_NONE); // o Whisper não ouve a própria dublagem
+            p.setAudioAttributes(at.build());
+            p.setDataSource(f.getPath());
+            p.prepare();
+            p.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
+                public void onCompletion(MediaPlayer x) { if (x == mp) { x.release(); mp = null; } }
+            });
+            mp = p;
+            pausouClipe = false;
+            p.start();
+            if (Build.VERSION.SDK_INT >= 23 && Math.abs(vel - 1f) > 0.01f) {
+                try { p.setPlaybackParams(new PlaybackParams().setSpeed(vel)); } catch (Exception e) { }
+            }
+        } catch (Exception e) {
+            Diagnostico.anotar("Dublagem: não toquei o clipe: " + e);
+            pararClipe();
+        }
+    }
+
+    private void pararClipe() {
+        if (mp != null) {
+            try { mp.stop(); } catch (Exception e) { }
+            mp.release();
+            mp = null;
+        }
+        pausouClipe = false;
+    }
+
+    static String hash(String s) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-1");
+            byte[] d = md.digest(s.getBytes("UTF-8"));
+            StringBuilder r = new StringBuilder();
+            for (int i = 0; i < 12; i++) r.append(String.format(Locale.ROOT, "%02x", d[i] & 0xff));
+            return r.toString();
+        } catch (Exception e) { return Integer.toHexString(s.hashCode()); }
+    }
 }

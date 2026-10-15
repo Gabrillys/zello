@@ -9,13 +9,18 @@
   Linhas que importam no diagnóstico: `Qualidade YouTube…`, `Versão para computador… Client Hints…` e `jw.org…`.
   Com isso, decidir: se o comando de qualidade do YouTube é ignorado, se os Client Hints foram aceitos pelo WebView do aparelho, e se a API do jw.org respondeu.
 
-## Próxima etapa (decidida) — aguardando acesso à rede do ambiente
+## Dublagem com o Whisper (versão 2.5): falta testar no celular
 
-- **Dublagem com Whisper e voz humanizada** — o usuário não gostou da dublagem da 2.4 (voz da legenda pelo Android): ficou entrecortada e sintética.
-  Caminho escolhido (celular Samsung Galaxy S22 Ultra, Snapdragon 8 Gen 1; o computador dele é lento e sem placa de vídeo):
-  1. Whisper no celular via ONNX Runtime (onnxruntime-android, do Maven Central), modelo *base* ou *small* baixado no primeiro uso;
-  2. áudio obtido gravando a reprodução (AudioPlaybackCapture/MediaProjection), já que o YouTube bloqueia o download;
-  3. tradução do texto para português (online leve, ou modelo aberto offline);
-  4. voz neural natural (vozes da Microsoft usadas pelo projeto edge-tts; a do Google como alternativa), com frases inteiras e sem cortes;
-  5. modos "Preparar dublagem" (sincronia perfeita) e "Ao vivo" (alguns segundos de atraso).
-  **Bloqueio:** liberar na rede do ambiente `huggingface.co`, `cdn-lfs.huggingface.co`, `github.com`, `objects.githubusercontent.com` e `speech.platform.bing.com`, para testar os modelos e a voz de verdade antes de entregar.
+Feito e testado aqui no computador:
+- Whisper em Java + ONNX Runtime 1.17.3: espectrograma igual ao do Whisper oficial e vocabulário igual ao do tiktoken. Transcrição com o modelo **tiny real** (o mesmo formato do base/small) numa gravação de fala em inglês: texto e horário corretos.
+- Recorte do áudio em janelas, com o horário do vídeo certo em 1x e 2x, depois de avanços no vídeo e com o som baixo. Sem frases inventadas no silêncio.
+- Token de acesso da voz neural idêntico ao do edge-tts. Protocolo testado contra um servidor simulado, inclusive a correção do relógio.
+- Tradutor testado contra um servidor simulado, inclusive quando o serviço junta linhas.
+- Tela da dublagem testada no Chromium.
+
+Não deu para testar aqui, porque a rede do ambiente bloqueia huggingface.co, speech.platform.bing.com e o Google Tradutor, e não há celular Android:
+1. download dos modelos base/small (Xenova/whisper-base e Xenova/whisper-small no huggingface.co, com o hf-mirror.com como reserva);
+2. gravação do som do vídeo (captura da reprodução + autorização de gravar a tela) no Galaxy S22;
+3. voz neural de verdade e tradução de verdade;
+4. velocidade do Whisper no Snapdragon 8 Gen 1.
+Se algo falhar, o usuário vai mandar o texto de **Copiar diagnóstico**. As linhas que começam com `Whisper`, `Voz neural`, `Tradução`, `Gravação do áudio` e `Dublagem` dizem o que aconteceu.

@@ -520,12 +520,86 @@ public class Principal extends Activity {
         } }, 500);
     }
 
-    void dublar() {
+    /** Identificador do vídeo atual para guardar a dublagem preparada: o código do YouTube ou o endereço da página. */
+    private String idVideoAtual() {
+        String v = Navegador.estadoPagina.optString("vid");
+        if (v.length() > 0) return v;
+        return nav == null || nav.getUrl() == null ? "" : "url:" + nav.getUrl();
+    }
+
+    /** modo: legenda, aovivo, preparar ou pronta. */
+    void dublar(String modo) {
+        final Dublador d = Dublador.de(this);
+        if (!"web".equals(Controle.modo) || nav == null) { d.definirEstado("A dublagem funciona com vídeos abertos no modo site."); return; }
+        if ("pronta".equals(modo)) {
+            if (!d.iniciarPronta(nav, idVideoAtual())) d.definirEstado("Não encontrei a dublagem preparada deste vídeo.");
+            return;
+        }
+        if ("aovivo".equals(modo) || "preparar".equals(modo)) { dublarWhisper("preparar".equals(modo)); return; }
+        dublarLegenda();
+    }
+
+    private boolean whisperPreparar;
+
+    /** Passo a passo: modelo baixado → permissão do microfone → autorização de gravar o áudio → começa. */
+    private void dublarWhisper(boolean preparar) {
+        whisperPreparar = preparar;
+        final Dublador d = Dublador.de(this);
+        if (Build.VERSION.SDK_INT < 29) { d.definirEstado("Ouvir o vídeo com o Whisper precisa do Android 10 ou mais novo."); return; }
+        final String mod = d.modelo();
+        if (!Modelos.pronto(this, mod)) {
+            if (!Modelos.baixando()) Modelos.baixar(this, mod, new Modelos.Fim() { public void pronto(boolean ok, String erro) {
+                Diagnostico.anotar("Whisper " + mod + (ok ? " baixado" : " não baixado: " + erro));
+            } });
+            d.definirEstado("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
+            return;
+        }
+        if (checkSelfPermission("android.permission.RECORD_AUDIO") != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] { "android.permission.RECORD_AUDIO" }, 3);
+            d.definirEstado("Permita o áudio: o Android exige essa permissão para o app ouvir o som do vídeo.");
+            return;
+        }
+        android.media.projection.MediaProjection p = Servico.projecao();
+        if (p != null) { d.iniciarWhisper(nav, idVideoAtual(), preparar, p); return; }
+        android.media.projection.MediaProjectionManager m = (android.media.projection.MediaProjectionManager) getSystemService(MEDIA_PROJECTION_SERVICE);
+        d.definirEstado("Autorize a gravação: só o som do vídeo é usado, e nada sai do celular.");
+        try { startActivityForResult(m.createScreenCaptureIntent(), PEDIDO_GRAVACAO); }
+        catch (Exception e) { d.definirEstado("Este celular não permitiu a gravação do áudio: " + e.getMessage()); }
+    }
+
+    static final int PEDIDO_GRAVACAO = 7001;
+
+    @Override
+    protected void onActivityResult(int pedido, int resultado, Intent dados) {
+        super.onActivityResult(pedido, resultado, dados);
+        if (pedido != PEDIDO_GRAVACAO) return;
+        final Dublador d = Dublador.de(this);
+        if (resultado != RESULT_OK || dados == null) { d.definirEstado("Sem a autorização de gravação, o Whisper não consegue ouvir o vídeo."); return; }
+        Servico.ativarProjecao(this, resultado, dados, new Servico.AoProjetar() {
+            public void pronto(final android.media.projection.MediaProjection p, final String erro) {
+                runOnUiThread(new Runnable() { public void run() {
+                    if (p == null) { d.definirEstado("Não consegui ligar a gravação do áudio: " + erro); return; }
+                    if (nav != null) d.iniciarWhisper(nav, idVideoAtual(), whisperPreparar, p);
+                } });
+            }
+        });
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int pedido, String[] permissoes, int[] resultados) {
+        super.onRequestPermissionsResult(pedido, permissoes, resultados);
+        if (pedido == 3) {
+            if (resultados.length > 0 && resultados[0] == PackageManager.PERMISSION_GRANTED) dublarWhisper(whisperPreparar);
+            else Dublador.de(this).definirEstado("Sem a permissão de áudio, o Whisper não consegue ouvir o vídeo.");
+        }
+    }
+
+    private void dublarLegenda() {
         final Dublador d = Dublador.de(this);
         JSONObject p = Navegador.estadoPagina;
-        if (!"web".equals(Controle.modo) || nav == null || !p.optBoolean("yt")) { d.definirEstado("A dublagem funciona com vídeos do YouTube."); return; }
+        if (!p.optBoolean("yt")) { d.definirEstado("A dublagem pela legenda funciona com vídeos do YouTube. Use o Whisper para outros sites."); return; }
         JSONArray legs = p.optJSONArray("legs");
-        if (legs == null || legs.length() == 0) { d.definirEstado("Este vídeo não tem legendas (nem automáticas), então não dá para dublar. Dê play e tente de novo em alguns segundos."); return; }
+        if (legs == null || legs.length() == 0) { d.definirEstado("Este vídeo não tem legendas. Use \"Ouvir com o Whisper\"."); return; }
         // Melhor origem: legenda em português feita por pessoas > legenda feita por pessoas em outro idioma
         // (traduzida pelo YouTube) > automática em português > automática em outro idioma (traduzida).
         JSONObject melhor = null; int nota = -1;
@@ -572,7 +646,7 @@ public class Principal extends Activity {
                     d.definirEstado("Não consegui a legenda traduzida" + (motivo != null ? " (" + motivo + ")" : "") + ". Tente de novo.");
                     return;
                 }
-                if (nav != null) d.iniciar(nav, f, origem + (jaPt ? "" : " → português"), vid);
+                if (nav != null) d.iniciarLegenda(nav, f, origem + (jaPt ? "" : " → português"), vid);
             } });
         } }, "tocador-dublagem").start();
     }
@@ -799,22 +873,63 @@ public class Principal extends Activity {
         @JavascriptInterface
         public String dublagem() {
             try {
-                Dublador d = Dublador.seExistir();
-                return new JSONObject().put("ativo", d != null && d.ativo()).put("estado", d == null ? "" : d.estado())
-                        .put("volume", d == null ? getSharedPreferences("ajustes", MODE_PRIVATE).getInt("volumeOriginal", 15) : d.volumeOriginal())
-                        .put("disponivel", "web".equals(Controle.modo) && Navegador.estadoPagina.optBoolean("yt")).toString();
+                Dublador d = Dublador.de(Principal.this);
+                JSONObject p = Navegador.estadoPagina;
+                boolean web = "web".equals(Controle.modo);
+                JSONArray legs = p.optJSONArray("legs");
+                JSONArray vozes = new JSONArray();
+                for (String[] v : VozNeural.VOZES) vozes.put(new JSONObject().put("chave", v[0]).put("nome", v[1]));
+                vozes.put(new JSONObject().put("chave", Dublador.VOZ_ANDROID).put("nome", "Voz do Android (sem internet)"));
+                JSONArray modelos = new JSONArray();
+                for (String[] m : Modelos.OPCOES) modelos.put(new JSONObject().put("chave", m[0]).put("nome", m[1]).put("pronto", Modelos.pronto(Principal.this, m[0])));
+                return new JSONObject().put("ativo", d.ativo()).put("modo", d.modo()).put("estado", d.estado())
+                        .put("volume", d.volumeOriginal()).put("disponivel", web).put("yt", web && p.optBoolean("yt"))
+                        .put("temLegenda", web && legs != null && legs.length() > 0)
+                        .put("pronta", web && d.temPronta(idVideoAtual()))
+                        .put("whisper", Build.VERSION.SDK_INT >= 29)
+                        .put("voz", d.voz()).put("vozes", vozes)
+                        .put("modelo", d.modelo()).put("modelos", modelos)
+                        .put("baixando", Modelos.baixando()).put("andamento", Modelos.andamento())
+                        .put("velPreparo", d.velocidadePreparo()).put("idiomaFonte", d.idiomaFonte())
+                        .put("nivel", d.nivelCaptura()).toString();
             } catch (Exception e) { return "{}"; }
         }
 
+        /** modo: legenda, aovivo, preparar, pronta; vazio para parar. */
         @JavascriptInterface
-        public void dublar(final boolean sim) {
+        public void dublar(final String modo) {
             naTela(new Runnable() { public void run() {
-                if (sim) Principal.this.dublar(); else Dublador.de(Principal.this).parar("");
+                if (modo == null || modo.length() == 0) Dublador.de(Principal.this).parar("");
+                else Principal.this.dublar(modo);
             } });
         }
 
         @JavascriptInterface
         public void volumeOriginal(final int v) { naTela(new Runnable() { public void run() { Dublador.de(Principal.this).definirVolumeOriginal(v); } }); }
+
+        @JavascriptInterface
+        public void escolherVozDublagem(final String v) { Dublador.de(Principal.this).definirVoz(v); }
+
+        @JavascriptInterface
+        public void ouvirVoz() { naTela(new Runnable() { public void run() { Dublador.de(Principal.this).ouvirExemplo(); } }); }
+
+        @JavascriptInterface
+        public void escolherModelo(final String m) { Dublador.de(Principal.this).definirModelo(m); }
+
+        @JavascriptInterface
+        public void baixarModelo() {
+            final String mod = Dublador.de(Principal.this).modelo();
+            if (!Modelos.pronto(Principal.this, mod)) Modelos.baixar(Principal.this, mod, null);
+        }
+
+        @JavascriptInterface
+        public void apagarModelo(final String m) { if (!Modelos.baixando()) Modelos.apagar(Principal.this, m); }
+
+        @JavascriptInterface
+        public void velocidadePreparo(final double v) { Dublador.de(Principal.this).definirVelocidadePreparo(v); }
+
+        @JavascriptInterface
+        public void idiomaFonte(final String i) { Dublador.de(Principal.this).definirIdiomaFonte(i == null ? "" : i); }
 
         /** Abre o ajuste de voz do Android (escolher o motor e baixar a voz em português). */
         @JavascriptInterface
@@ -953,7 +1068,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.4 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 2.5 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

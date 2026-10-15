@@ -86,6 +86,10 @@ body.compacto #compacto{display:flex;align-items:center;gap:8px;height:100%}
 .opcao .marc{width:18px;height:18px;border-radius:50%;border:2px solid var(--fraco);flex:0 0 18px}
 .opcao.sel .marc{border-color:var(--cor);background:radial-gradient(var(--cor) 45%,transparent 50%)}
 .nota{font-size:13.5px;color:var(--suave);margin:10px 0}
+.medidor{height:6px;border-radius:3px;background:var(--sup3);overflow:hidden;margin:4px 0 6px}
+.medidor i{display:block;height:100%;width:0;background:var(--verde);transition:width .3s}
+details.mais{margin-top:12px;border-top:1px solid var(--linha);padding-top:8px}
+details.mais summary{font-weight:700;padding:8px 0;cursor:pointer;color:var(--suave)}
 .chave-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px}
 .chave{position:relative;width:50px;height:30px;flex:0 0 50px}
 .chave input{opacity:0;width:0;height:0}
@@ -329,37 +333,87 @@ function opcoes(itens,sel){ return itens.map(function(o){ return '<button class=
 // ---- legendas
 var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
 function abrirLegendas(){
-  abrirGaveta('leg','Áudio e legendas','<div id="dubBox" class="oculto"><h2>Dublagem automática</h2>'+
-    '<button class="pri" id="dubBotao" style="width:100%"></button><div class="nota" id="dubEstado"></div>'+
+  abrirGaveta('leg','Áudio e legendas','<div id="dubBox" class="oculto"><h2>Dublagem em português</h2>'+
+    '<div id="dubEscolha"><div class="nota" style="margin-top:0">De onde vem o texto falado:</div><div id="dubModos"></div>'+
+    '<button class="pri" id="dubBotao" style="width:100%;margin-top:6px"></button></div>'+
+    '<div id="dubAtivo" class="oculto"><div class="nota" id="dubEstado" style="white-space:pre-line"></div>'+
+    '<div id="dubNivelBox" class="oculto"><div class="tempos"><span>Som chegando ao Whisper</span><span id="dubNivelTxt"></span></div><div class="medidor"><i id="dubNivel"></i></div></div>'+
+    '<button id="dubParar" style="width:100%;margin-top:8px"></button></div>'+
+    '<div class="nota" id="dubAviso"></div>'+
     '<div class="tempos" style="margin-top:6px"><span>Volume do áudio original</span><span id="dubVolTxt"></span></div><input type="range" id="dubVol" min="0" max="100" step="5">'+
-    '<div class="linha mt"><button id="dubVoz">Escolher voz</button></div>'+
-    '<div class="nota">Usa a legenda do vídeo traduzida para português e a voz do aparelho. Motores de voz de código aberto: RHVoice e eSpeak NG (F-Droid).</div><h2 style="margin-top:16px">Áudio do vídeo</h2></div>'+
-    '<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
+    '<div class="chave-linha"><span>Voz</span><select id="dubVoz"></select></div>'+
+    '<div class="linha"><button id="dubOuvir">Ouvir a voz</button><button id="dubVozAndroid" class="oculto">Ajustes da voz do Android</button></div>'+
+    '<details class="mais"><summary>Ajustes do Whisper</summary>'+
+    '<div class="chave-linha"><span>Modelo</span><select id="dubModelo"></select></div>'+
+    '<div class="nota" id="dubModeloEstado"></div><button id="dubBaixar" class="oculto" style="width:100%">Baixar o modelo agora</button>'+
+    '<div class="chave-linha"><span>Idioma do vídeo</span><select id="dubIdioma"></select></div>'+
+    '<div class="chave-linha"><span>Velocidade ao preparar</span><select id="dubVel"><option value="1">1x (mais preciso)</option><option value="1.5">1,5x</option><option value="2">2x (mais rápido)</option></select></div>'+
+    '<div class="nota">O Whisper (OpenAI, código aberto) roda no próprio celular: ouve o som do vídeo e escreve o que é falado, mesmo em vídeos sem legenda. O texto é traduzido para português e lido por uma voz neural. Na primeira vez, o modelo é baixado (só com Wi-Fi é melhor).</div></details>'+
+    '</div>'+
+    '<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><h2 id="legTit" style="margin-top:16px">Legendas</h2><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
     '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
     '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
   legAnt=''; audAnt=''; atualizarLegendas();
-  $('dubBotao').onclick=function(){ var d=JSON.parse(T.dublagem()); T.dublar(!d.ativo); setTimeout(atualizarDublagem,300); };
-  $('dubVol').oninput=function(){ $('dubVolTxt').textContent=this.value+'%'; T.volumeOriginal(+this.value); };
-  $('dubVoz').onclick=function(){ T.escolherVoz(); };
+  montarDublagem();
   $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
   $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
   $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
 }
 window.legendaSalva=function(podeAbrir){ var b=$('legAbrir'); if(b) b.classList.toggle('oculto',!podeAbrir); };
+var dubModo='', IDIOMAS_DUB=[['','Automático'],['en','Inglês'],['es','Espanhol'],['fr','Francês'],['it','Italiano'],['de','Alemão'],['ja','Japonês'],['ko','Coreano'],['zh','Chinês'],['ru','Russo'],['ar','Árabe'],['hi','Hindi'],['pt','Português']];
+function montarDublagem(){
+  var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ d={}; }
+  $('dubVoz').innerHTML=(d.vozes||[]).map(function(v){ return '<option value="'+esc(v.chave)+'"'+(v.chave===d.voz?' selected':'')+'>'+esc(v.nome)+'</option>'; }).join('');
+  $('dubModelo').innerHTML=(d.modelos||[]).map(function(m){ return '<option value="'+esc(m.chave)+'"'+(m.chave===d.modelo?' selected':'')+'>'+esc(m.nome)+'</option>'; }).join('');
+  $('dubIdioma').innerHTML=IDIOMAS_DUB.map(function(i){ return '<option value="'+i[0]+'"'+(i[0]===d.idiomaFonte?' selected':'')+'>'+i[1]+'</option>'; }).join('');
+  $('dubVel').value=String(d.velPreparo||1);
+  $('dubVoz').onchange=function(){ T.escolherVozDublagem(this.value); atualizarDublagem(); };
+  $('dubModelo').onchange=function(){ T.escolherModelo(this.value); atualizarDublagem(); };
+  $('dubIdioma').onchange=function(){ T.idiomaFonte(this.value); };
+  $('dubVel').onchange=function(){ T.velocidadePreparo(+this.value); };
+  $('dubOuvir').onclick=function(){ T.ouvirVoz(); };
+  $('dubVozAndroid').onclick=function(){ T.escolherVoz(); };
+  $('dubBaixar').onclick=function(){ T.baixarModelo(); setTimeout(atualizarDublagem,300); };
+  $('dubBotao').onclick=function(){ if(!dubModo){ avisar('Escolha de onde vem o texto.'); return; } T.dublar(dubModo); setTimeout(atualizarDublagem,300); };
+  $('dubParar').onclick=function(){ T.dublar(''); setTimeout(atualizarDublagem,300); };
+  $('dubVol').oninput=function(){ $('dubVolTxt').textContent=this.value+'%'; T.volumeOriginal(+this.value); };
+  dubModosAnt=''; atualizarDublagem();
+}
+var dubModosAnt='';
 function atualizarDublagem(){
   if(!$('dubBox')) return;
   var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ return; }
   $('dubBox').classList.toggle('oculto',!d.disponivel&&!d.ativo);
-  $('dubBotao').innerHTML=d.ativo?IC.parar+'<span>Parar a dublagem</span>':IC.play+'<span>Dublar em português</span>';
+  var modos=[];
+  if(d.pronta) modos.push({chave:'pronta',nome:'Dublagem já preparada deste vídeo (sincronizada)'});
+  if(d.yt&&d.temLegenda) modos.push({chave:'legenda',nome:'Legenda do vídeo (instantâneo)'});
+  if(d.whisper){ modos.push({chave:'preparar',nome:'Whisper: ouvir o vídeo inteiro antes (sincronia perfeita)'}); modos.push({chave:'aovivo',nome:'Whisper ao vivo (a voz vem uns segundos depois)'}); }
+  if(!modos.some(function(m){ return m.chave===dubModo; })) dubModo=modos.length?modos[0].chave:'';
+  var k=JSON.stringify(modos)+dubModo;
+  if(k!==dubModosAnt){ dubModosAnt=k; $('dubModos').innerHTML=modos.length?opcoes(modos,dubModo):'<div class="vazio">Abra um vídeo para dublar.</div>';
+    [].forEach.call($('dubModos').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ dubModo=b.dataset.c; dubModosAnt=''; atualizarDublagem(); }; }); }
+  $('dubEscolha').classList.toggle('oculto',!!d.ativo);
+  $('dubAtivo').classList.toggle('oculto',!d.ativo);
+  $('dubBotao').innerHTML=IC.play+'<span>'+(dubModo==='preparar'?'Preparar a dublagem':dubModo==='pronta'?'Assistir dublado':'Dublar em português')+'</span>';
+  $('dubParar').innerHTML=IC.parar+'<span>'+(d.modo==='preparar'?'Cancelar a preparação':'Parar a dublagem')+'</span>';
   $('dubEstado').textContent=d.estado||'';
+  $('dubAviso').textContent=d.ativo?'':(d.estado||'');
+  var temNivel=d.ativo&&d.nivel>=0; $('dubNivelBox').classList.toggle('oculto',!temNivel);
+  if(temNivel){ var pct=Math.min(100,Math.round(d.nivel*100)); $('dubNivel').style.width=pct+'%'; $('dubNivelTxt').textContent=pct>0?pct+'%':'sem som'; }
   if(document.activeElement!==$('dubVol')){ $('dubVol').value=d.volume; $('dubVolTxt').textContent=d.volume+'%'; }
+  if(document.activeElement!==$('dubVoz')) $('dubVoz').value=d.voz;
+  $('dubVozAndroid').classList.toggle('oculto',d.voz!=='android');
+  var mod=(d.modelos||[]).filter(function(m){ return m.chave===d.modelo; })[0];
+  var est=d.baixando?(d.andamento||'Baixando…'):mod&&mod.pronto?'Modelo baixado e pronto.':(d.andamento||'Ainda não baixado. Ele é baixado sozinho quando você usar o Whisper pela primeira vez.');
+  $('dubModeloEstado').textContent=est;
+  $('dubBaixar').classList.toggle('oculto',!!d.baixando||!mod||mod.pronto);
 }
 function atualizarLegendas(){
   if(!T||!$('legLista')) return;
   atualizarDublagem();
   var A; try{ A=JSON.parse(T.audios()); }catch(x){ A={itens:[]}; }
   var ka=JSON.stringify(A);
-  if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem);
+  if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem); $('legTit').classList.toggle('oculto',tem);
     if(tem){ $('audLista').innerHTML=opcoes(A.itens,A.atual);
       [].forEach.call($('audLista').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ T.escolherAudio(b.dataset.c); [].forEach.call($('audLista').children,function(x){ x.classList.toggle('sel',x===b); }); }; }); } }
   var L; try{ L=JSON.parse(T.legendas()); }catch(x){ return; }
