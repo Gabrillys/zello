@@ -1,0 +1,325 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>Tocador</title>
+<style>
+:root{--fundo:#0E1116;--cartao:#171B22;--cartao2:#1F2530;--linha:#2A3140;--texto:#ECEFF4;--suave:#9AA4B2;--destaque:#F5A524;--destaque2:#FFCB6B;--verde:#3DD68C;--vermelho:#FF6B6B;}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,Roboto,Arial,sans-serif;font-size:17px;line-height:1.45}
+body{padding:12px 14px 28px;overflow-x:hidden}
+h1{font-size:22px;margin:0;letter-spacing:.3px}
+h2{font-size:16px;margin:0 0 10px;color:var(--suave);font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:10px}
+.chip{font-size:13px;padding:4px 10px;border-radius:99px;background:var(--cartao2);color:var(--suave);white-space:nowrap}
+.chip.on{background:rgba(61,214,140,.15);color:var(--verde)}
+.cartao{background:var(--cartao);border:1px solid var(--linha);border-radius:18px;padding:14px;margin:12px 0}
+textarea{width:100%;min-height:64px;resize:none;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:10px 12px;font-size:16px;font-family:inherit}
+textarea:focus{outline:none;border-color:var(--destaque)}
+.linha{display:flex;gap:8px;align-items:center}
+.linha>*{flex:1}
+button{font-family:inherit;font-size:17px;font-weight:600;border:0;border-radius:14px;padding:13px 10px;background:var(--cartao2);color:var(--texto);cursor:pointer}
+button:active{transform:scale(.97)}
+button.pri{background:var(--destaque);color:#1A1200}
+button.peq{font-size:14px;padding:8px 10px;border-radius:10px}
+button.redondo{width:64px;height:64px;flex:0 0 64px;border-radius:50%;font-size:26px;padding:0;display:flex;align-items:center;justify-content:center}
+button.redondo.grande{width:76px;height:76px;flex-basis:76px;font-size:30px}
+.mt{margin-top:10px}
+.forcar{display:flex;gap:6px;margin-top:8px;font-size:13px;color:var(--suave);align-items:center;flex-wrap:wrap}
+.forcar button{font-size:13px;padding:6px 10px;border-radius:99px;font-weight:500}
+.titulo{font-size:19px;font-weight:700;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.sit{color:var(--suave);font-size:14px;margin-top:2px}
+.controles{display:flex;align-items:center;gap:14px;margin-top:12px}
+.controles .info{flex:1;min-width:0}
+input[type=range]{width:100%;accent-color:var(--destaque);height:30px}
+.tempo{display:flex;justify-content:space-between;font-size:13px;color:var(--suave)}
+.oculto{display:none!important}
+.midia{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--linha)}
+.midia:first-of-type{border-top:0}
+.midia .m{flex:1;min-width:0;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave)}
+.midia .m b{color:var(--texto);font-weight:600}
+.eqtopo{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px}
+select{font-family:inherit;font-size:15px;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:10px;padding:8px;max-width:60%}
+.chave{position:relative;width:52px;height:30px;flex:0 0 52px}
+.chave input{opacity:0;width:0;height:0}
+.chave span{position:absolute;inset:0;background:var(--cartao2);border-radius:99px;transition:.2s}
+.chave span:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.chave input:checked+span{background:var(--destaque)}
+.chave input:checked+span:before{transform:translateX(22px)}
+#curva{width:100%;height:90px;display:block;margin:4px 0 2px}
+.bandas{display:flex;justify-content:space-between;gap:2px;touch-action:none;user-select:none}
+.banda{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
+.trilho{position:relative;width:100%;height:150px;display:flex;justify-content:center}
+.trilho:before{content:"";position:absolute;top:0;bottom:0;width:4px;border-radius:2px;background:var(--cartao2)}
+.trilho .zero{position:absolute;left:20%;right:20%;height:1px;background:var(--linha);top:50%}
+.trilho .cheio{position:absolute;width:4px;border-radius:2px;background:linear-gradient(var(--destaque2),var(--destaque))}
+.trilho .bola{position:absolute;width:22px;height:22px;margin-top:-11px;border-radius:50%;background:#fff;box-shadow:0 0 0 4px rgba(245,165,36,.35)}
+.banda .db{font-size:11px;color:var(--destaque2);margin-bottom:4px;height:14px}
+.banda .hz{font-size:11px;color:var(--suave);margin-top:6px;white-space:nowrap}
+.desligado .trilho .cheio{background:var(--linha)}
+.desligado .trilho .bola{background:var(--suave);box-shadow:none}
+.aviso{font-size:14px;color:var(--suave);margin-top:8px}
+.recente{display:flex;align-items:center;gap:8px;padding:9px 0;border-top:1px solid var(--linha);font-size:14px}
+.recente:first-of-type{border-top:0}
+.recente .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave)}
+ul{padding-left:20px;margin:6px 0;color:var(--suave);font-size:15px}
+li{margin:6px 0}
+/* barra compacta (quando a página ou o vídeo ocupam a maior parte da tela) */
+#compacto{display:none}
+body.compacto{padding:8px 12px}
+body.compacto #completo{display:none}
+body.compacto #compacto{display:flex;align-items:center;gap:10px}
+#compacto .info{flex:1;min-width:0}
+#compacto .titulo{font-size:15px;-webkit-line-clamp:1}
+</style>
+</head>
+<body>
+
+<div id="compacto">
+  <button class="redondo" id="cTp" aria-label="Tocar ou pausar">▶</button>
+  <div class="info"><div class="titulo" id="cTitulo">Tocador</div><div class="sit" id="cSit"></div></div>
+  <button class="peq" id="cMidias" style="display:none">🎵 VLC</button>
+  <button class="peq" id="cAbrir" aria-label="Abrir painel">▲ Painel</button>
+</div>
+
+<div id="completo">
+  <div class="topo">
+    <h1>Tocador</h1>
+    <div class="linha" style="flex:0 0 auto;gap:8px">
+      <span class="chip" id="chip">parado</span>
+      <button class="peq oculto" id="recolher">▼ Recolher</button>
+    </div>
+  </div>
+
+  <div class="cartao">
+    <h2>Link</h2>
+    <textarea id="link" placeholder="Cole aqui o link do vídeo (YouTube, Instagram, TikTok, Facebook, X…) ou da rádio" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+    <div class="linha mt">
+      <button id="colar">📋 Colar</button>
+      <button class="pri" id="tocar">▶ Tocar</button>
+    </div>
+    <div class="forcar">Abrir como:
+      <button id="forcarVlc">Player VLC</button>
+      <button id="forcarWeb">Site</button>
+    </div>
+  </div>
+
+  <div class="cartao" id="agora">
+    <h2>Tocando agora</h2>
+    <div class="controles">
+      <button class="redondo grande pri" id="tp" aria-label="Tocar ou pausar">▶</button>
+      <div class="info">
+        <div class="titulo" id="titulo">Nada tocando</div>
+        <div class="sit" id="sit">Cole um link acima.</div>
+      </div>
+      <button class="redondo" id="parar" aria-label="Parar">■</button>
+    </div>
+    <div id="buscaBox" class="mt oculto">
+      <input type="range" id="busca" min="0" max="1000" value="0">
+      <div class="tempo"><span id="tAgora">0:00</span><span id="tTotal">0:00</span></div>
+    </div>
+    <div id="volBox" class="mt oculto">
+      <div class="tempo"><span>Volume</span><span id="volTxt">100%</span></div>
+      <input type="range" id="vol" min="0" max="200" value="100">
+    </div>
+    <div id="erroBox" class="aviso oculto">Não consegui tocar esse link no player. <button class="peq" id="tentarSite">Abrir como site</button></div>
+    <div id="voltarBox" class="mt oculto"><button class="peq" id="voltar">← Voltar para a página</button></div>
+  </div>
+
+  <div class="cartao oculto" id="midiasBox">
+    <h2>Mídias encontradas nesta página</h2>
+    <div class="aviso" style="margin:0 0 8px">Tocar pelo player VLC dá o equalizador completo de 10 bandas. Se não tocar, continue pelo site.</div>
+    <div id="midias"></div>
+  </div>
+
+  <div class="cartao" id="eqBox">
+    <div class="eqtopo">
+      <h2 style="margin:0">Equalizador</h2>
+      <label class="chave"><input type="checkbox" id="eqLigado" checked><span></span></label>
+    </div>
+    <div class="eqtopo"><select id="preset"></select><span class="chip" id="eqMotor">VLC</span></div>
+    <canvas id="curva"></canvas>
+    <div class="bandas" id="bandas"></div>
+    <div id="preampBox" class="mt">
+      <div class="tempo"><span>Pré-amplificação</span><span id="preTxt">0 dB</span></div>
+      <input type="range" id="preamp" min="-20" max="20" step="0.5" value="0">
+    </div>
+    <div class="aviso" id="eqAviso"></div>
+  </div>
+
+  <div class="cartao" id="recBox">
+    <h2>Recentes</h2>
+    <div id="recentes"><div class="aviso" style="margin:0">Os links que você tocar aparecem aqui.</div></div>
+  </div>
+
+  <div class="cartao">
+    <h2>Dicas</h2>
+    <ul>
+      <li>No app da rede social, toque em <b>Compartilhar</b> e escolha <b>Tocador</b>: o vídeo abre direto aqui.</li>
+      <li>Pode apagar a tela ou trocar de app: o som continua. Use a notificação para pausar ou parar.</li>
+      <li>Para sair de vez, toque em <b>■ Parar</b>.</li>
+      <li>Se o som parar sozinho com a tela apagada, libere o app da economia de bateria:</li>
+    </ul>
+    <button class="peq" id="bateria">🔋 Abrir ajuste de bateria</button>
+  </div>
+</div>
+
+<script>
+var T = window.Tocador || null;
+function $(i){ return document.getElementById(i); }
+function tempo(ms){ if(!(ms>0)) return '0:00'; var s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60; return (h?h+':'+(m<10?'0':''):'')+m+':'+(x<10?'0':'')+x; }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+
+// ------------------------------------------------ recentes
+function lerRecentes(){ try{ return JSON.parse(localStorage.getItem('recentes')||'[]'); }catch(e){ return []; } }
+function guardarRecente(u){
+  var r=lerRecentes().filter(function(x){return x!==u;}); r.unshift(u); r=r.slice(0,10);
+  try{ localStorage.setItem('recentes',JSON.stringify(r)); }catch(e){}
+  mostrarRecentes();
+}
+function mostrarRecentes(){
+  var r=lerRecentes(); if(!r.length) return;
+  $('recentes').innerHTML=r.map(function(u,i){return '<div class="recente"><span class="u">'+esc(u)+'</span><button class="peq" data-i="'+i+'">▶</button></div>';}).join('');
+  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ var u=lerRecentes()[+b.dataset.i]; $('link').value=u; abrir('auto'); }; });
+}
+
+// ------------------------------------------------ abrir
+function abrir(modo){
+  var u=$('link').value.trim(); if(!u) { $('link').focus(); return; }
+  var m=u.match(/\b(https?|rtsp|rtmp|mms):\/\/[^\s"'<>]+/i); if(m) u=m[0];
+  $('link').value=u; guardarRecente(u);
+  if(T) T.abrir(u,modo);
+  document.activeElement && document.activeElement.blur && document.activeElement.blur();
+}
+$('tocar').onclick=function(){ abrir('auto'); };
+$('forcarVlc').onclick=function(){ abrir('vlc'); };
+$('forcarWeb').onclick=function(){ abrir('web'); };
+$('tentarSite').onclick=function(){ abrir('web'); };
+$('colar').onclick=function(){ var t=T?T.colar():''; if(t){ $('link').value=t; abrir('auto'); } else $('link').focus(); };
+$('tp').onclick=$('cTp').onclick=function(){ T&&T.tocarPausar(); };
+$('parar').onclick=function(){ T&&T.parar(); };
+$('voltar').onclick=function(){ T&&T.voltarPagina(); };
+$('bateria').onclick=function(){ T&&T.bateria(); };
+$('cAbrir').onclick=function(){ T&&T.expandir(true); };
+$('cMidias').onclick=function(){ T&&T.expandir(true); };
+$('recolher').onclick=function(){ T&&T.expandir(false); };
+window.recolhido=function(){};
+var buscando=false;
+$('busca').oninput=function(){ buscando=true; };
+$('busca').onchange=function(){ T&&T.buscar(this.value/1000); buscando=false; };
+$('vol').oninput=function(){ $('volTxt').textContent=this.value+'%'; T&&T.volume(+this.value); };
+
+// ------------------------------------------------ estado (atualiza a cada 0,7 s)
+var NOMES={parado:'parado',abrindo:'abrindo…',carregando:'carregando…',tocando:'tocando',pausado:'pausado',erro:'erro'};
+var modoAnterior=null, midiasAnt='';
+function atualizar(){
+  if(!T) return;
+  var e; try{ e=JSON.parse(T.estado()); }catch(x){ return; }
+  var tocando=!!e.tocando, sit=e.situacao||'parado';
+  document.body.classList.toggle('compacto', window.innerHeight<260);
+  $('recolher').classList.toggle('oculto', !(e.expandido));
+  var nomeSit=NOMES[sit]||sit;
+  if(sit==='carregando'&&e.buffer>0&&e.buffer<100) nomeSit='carregando '+e.buffer+'%';
+  $('chip').textContent=(e.modo==='web'?'site · ':e.modo==='vlc'?'VLC · ':'')+nomeSit;
+  $('chip').classList.toggle('on',tocando);
+  var titulo=e.titulo||(e.modo==='vlc'?e.url:'')||(e.modo==='nada'?'Nada tocando':'Página aberta');
+  $('titulo').textContent=titulo; $('cTitulo').textContent=titulo;
+  var dica = e.modo==='web' ? (tocando?'Tocando pelo site. Pode apagar a tela.':'Dê play no vídeo da página (ou aqui).')
+           : e.modo==='vlc' ? (tocando?'Tocando no player VLC. Pode apagar a tela.':nomeSit)
+           : 'Cole um link acima.';
+  $('sit').textContent=dica; $('cSit').textContent=nomeSit;
+  $('tp').textContent=$('cTp').textContent=tocando?'❚❚':'▶';
+  var vlc=e.modo==='vlc';
+  $('buscaBox').classList.toggle('oculto', !(vlc&&e.busca&&e.duracao>0));
+  if(vlc&&e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
+  $('volBox').classList.toggle('oculto', !vlc);
+  if(vlc&&e.volume>=0&&document.activeElement!==$('vol')){ $('vol').value=e.volume; $('volTxt').textContent=e.volume+'%'; }
+  $('erroBox').classList.toggle('oculto', !(vlc&&sit==='erro'));
+  $('voltarBox').classList.toggle('oculto', !(vlc&&e.temPagina));
+  var md=e.midias||[], mk=JSON.stringify(md);
+  $('midiasBox').classList.toggle('oculto', !(e.modo==='web'&&md.length));
+  $('cMidias').style.display=(e.modo==='web'&&md.length)?'':'none';
+  if(mk!==midiasAnt){ midiasAnt=mk;
+    $('midias').innerHTML=md.map(function(m,i){return '<div class="midia"><div class="m"><b>'+esc(m.host)+'</b><br>'+esc(m.arquivo)+'</div><button class="peq pri" data-i="'+i+'">▶ VLC</button></div>';}).join('');
+    [].forEach.call($('midias').querySelectorAll('button'),function(b){ b.onclick=function(){ T.tocarMidia(+b.dataset.i); }; });
+  }
+  if(e.modo!==modoAnterior){ modoAnterior=e.modo; carregarEq(); }
+}
+
+// ------------------------------------------------ equalizador
+var EQ=null;
+function rotuloHz(f){ return f>=1000?(Math.round(f/100)/10+'k').replace('.0k','k'):Math.round(f)+''; }
+function carregarEq(){
+  if(!T) return;
+  try{ EQ=JSON.parse(T.eqInfo()); }catch(x){ EQ=null; }
+  var semEq=!EQ||EQ.motor==='nenhum';
+  ['preset','curva','bandas'].forEach(function(i){ $(i).classList.toggle('oculto',semEq); });
+  document.querySelector('.chave').classList.toggle('oculto',semEq);
+  if(semEq){
+    $('bandas').innerHTML=''; $('preset').innerHTML=''; $('preampBox').classList.add('oculto');
+    $('eqMotor').textContent='indisponível';
+    $('eqAviso').textContent=(EQ&&EQ.erro)||'Equalizador indisponível.'; desenharCurva(); return;
+  }
+  $('eqMotor').textContent=EQ.motor==='vlc'?'VLC · 10 bandas':'sistema · '+EQ.bandas.length+' bandas';
+  $('eqAviso').textContent=EQ.motor==='sistema'?'No modo site o equalizador é o do Android. Para o completo, toque a mídia pelo player VLC.':'';
+  $('eqLigado').checked=!!EQ.ligado;
+  $('preset').innerHTML='<option value="-1">Personalizado</option>'+EQ.presets.map(function(p,i){return '<option value="'+i+'">'+esc(p)+'</option>';}).join('');
+  $('preset').value=String(EQ.preset);
+  $('preampBox').classList.toggle('oculto',!EQ.temPreamp);
+  if(EQ.temPreamp){ $('preamp').value=EQ.preamp; $('preTxt').textContent=(EQ.preamp>0?'+':'')+(+EQ.preamp).toFixed(1)+' dB'; }
+  montarBandas(); desenharCurva();
+}
+function montarBandas(){
+  var box=$('bandas'); box.innerHTML='';
+  box.classList.toggle('desligado',!EQ.ligado);
+  EQ.bandas.forEach(function(f,i){
+    var d=document.createElement('div'); d.className='banda';
+    d.innerHTML='<div class="db"></div><div class="trilho"><div class="zero"></div><div class="cheio"></div><div class="bola"></div></div><div class="hz">'+rotuloHz(f)+'</div>';
+    box.appendChild(d); pintarBanda(i);
+    var trilho=d.querySelector('.trilho');
+    function mover(ev){
+      var r=trilho.getBoundingClientRect(); var y=Math.max(0,Math.min(r.height,ev.clientY-r.top));
+      var v=EQ.max-(y/r.height)*(EQ.max-EQ.min); v=Math.round(v*2)/2;
+      if(v!==EQ.niveis[i]){ EQ.niveis[i]=v; pintarBanda(i); desenharCurva(); enviarBanda(i,v); $('preset').value='-1'; }
+    }
+    trilho.addEventListener('pointerdown',function(ev){ trilho.setPointerCapture(ev.pointerId); mover(ev); });
+    trilho.addEventListener('pointermove',function(ev){ if(ev.buttons||ev.pressure>0) mover(ev); });
+    trilho.addEventListener('dblclick',function(){ EQ.niveis[i]=0; pintarBanda(i); desenharCurva(); enviarBanda(i,0); });
+  });
+}
+var esperas={};
+function enviarBanda(i,v){ clearTimeout(esperas[i]); esperas[i]=setTimeout(function(){ T.eqBanda(i,v); },40); }
+function pintarBanda(i){
+  var d=$('bandas').children[i]; if(!d) return; var v=EQ.niveis[i];
+  var p=(EQ.max-v)/(EQ.max-EQ.min)*100, z=EQ.max/(EQ.max-EQ.min)*100;
+  d.querySelector('.bola').style.top=p+'%';
+  var c=d.querySelector('.cheio'); c.style.top=Math.min(p,z)+'%'; c.style.height=Math.abs(p-z)+'%';
+  d.querySelector('.db').textContent=(v>0?'+':'')+(Math.round(v*10)/10);
+}
+function desenharCurva(){
+  var cv=$('curva'), dpr=window.devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight;
+  cv.width=w*dpr; cv.height=h*dpr; var x=cv.getContext('2d'); x.scale(dpr,dpr); x.clearRect(0,0,w,h);
+  x.strokeStyle='#2A3140'; x.lineWidth=1; x.beginPath(); x.moveTo(0,h/2); x.lineTo(w,h/2); x.stroke();
+  if(!EQ||!EQ.bandas||!EQ.bandas.length) return;
+  var n=EQ.bandas.length, pts=EQ.niveis.map(function(v,i){ return [ (i+.5)*w/n, h/2 - v/(EQ.max-EQ.min)*h*.9 ]; });
+  var g=x.createLinearGradient(0,0,0,h); g.addColorStop(0,'rgba(255,203,107,.45)'); g.addColorStop(1,'rgba(245,165,36,0)');
+  x.beginPath(); x.moveTo(0,pts[0][1]); x.lineTo(pts[0][0],pts[0][1]);
+  for(var i=0;i<n-1;i++){ var mx=(pts[i][0]+pts[i+1][0])/2; x.bezierCurveTo(mx,pts[i][1],mx,pts[i+1][1],pts[i+1][0],pts[i+1][1]); }
+  x.lineTo(w,pts[n-1][1]);
+  var cor=EQ.ligado?'#F5A524':'#5B6572';
+  x.strokeStyle=cor; x.lineWidth=2.5; x.stroke();
+  x.lineTo(w,h); x.lineTo(0,h); x.closePath(); if(EQ.ligado){ x.fillStyle=g; x.fill(); }
+}
+$('eqLigado').onchange=function(){ if(!EQ) return; EQ.ligado=this.checked; T.eqLigar(EQ.ligado); $('bandas').classList.toggle('desligado',!EQ.ligado); desenharCurva(); };
+$('preset').onchange=function(){ var p=+this.value; if(p<0) return; T.eqPreset(p); setTimeout(carregarEq,150); };
+$('preamp').oninput=function(){ $('preTxt').textContent=(this.value>0?'+':'')+(+this.value).toFixed(1)+' dB'; clearTimeout(esperas.p); var v=+this.value; esperas.p=setTimeout(function(){ T.eqPreamp(v); },60); };
+window.addEventListener('resize',function(){ desenharCurva(); atualizar(); });
+
+mostrarRecentes();
+carregarEq();
+atualizar();
+setInterval(atualizar,700);
+</script>
+</body>
+</html>
