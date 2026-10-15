@@ -327,12 +327,12 @@ $('veu').onclick=$('gFechar').onclick=fecharGaveta;
 function opcoes(itens,sel){ return itens.map(function(o){ return '<button class="opcao'+(o.chave===sel?' sel':'')+'" data-c="'+esc(o.chave)+'"><span>'+esc(o.nome)+'</span><i class="marc"></i></button>'; }).join(''); }
 
 // ---- legendas
-var legChaveSel='', legTraduzir=false, legAnt='';
+var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
 function abrirLegendas(){
-  abrirGaveta('leg','Legendas','<div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
+  abrirGaveta('leg','Áudio e legendas','<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
     '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
     '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
-  legAnt=''; atualizarLegendas();
+  legAnt=''; audAnt=''; atualizarLegendas();
   $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
   $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
   $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
@@ -340,6 +340,11 @@ function abrirLegendas(){
 window.legendaSalva=function(podeAbrir){ var b=$('legAbrir'); if(b) b.classList.toggle('oculto',!podeAbrir); };
 function atualizarLegendas(){
   if(!T||!$('legLista')) return;
+  var A; try{ A=JSON.parse(T.audios()); }catch(x){ A={itens:[]}; }
+  var ka=JSON.stringify(A);
+  if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem);
+    if(tem){ $('audLista').innerHTML=opcoes(A.itens,A.atual);
+      [].forEach.call($('audLista').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ T.escolherAudio(b.dataset.c); [].forEach.call($('audLista').children,function(x){ x.classList.toggle('sel',x===b); }); }; }); } }
   var L; try{ L=JSON.parse(T.legendas()); }catch(x){ return; }
   var k=JSON.stringify(L); if(k===legAnt) return; legAnt=k;
   var itens=[{chave:'off',nome:'Desligada'}].concat(L.itens||[]);

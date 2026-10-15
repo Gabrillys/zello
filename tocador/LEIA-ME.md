@@ -22,7 +22,8 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - **Baixar legenda como texto (.txt)**: salva a legenda inteira do vídeo, sem horários, em **Download/Tocador**. Funciona no YouTube e em sites que usam legendas padrão da web.
   - **Arquivos de legenda encontrados**: qualquer arquivo de legenda (`.vtt`, `.srt`, `.ttml`) que o player de um site pedir aparece na gaveta de Legendas, pronto para baixar como texto. Isso cobre sites com player próprio, como o jw.org.
   - **Player VLC**: escolhe as legendas embutidas no arquivo ou transmissão. Elas não podem ser baixadas como texto.
-  - Na tela cheia, a legenda continua sendo a do próprio site (uma só, por cima do vídeo).
+  - Na tela cheia, a legenda continua sendo a do próprio site (uma só, por cima do vídeo). No YouTube, ela fica na base da tela, a 64 px do rodapé nas duas orientações, com o dobro do tamanho.
+- **Áudio dublado (YouTube)**: em vídeos com o áudio em vários idiomas, a gaveta **Áudio e legendas** mostra as faixas para trocar com um toque. Se o YouTube não aceitar a troca por ali, use a engrenagem do próprio vídeo → *Faixa de áudio*.
 - **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
 
 ## jw.org

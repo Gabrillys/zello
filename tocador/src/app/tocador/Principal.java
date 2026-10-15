@@ -692,6 +692,33 @@ public class Principal extends Activity {
             } });
         }
 
+        /** Faixas de áudio do vídeo do YouTube (dublagens), se houver mais de uma. */
+        @JavascriptInterface
+        public String audios() {
+            try {
+                JSONObject p = Navegador.estadoPagina, o = new JSONObject();
+                JSONArray itens = new JSONArray(), au = "web".equals(Controle.modo) ? p.optJSONArray("auds") : null;
+                if (au != null && au.length() > 1) for (int i = 0; i < au.length(); i++) {
+                    JSONObject a = au.optJSONObject(i);
+                    itens.put(new JSONObject().put("chave", a.optString("id")).put("nome", a.optString("nome") + (a.optBoolean("padrao") ? " (original)" : "")));
+                }
+                String atual = p.optString("audAtual");
+                if (atual.length() == 0 && au != null) for (int i = 0; i < au.length(); i++) if (au.optJSONObject(i).optBoolean("padrao")) atual = au.optJSONObject(i).optString("id");
+                return o.put("itens", itens).put("atual", atual).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void escolherAudio(final String id) {
+            naTela(new Runnable() { public void run() {
+                if (nav == null) return;
+                nav.evaluateJavascript(Navegador.jsAudioYoutube(id), new ValueCallback<String>() { public void onReceiveValue(String r) {
+                    Diagnostico.anotar("Faixa de áudio " + id + ": " + r);
+                    if (r == null || !r.contains("ok")) avisar("O YouTube não aceitou a troca de áudio por aqui. Tente pela engrenagem do próprio vídeo → Faixa de áudio.");
+                } });
+            } });
+        }
+
         @JavascriptInterface
         public void baixarLegenda(final String chave, final boolean traduzir) {
             naTela(new Runnable() { public void run() { Principal.this.baixarLegenda(chave, traduzir); } });
@@ -820,7 +847,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 2.2 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 2.3 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

@@ -69,8 +69,8 @@ public class Navegador extends WebView {
             "var o={t:false,n:ms.length,titulo:document.title||''};" +
             "ms.forEach(function(m){if(!m.paused&&!m.ended&&m.readyState>1)o.t=true;});" +
             "if(v){o.tempo=Math.round(v.currentTime*1000);o.dur=isFinite(v.duration)?Math.round(v.duration*1000):0;o.vw=v.videoWidth;o.vh=v.videoHeight;}" +
-            "var p=document.getElementById('movie_player');o.yt=!!(p&&p.getAvailableQualityLevels);" +
-            "if(o.yt){try{o.q=p.getPlaybackQuality();o.qs=p.getAvailableQualityLevels();var vd=p.getVideoData&&p.getVideoData();o.vid=vd&&vd.video_id;if(vd&&vd.title)o.titulo=vd.title;}catch(e){}" +
+            "var p=document.getElementById('movie_player');o.yt=!!(p&&(p.getAvailableQualityLevels||p.getPlayerResponse));" +
+            "if(o.yt){try{if(p.getAvailableQualityLevels){o.q=p.getPlaybackQuality();o.qs=p.getAvailableQualityLevels();}var vd=p.getVideoData&&p.getVideoData();o.vid=vd&&vd.video_id;if(vd&&vd.title)o.titulo=vd.title;}catch(e){}" +
             " try{var l=[];var r=p.getPlayerResponse&&p.getPlayerResponse();" +
             "  var ct=(r&&r.captions&&r.captions.playerCaptionsTracklistRenderer&&r.captions.playerCaptionsTracklistRenderer.captionTracks)||[];" +
             "  ct.forEach(function(c){var n=c.name&&(c.name.simpleText||(c.name.runs||[]).map(function(x){return x.text}).join(''))||c.languageCode;l.push({idioma:c.languageCode,nome:n,auto:c.kind==='asr'});});" +
@@ -79,6 +79,13 @@ public class Navegador extends WebView {
             "  o.legAtual=at&&at.languageCode?('yt:'+at.languageCode+(at.kind==='asr'?':asr':'')):'';o.legTrad=at&&at.translationLanguage?at.translationLanguage.languageCode:'';" +
             " }catch(e){}" +
             " o.cap=[].map.call(document.querySelectorAll('.ytp-caption-segment,.captions-text .caption-visual-line'),function(s){return s.textContent}).join('\\n');" +
+            // Faixas de áudio (dublagens): lista da resposta do player; a atual pelo próprio player.
+            " try{var r2=p.getPlayerResponse&&p.getPlayerResponse();var af=(r2&&r2.streamingData&&r2.streamingData.adaptiveFormats)||[];var vis={},au=[];" +
+            "  af.forEach(function(f){var t=f.audioTrack;if(t&&t.id&&!vis[t.id]){vis[t.id]=1;au.push({id:t.id,nome:t.displayName||t.id,padrao:!!t.audioIsDefault});}});" +
+            "  if(!au.length&&p.getAvailableAudioTracks){(p.getAvailableAudioTracks()||[]).forEach(function(t,i){var js='';try{js=JSON.stringify(t)}catch(e){}" +
+            "   var mi=/\"id\":\"([^\"]+)\"/.exec(js),mn=/\"(?:displayName|name)\":\"([^\"]+)\"/.exec(js);if(mi&&!vis[mi[1]]){vis[mi[1]]=1;au.push({id:mi[1],nome:mn?mn[1]:mi[1],padrao:false});}});}" +
+            "  o.auds=au;var cur=p.getAudioTrack&&p.getAudioTrack();if(cur){var cs='';try{cs=JSON.stringify(cur)}catch(e){}au.forEach(function(a){if(cs.indexOf(a.id)>=0)o.audAtual=a.id;});}" +
+            " }catch(e){}" +
             "}else if(v&&v.textTracks){var l2=[],cap='';for(var i=0;i<v.textTracks.length;i++){var tt=v.textTracks[i];" +
             " if(tt.kind!=='subtitles'&&tt.kind!=='captions')continue;l2.push({i:i,nome:tt.label||tt.language||('Faixa '+(i+1)),idioma:tt.language||''});" +
             " if(tt.mode==='showing'){o.legAtual='tt:'+i;if(tt.activeCues)for(var k=0;k<tt.activeCues.length;k++)cap+=(cap?'\\n':'')+String(tt.activeCues[k].text||'').replace(/<[^>]+>/g,'');}}" +
@@ -156,6 +163,25 @@ public class Navegador extends WebView {
     }
 
     /** Liga a faixa i do vídeo (legendas padrão da web); -1 desliga todas. */
+    /** Troca a faixa de áudio do YouTube (dublagem). Devolve "ok" ou o motivo. */
+    static String jsAudioYoutube(String id) {
+        return "(function(id){var p=document.getElementById('movie_player');if(!p||!p.getAvailableAudioTracks||!p.setAudioTrack)return 'sem-comando';" +
+                "var l=p.getAvailableAudioTracks()||[];for(var i=0;i<l.length;i++){var t=l[i],s='';try{s=JSON.stringify(t)}catch(e){}" +
+                "if(t.id===id||s.indexOf('\"'+id+'\"')>=0){p.setAudioTrack(t);return 'ok';}}return 'nao-achou:'+l.length;})(" + JSONObject.quote(id) + ")";
+    }
+
+    /**
+     * Legendas do YouTube em tela cheia (a do app ou a do próprio YouTube): na base da tela, com o mesmo espaço
+     * nas duas orientações, e com o dobro do tamanho.
+     */
+    static final String JS_ESTILO_LEGENDAS =
+            "(function(){if(!/youtube\\.com$/.test(location.hostname)||document.getElementById('__tocadorLeg'))return;" +
+            "var s=document.createElement('style');s.id='__tocadorLeg';s.textContent=" +
+            "'html.tocador-cheio .caption-window,:fullscreen .caption-window{position:fixed!important;left:50%!important;right:auto!important;top:auto!important;'+" +
+            "'bottom:64px!important;margin:0!important;width:auto!important;max-width:45vw!important;height:auto!important;text-align:center!important;'+" +
+            "'transform:translateX(-50%) scale(2)!important;transform-origin:50% 100%!important}';" +
+            "(document.head||document.documentElement).appendChild(s);})()";
+
     static String jsLegendaFaixa(int i) {
         return "(function(i){" + PRINCIPAL + "var v=principal();if(!v||!v.textTracks)return 'sem';" +
                 "for(var j=0;j<v.textTracks.length;j++)v.textTracks[j].mode=(j===i?'showing':'disabled');return 'ok';})(" + i + ")";
@@ -224,6 +250,7 @@ public class Navegador extends WebView {
             @Override public void onPageFinished(WebView v, String url) {
                 v.evaluateJavascript(JS_SEMPRE_VISIVEL, null);
                 v.evaluateJavascript(jsPreferenciaYoutube(qualidade), null);
+                v.evaluateJavascript(JS_ESTILO_LEGENDAS, null);
                 if (aoMudar != null) aoMudar.pagina(url);
                 if (cheio) v.evaluateJavascript(jsIsolar(true), null);
             }
@@ -354,6 +381,7 @@ public class Navegador extends WebView {
     private final Runnable consulta = new Runnable() {
         public void run() {
             evaluateJavascript(JS_SEMPRE_VISIVEL, null);
+            evaluateJavascript(JS_ESTILO_LEGENDAS, null);
             evaluateJavascript(JS_ESTADO, new ValueCallback<String>() {
                 public void onReceiveValue(String v) {
                     try {
