@@ -191,7 +191,54 @@ public class Principal extends Activity {
         if (!abrindoDaFila) { filaLista = null; filaIndice = -1; }
         Dublador dub = Dublador.seExistir();
         if (dub != null && dub.ativo()) dub.parar("");
-        if ("auto".equals(modo)) modo = decidirModo(url);
+        if ("auto".equals(modo)) {
+            modo = decidirModo(url);
+            String host = "";
+            try { host = Uri.parse(url).getHost(); if (host == null) host = ""; } catch (Exception e) { }
+            if ("web".equals(modo) && url.startsWith("http") && !SOCIAL.matcher(host).find()) {
+                // Link sem cara de nada (ex.: …/stream sem extensão): pergunta ao servidor o que é antes de abrir.
+                final String u = url;
+                avisar("Abrindo…");
+                new Thread(new Runnable() { public void run() {
+                    final String m = sondar(u);
+                    Diagnostico.anotar("Link " + Diagnostico.curto(u) + ": " + m);
+                    runOnUiThread(new Runnable() { public void run() { abrirNoModo(u, m.startsWith("vlc") ? "vlc" : "web"); } });
+                } }, "tocador-sonda").start();
+                return;
+            }
+        }
+        abrirNoModo(url, modo);
+    }
+
+    /**
+     * Pede só o começo da resposta: se o servidor manda áudio/vídeo (ou cabeçalhos de rádio "icy-"), é uma transmissão
+     * e vai para o player VLC; se manda uma página, abre no navegador.
+     */
+    static String sondar(String url) {
+        java.net.HttpURLConnection c = null;
+        try {
+            c = (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
+            c.setConnectTimeout(5000);
+            c.setReadTimeout(5000);
+            c.setRequestProperty("Icy-MetaData", "1");
+            c.setRequestProperty("User-Agent", "VLC/3.0.20 LibVLC/3.0.20");
+            c.setRequestProperty("Range", "bytes=0-1");
+            c.getResponseCode();
+            String tipo = c.getContentType() == null ? "" : c.getContentType().toLowerCase(java.util.Locale.ROOT);
+            boolean icy = c.getHeaderField("icy-name") != null || c.getHeaderField("icy-br") != null || c.getHeaderField("icy-metaint") != null;
+            if (icy || tipo.startsWith("audio/") || tipo.startsWith("video/") || tipo.contains("mpegurl") || tipo.contains("ogg")
+                    || tipo.contains("dash+xml") || tipo.contains("scpls") || tipo.equals("application/octet-stream"))
+                return "vlc (" + (icy ? "rádio icy" : tipo) + ")";
+            return "web (" + tipo + ")";
+        } catch (Exception e) {
+            // Servidores Shoutcast antigos respondem "ICY 200 OK", que o Java não entende: é rádio.
+            String m = String.valueOf(e.getMessage());
+            if (m.contains("ICY") || m.contains("Unexpected status line")) return "vlc (shoutcast)";
+            return "web (sem resposta: " + m + ")";
+        } finally { if (c != null) c.disconnect(); }
+    }
+
+    private void abrirNoModo(String url, String modo) {
         if ("vlc".equals(modo)) {
             if (Controle.modo.equals("web")) Navegador.comandar("pausar");
             EqSistema.de(this).soltar();
@@ -208,11 +255,27 @@ public class Principal extends Activity {
         ajustar();
     }
 
+    /**
+     * O navegador abriu direto um arquivo de áudio/vídeo (a página é só o player simples do Chrome, com a bolinha):
+     * é uma transmissão; passa para o player VLC, que tem animação, rodapé com o nome da rádio e equalizador.
+     */
+    private void verificarMidiaCrua(final String url) {
+        if (nav == null || !"web".equals(Controle.modo) || url == null || !url.startsWith("http")) return;
+        nav.evaluateJavascript("(function(){var m=document.querySelector('body>video,body>audio');var n=document.body?document.body.children.length:9;"
+                + "return !!(m&&n<=1&&(m.currentSrc||m.src)==location.href)})()", new android.webkit.ValueCallback<String>() {
+            public void onReceiveValue(String r) {
+                if (!"true".equals(r) || !"web".equals(Controle.modo)) return;
+                Diagnostico.anotar("O site era só um áudio/vídeo: passando para o player VLC");
+                abrirNoModo(url, "vlc");
+            }
+        });
+    }
+
     private void criarNavegador() {
         Anuncios.ligado = ajustes.getBoolean("anuncios", true);
         nav = new Navegador(this);
         nav.definirAoMudar(new Navegador.AoMudar() {
-            public void pagina(final String url) { runOnUiThread(new Runnable() { public void run() { verificarJw(url); } }); }
+            public void pagina(final String url) { runOnUiThread(new Runnable() { public void run() { verificarJw(url); verificarMidiaCrua(url); } }); }
         });
         nav.definirQualidade(ajustes.getString("qualidade", "max"));
         if (ajustes.getBoolean("computador", false)) nav.definirComputador(true);
@@ -790,7 +853,9 @@ public class Principal extends Activity {
         filaLista = id;
         filaIndice = i;
         abrindoDaFila = true;
-        try { abrir(it.url, "auto"); } finally { abrindoDaFila = false; }
+        // Rádios, TVs, câmeras e músicas de lista são transmissões/arquivos: player VLC direto (com animação e rodapé).
+        String modo = "outro".equals(l.tipo) ? "auto" : "vlc";
+        try { abrir(it.url, modo); } finally { abrindoDaFila = false; }
         if ("vlc".equals(Controle.modo)) motor.definirTitulo(it.nome);
     }
 
@@ -1560,7 +1625,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.5 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.6 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

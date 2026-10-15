@@ -10,6 +10,10 @@ import java.lang.reflect.Proxy;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.chromium.support_lib_boundary.WebSettingsBoundaryInterface;
+import org.chromium.support_lib_boundary.WebViewProviderFactoryBoundaryInterface;
+import org.chromium.support_lib_boundary.WebkitToCompatConverterBoundaryInterface;
+
 /**
  * Além do User-Agent, o WebView envia aos sites os "Client Hints" (Sec-CH-UA-Mobile etc.),
  * que dizem "sou um celular". Sites como o YouTube usam isso para escolher a versão para celular.
@@ -20,10 +24,8 @@ final class AgenteCH {
 
     private AgenteCH() { }
 
-    /** Espelham as interfaces internas do WebView; as chamadas são repassadas pelo nome do método. */
-    interface Fabrica { InvocationHandler getWebkitToCompatConverter(); String[] getSupportedFeatures(); }
-    interface Conversor { InvocationHandler convertSettings(WebSettings s); }
-    interface Ajustes { void setUserAgentMetadata(Map<String, Object> m); }
+    // As interfaces têm os nomes oficiais (org.chromium.support_lib_boundary): o WebView as procura pelo nome.
+    private static final Class<WebViewProviderFactoryBoundaryInterface> Fabrica = WebViewProviderFactoryBoundaryInterface.class;
 
     @SuppressWarnings("unchecked")
     private static <T> T como(Class<T> c, InvocationHandler h) {
@@ -37,11 +39,12 @@ final class AgenteCH {
             ClassLoader cl = WebView.getWebViewClassLoader();
             Class<?> util = Class.forName("org.chromium.support_lib_glue.SupportLibReflectionUtil", false, cl);
             Method criar = util.getDeclaredMethod("createWebViewProviderFactory");
-            Fabrica f = como(Fabrica.class, (InvocationHandler) criar.invoke(null));
+            WebViewProviderFactoryBoundaryInterface f = como(Fabrica, (InvocationHandler) criar.invoke(null));
             boolean suportado = false;
             for (String r : f.getSupportedFeatures()) if ("USER_AGENT_METADATA".equals(r)) suportado = true;
             if (!suportado) return "este WebView não permite mudar os Client Hints (atualize o 'Android System WebView')";
-            Ajustes a = como(Ajustes.class, como(Conversor.class, f.getWebkitToCompatConverter()).convertSettings(s));
+            WebSettingsBoundaryInterface a = como(WebSettingsBoundaryInterface.class,
+                    como(WebkitToCompatConverterBoundaryInterface.class, f.getWebkitToCompatConverter()).convertSettings(s));
             String maior = versaoChrome.contains(".") ? versaoChrome.substring(0, versaoChrome.indexOf('.')) : versaoChrome;
             Map<String, Object> m = new HashMap<String, Object>();
             m.put("BRAND_VERSION_LIST", new String[][] {

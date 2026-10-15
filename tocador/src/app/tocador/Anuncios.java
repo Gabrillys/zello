@@ -12,6 +12,10 @@ import java.lang.reflect.Proxy;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.chromium.support_lib_boundary.ScriptHandlerBoundaryInterface;
+import org.chromium.support_lib_boundary.WebViewProviderBoundaryInterface;
+import org.chromium.support_lib_boundary.WebViewProviderFactoryBoundaryInterface;
+
 /**
  * Bloqueio de anúncios no modo site (principalmente YouTube), em três camadas:
  *  1. pedidos para servidores de anúncio são recusados;
@@ -96,11 +100,8 @@ final class Anuncios {
 
     // ------------------------------------------------------------ script no início de cada página
 
-    interface Fabrica { InvocationHandler createWebView(WebView w); String[] getSupportedFeatures(); }
-    interface ProvedorWebView { InvocationHandler addDocumentStartJavaScript(String script, String[] origens); }
-    interface Registro { void remove(); }
-
-    private static Registro registro;
+    // Interfaces com os nomes oficiais (org.chromium.support_lib_boundary): o WebView as procura pelo nome.
+    private static ScriptHandlerBoundaryInterface registro;
 
     /** Liga ou desliga o script de início na página (efeito a partir da próxima página carregada). */
     static String aplicar(WebView w) {
@@ -125,11 +126,12 @@ final class Anuncios {
             ClassLoader cl = WebView.getWebViewClassLoader();
             Class<?> util = Class.forName("org.chromium.support_lib_glue.SupportLibReflectionUtil", false, cl);
             Method criar = util.getDeclaredMethod("createWebViewProviderFactory");
-            Fabrica f = como(Fabrica.class, (InvocationHandler) criar.invoke(null));
+            WebViewProviderFactoryBoundaryInterface f = como(WebViewProviderFactoryBoundaryInterface.class, (InvocationHandler) criar.invoke(null));
             boolean ok = false;
             for (String r : f.getSupportedFeatures()) if ("DOCUMENT_START_SCRIPT".equals(r)) ok = true;
             if (!ok) return "este WebView não tem script de início (atualize o 'Android System WebView')";
-            registro = como(Registro.class, como(ProvedorWebView.class, f.createWebView(w)).addDocumentStartJavaScript(script, new String[] { "*" }));
+            registro = como(ScriptHandlerBoundaryInterface.class,
+                    como(WebViewProviderBoundaryInterface.class, f.createWebView(w)).addDocumentStartJavaScript(script, new String[] { "*" }));
             return "ok";
         } catch (Throwable t) {
             Throwable c = t.getCause() != null ? t.getCause() : t;
