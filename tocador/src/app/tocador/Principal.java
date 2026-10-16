@@ -1277,6 +1277,7 @@ public class Principal extends Activity {
                 o.put("anuncios", Anuncios.ligado);
                 Baixador bx = Baixador.seExistir();
                 if (bx != null) o.put("preparando", bx.estadoCache());
+                if ("vlc".equals(Controle.modo) && bx != null && bx.estaNoCache(motor.url())) o.put("temporario", true);
                 o.put("expandido", expandido);
                 o.put("cheio", cheio);
                 o.put("podeCheio", "web".equals(Controle.modo) || ("vlc".equals(Controle.modo) && motor.temVideoAgora()));
@@ -1562,6 +1563,27 @@ public class Principal extends Activity {
             naTela(new Runnable() { public void run() { Principal.this.baixar(url, tipo, playlist); } });
         }
 
+        /** Salva no aparelho o vídeo que está tocando da pasta temporária (sem baixar de novo). */
+        @JavascriptInterface
+        public void salvarVideoAtual() {
+            naTela(new Runnable() { public void run() {
+                if (!permissaoGravar()) return;
+                final String url = motor.url();
+                final String titulo = motor.estado().optString("titulo");
+                avisar("Salvando no aparelho…");
+                new Thread(new Runnable() { public void run() {
+                    final String uri = Baixador.de(Principal.this).salvarDoCache(url, titulo);
+                    runOnUiThread(new Runnable() { public void run() {
+                        if (uri == null) { avisar("Não consegui salvar o vídeo."); return; }
+                        java.util.List<String[]> um = new java.util.ArrayList<String[]>();
+                        um.add(new String[] { titulo.length() > 0 ? titulo : "Vídeo", uri });
+                        guardarNaBiblioteca(null, "video", "", um);
+                        avisar("Vídeo salvo em Filmes/Tocador e na Biblioteca, em \"Vídeos baixados\".");
+                    } });
+                } }).start();
+            } });
+        }
+
         @JavascriptInterface
         public void cancelarPreparo() { Baixador.de(Principal.this).cancelarCache(); }
 
@@ -1752,7 +1774,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.9 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.10 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

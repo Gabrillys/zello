@@ -45,7 +45,8 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 
 - Links do **Instagram** (colados ou compartilhados do app do Instagram) tocam no **player VLC**, sem entrar em conta nenhuma: o Tocador busca o vídeo como visitante, guarda numa pasta temporária do app e o VLC toca de lá. Leva alguns segundos (uma faixa no topo mostra o progresso e tem um botão para cancelar).
 - Em **TikTok, Facebook, X, Vimeo, YouTube** e outras redes, o mesmo acontece quando você escolhe **Abrir como: Player VLC**.
-- Abrir o mesmo vídeo de novo toca na hora. A pasta temporária guarda no máximo ~1,5 GB e apaga os mais antigos sozinha; nada vai para a galeria.
+- Abrir o mesmo vídeo de novo toca na hora. A pasta temporária guarda no máximo ~1,5 GB e apaga os mais antigos sozinha; nada vai para a galeria sem você pedir.
+- Para guardar um vídeo, toque em **Salvar este vídeo no aparelho** no player: ele é copiado da pasta temporária (sem baixar de novo) para **Filmes/Tocador** e aparece na Biblioteca, em "Vídeos baixados".
 - Vídeos privados ou que o Instagram só mostra para quem tem conta não podem ser buscados assim: nesse caso o app abre o site.
 
 ## Vídeos e músicas do aparelho

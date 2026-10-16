@@ -306,6 +306,34 @@ final class Baixador {
     private String pastaDestino(String tipo) { return ("audio".equals(tipo) ? "Música" : "Filmes") + "/Tocador"; }
 
     /** Move o arquivo terminado para Música/Tocador (ou Filmes/Tocador) e devolve o endereço para tocar. */
+    /** O arquivo está na pasta temporária do "tocar no VLC"? */
+    boolean estaNoCache(String url) {
+        try {
+            if (url == null || !url.startsWith("file://")) return false;
+            return new File(Uri.parse(url).getPath()).getCanonicalPath().startsWith(pastaCache().getCanonicalPath());
+        } catch (Exception e) { return false; }
+    }
+
+    /**
+     * Salva no aparelho (Filmes/Tocador) uma cópia do vídeo que está na pasta temporária, sem baixar de novo.
+     * Devolve o endereço salvo, ou null.
+     */
+    String salvarDoCache(String url, String titulo) {
+        if (!estaNoCache(url)) return null;
+        try {
+            File origem = new File(Uri.parse(url).getPath());
+            String ext = origem.getName().contains(".") ? origem.getName().substring(origem.getName().lastIndexOf('.')) : ".mp4";
+            File copia = new File(ctx.getExternalFilesDir(null), "baixando/" + Arquivos.nomeSeguro(titulo == null || titulo.length() == 0 ? "Vídeo" : titulo) + ext);
+            copia.getParentFile().mkdirs();
+            copiar(new FileInputStream(origem), new FileOutputStream(copia));
+            String tipo = ext.equals(".m4a") || ext.equals(".mp3") || ext.equals(".opus") ? "audio" : "video";
+            return publicar(copia, tipo, null); // publicar move a cópia e a registra como baixada pelo app
+        } catch (Exception e) {
+            Diagnostico.anotar("Salvar do cache falhou: " + e);
+            return null;
+        }
+    }
+
     private String publicar(File f, String tipo, String lista) {
         if (!f.exists()) return null;
         boolean audio = "audio".equals(tipo);

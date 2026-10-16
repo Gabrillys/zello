@@ -300,6 +300,7 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
         <button class="acao" id="aParar"><span></span>Parar</button>
       </div>
       <button id="aBaixar" class="oculto" style="width:100%;margin-top:8px"></button>
+      <button id="aSalvar" class="pri oculto" style="width:100%;margin-top:8px"></button>
     </div>
   </section>
 </div>
@@ -495,6 +496,8 @@ function atualizarDownloads(){
 }
 $('abrirBaixar').onclick=function(){ abrirBaixar(''); };
 $('aBaixar').onclick=function(){ abrirBaixar(''); };
+icone($('aSalvar'),'baixar','Salvar este vídeo no aparelho');
+$('aSalvar').onclick=function(){ T&&T.salvarVideoAtual(); };
 $('dlResumo').onclick=function(){ abrirBaixar(''); };
 
 // ------------------------------------------------ animação da rádio (estilo Windows Media Player)
@@ -677,6 +680,7 @@ function atualizar(){
   if(radio){ atualizarRadio(); } $('sit').classList.toggle('oculto',radio); $('titulo').classList.toggle('oculto',radio&&palcoVisivel);
   $('voltar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0)); $('avancar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0));
   $('aBaixar').classList.toggle('oculto', !(e.modo==='web'||(vlc&&/^https?:/.test(e.url||''))));
+  $('aSalvar').classList.toggle('oculto', !e.temporario);
   atualizarDownloads();
   if(e.fila){ $('filaTxt').textContent=e.fila.nome+' · '+(e.fila.aleatorio?(e.fila.ordem+1):(e.fila.indice+1))+' de '+e.fila.total; pintarModo(e.fila); }
   if(verInicio&&(++contaInicio%5===1)){ mostrarAnuncios(); }
