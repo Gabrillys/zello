@@ -213,6 +213,8 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
     </div>
   </div>
 
+  <div class="fila oculto" id="prep" style="margin:0 0 10px"><div class="txt" id="prepTxt"></div><div class="medidor" style="flex:0 0 70px;margin:0"><i id="prepProg"></i></div><button id="prepX" aria-label="Cancelar" style="width:34px;height:34px;flex:0 0 34px"></button></div>
+
   <!-- tela de início -->
   <section id="inicio">
     <div class="cartao">
@@ -450,6 +452,8 @@ $('filaAnt').onclick=function(){ T&&T.pularNaFila(-1); };
 var REPS=['nao','lista','faixa'];
 function modoAtual(){ try{ return JSON.parse(T.modoFilaAtual()); }catch(x){ return {aleatorio:false,repetir:'nao'}; } }
 function pintarModo(m){ $('filaAleat').classList.toggle('on',!!m.aleatorio); $('filaRep').classList.toggle('on',m.repetir!=='nao'); $('filaRep').innerHTML=IC.repetir+(m.repetir==='faixa'?'<b>1</b>':''); }
+$('prepX').innerHTML=IC.fechar; $('prepX').onclick=function(){ T&&T.cancelarPreparo(); };
+var ultimoTocou=0;
 $('filaAleat').innerHTML=IC.aleat; $('filaRep').innerHTML=IC.repetir;
 $('filaAleat').onclick=function(){ var m=modoAtual(); m.aleatorio=!m.aleatorio; T.modoFila(m.aleatorio,m.repetir); pintarModo(m); avisar(m.aleatorio?'Aleatório ligado.':'Aleatório desligado: segue a ordem da lista.'); };
 $('filaRep').onclick=function(){ var m=modoAtual(); m.repetir=REPS[(REPS.indexOf(m.repetir)+1)%3]; T.modoFila(m.aleatorio,m.repetir); pintarModo(m); avisar({nao:'Repetição desligada.',lista:'Repetindo a lista toda.',faixa:'Repetindo esta faixa.'}[m.repetir]); };
@@ -664,7 +668,11 @@ function atualizar(){
   if(e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
   $('volBox').classList.toggle('oculto', !vlc);
   $('filaBox').classList.toggle('oculto', !e.fila);
-  var radio=vlc&&!e.video&&!verInicio&&(sit==='tocando'||sit==='carregando'||sit==='pausado'||sit==='abrindo');
+  // Animação só enquanto algo toca de verdade (uma piscada de carregamento não a esconde).
+  if(tocando) ultimoTocou=Date.now();
+  var radio=vlc&&!e.video&&!verInicio&&(tocando||(sit==='carregando'&&Date.now()-ultimoTocou<2500));
+  var P=e.preparando||{}; $('prep').classList.toggle('oculto',!P.trabalhando);
+  if(P.trabalhando){ $('prepTxt').textContent=P.estado||'Buscando o vídeo…'; $('prepProg').style.width=Math.max(3,P.pct||0)+'%'; }
   mostrarPalco(radio&&!document.body.classList.contains('compacto'));
   if(radio){ atualizarRadio(); } $('sit').classList.toggle('oculto',radio); $('titulo').classList.toggle('oculto',radio&&palcoVisivel);
   $('voltar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0)); $('avancar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0));

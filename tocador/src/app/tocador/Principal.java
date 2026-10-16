@@ -49,6 +49,10 @@ public class Principal extends Activity {
     /** Redes sociais e sites de vídeo: sempre abrem no navegador. */
     private static final Pattern SOCIAL = Pattern.compile(
             "(?i)(youtube|youtu\\.be|instagram|tiktok|facebook|fb\\.watch|twitter|(^|\\.)x\\.com|kwai|vimeo|dailymotion|twitch|reddit|threads|pinterest|linkedin|globo|soundcloud|spotify|deezer|bilibili|rumble|odysee|tumblr|snapchat)");
+    /** Redes que só entregam o vídeo pelo site: no player VLC, o vídeo é buscado antes (sem conta) e toca do cache. */
+    private static final Pattern REDE_PARA_VLC = Pattern.compile(
+            "(?i)(instagram\\.com|instagr\\.am|tiktok\\.com|facebook\\.com|fb\\.watch|twitter\\.com|(^|\\.)x\\.com|kwai|threads\\.net|vimeo\\.com|dailymotion|youtube\\.com|youtu\\.be|reddit|pinterest|rumble|bilibili)");
+    private static final Pattern INSTAGRAM = Pattern.compile("(?i)(^|\\.)(instagram\\.com|instagr\\.am)$");
     private static final Pattern LINK = Pattern.compile("(?i)\\b(https?|rtsp|rtmp|mms)://[^\\s\"'<>]+");
 
     private final Handler h = new Handler(Looper.getMainLooper());
@@ -191,6 +195,14 @@ public class Principal extends Activity {
         if (!abrindoDaFila) { filaLista = null; filaIndice = -1; }
         Dublador dub = Dublador.seExistir();
         if (dub != null && dub.ativo()) dub.parar("");
+        String hostLink = "";
+        try { hostLink = Uri.parse(url).getHost(); if (hostLink == null) hostLink = ""; } catch (Exception e) { }
+        // Instagram (sempre) e outras redes quando a pessoa escolhe "Player VLC": busca o vídeo antes e toca do cache.
+        if (url.startsWith("http") && (("auto".equals(modo) && INSTAGRAM.matcher(hostLink).find())
+                || ("vlc".equals(modo) && REDE_PARA_VLC.matcher(hostLink).find() && !DIRETO.matcher(url).matches()))) {
+            abrirPorCache(url);
+            return;
+        }
         if ("auto".equals(modo)) {
             modo = decidirModo(url);
             String host = "";
@@ -236,6 +248,29 @@ public class Principal extends Activity {
             if (m.contains("ICY") || m.contains("Unexpected status line")) return "vlc (shoutcast)";
             return "web (sem resposta: " + m + ")";
         } finally { if (c != null) c.disconnect(); }
+    }
+
+    /** Busca o vídeo (sem conta) com o yt-dlp e, pronto, toca no player VLC a partir do cache do app. */
+    private void abrirPorCache(final String url) {
+        if (!Baixador.disponivel()) { avisar("Tocar redes sociais no player VLC precisa de um celular de 64 bits. Abrindo o site."); abrirNoModo(url, "web"); return; }
+        if ("web".equals(Controle.modo)) Navegador.comandar("pausar");
+        motor.parar();
+        avisar("Buscando o vídeo… em instantes ele toca no player VLC.");
+        Baixador.de(this).paraCache(url, new Baixador.ProntoCache() {
+            public void pronto(final java.io.File f, final String titulo) {
+                runOnUiThread(new Runnable() { public void run() {
+                    abrirNoModo(Uri.fromFile(f).toString(), "vlc");
+                    motor.definirTitulo(titulo != null && titulo.length() > 0 ? titulo : "Vídeo");
+                } });
+            }
+            public void falhou(final String motivo) {
+                runOnUiThread(new Runnable() { public void run() {
+                    if ("cancelado".equals(motivo)) return;
+                    avisar("Não consegui buscar o vídeo (" + motivo + "). Abrindo no site.");
+                    abrirNoModo(url, "web");
+                } });
+            }
+        });
     }
 
     private void abrirNoModo(String url, String modo) {
@@ -1240,6 +1275,8 @@ public class Principal extends Activity {
                             .put("ordem", fila.posicao()).put("aleatorio", ajustes.getBoolean("aleatorio", false)).put("repetir", ajustes.getString("repetir", Fila.NAO)));
                 }
                 o.put("anuncios", Anuncios.ligado);
+                Baixador bx = Baixador.seExistir();
+                if (bx != null) o.put("preparando", bx.estadoCache());
                 o.put("expandido", expandido);
                 o.put("cheio", cheio);
                 o.put("podeCheio", "web".equals(Controle.modo) || ("vlc".equals(Controle.modo) && motor.temVideoAgora()));
@@ -1526,6 +1563,9 @@ public class Principal extends Activity {
         }
 
         @JavascriptInterface
+        public void cancelarPreparo() { Baixador.de(Principal.this).cancelarCache(); }
+
+        @JavascriptInterface
         public void cancelarDownload() { Baixador.de(Principal.this).cancelar(); }
 
         @JavascriptInterface
@@ -1712,7 +1752,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.8 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 3.9 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

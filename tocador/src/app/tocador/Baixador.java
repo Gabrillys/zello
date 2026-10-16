@@ -147,6 +147,110 @@ final class Baixador {
         } }, "tocador-download").start();
     }
 
+    // ------------------------------------------------------------ tocar no VLC sem login (Instagram, TikTok…)
+
+    interface ProntoCache { void pronto(File arquivo, String titulo); void falhou(String motivo); }
+
+    private volatile boolean cacheTrabalhando, cacheCancelado;
+    private volatile String cacheEstado = "";
+    private volatile double cachePct;
+    private volatile Process cacheProc;
+
+    JSONObject estadoCache() {
+        JSONObject o = new JSONObject();
+        try { o.put("trabalhando", cacheTrabalhando).put("estado", cacheEstado).put("pct", cachePct); } catch (Exception e) { }
+        return o;
+    }
+
+    void cancelarCache() {
+        cacheCancelado = true;
+        Process p = cacheProc;
+        if (p != null) p.destroy();
+    }
+
+    private File pastaCache() { return new File(ctx.getCacheDir(), "tocar"); }
+
+    /**
+     * Busca o vídeo de uma rede social (sem conta, como visitante) e guarda numa pasta temporária do app,
+     * para o player VLC tocar dali. O mesmo link, aberto de novo, toca na hora.
+     */
+    synchronized void paraCache(final String url, final ProntoCache cb) {
+        final String chave = Dublador.hash(url);
+        final File pasta = pastaCache();
+        File[] ja = pasta.listFiles();
+        if (ja != null) for (File f : ja) if (f.getName().startsWith(chave + ".") && !f.getName().endsWith(".part") && !f.getName().endsWith(".titulo") && !f.getName().endsWith(".ytdl") && f.length() > 0) {
+            f.setLastModified(System.currentTimeMillis());
+            cb.pronto(f, ler(new File(pasta, chave + ".titulo")));
+            return;
+        }
+        if (cacheTrabalhando) cancelarCache();
+        cacheTrabalhando = true;
+        cacheCancelado = false;
+        cachePct = 0;
+        cacheEstado = "Buscando o vídeo…";
+        new Thread(new Runnable() { public void run() {
+            String motivo = null;
+            File achado = null;
+            String titulo = "";
+            try {
+                preparar();
+                pasta.mkdirs();
+                limparCache(pasta);
+                String nativas = ctx.getApplicationInfo().nativeLibraryDir;
+                List<String> c = new ArrayList<String>();
+                c.add(nativas + "/libpython.so"); c.add("-m"); c.add("yt_dlp");
+                c.add("--js-runtimes"); c.add("quickjs:" + nativas + "/libqjs.so");
+                c.add("--ffmpeg-location"); c.add(nativas + "/libffmpeg.so");
+                c.add("--cache-dir"); c.add(new File(ctx.getCacheDir(), "ytdlp").getPath());
+                c.add("--no-colors"); c.add("--newline"); c.add("--progress"); c.add("--no-playlist"); c.add("--no-mtime");
+                c.add("-f"); c.add("bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[ext=mp4]/b");
+                c.add("--merge-output-format"); c.add("mp4");
+                c.add("-o"); c.add(pasta.getPath() + "/" + chave + ".%(ext)s");
+                c.add("--progress-template"); c.add("download:TOC|1|1|%(progress._percent_str)s|%(info.title)s");
+                c.add("--print"); c.add("after_move:TOCFIM|%(filepath)s|%(title)s|");
+                c.add("--no-simulate");
+                c.add(url);
+                ProcessBuilder pb = new ProcessBuilder(c).redirectErrorStream(true).directory(pasta);
+                ambiente(pb.environment());
+                cacheProc = pb.start();
+                BufferedReader r = new BufferedReader(new InputStreamReader(cacheProc.getInputStream(), "UTF-8"));
+                String l, erro = "";
+                while ((l = r.readLine()) != null) {
+                    if (l.startsWith("TOC|")) {
+                        String[] p = l.split("\\|", 5);
+                        try { cachePct = Double.parseDouble(p[3].replace("%", "").trim()); } catch (Exception e) { }
+                        cacheEstado = "Preparando o vídeo… " + Math.round(cachePct) + "%";
+                    } else if (l.startsWith("TOCFIM|")) {
+                        String[] p = l.split("\\|", 4);
+                        achado = new File(p[1]);
+                        titulo = p.length > 2 ? p[2] : "";
+                    } else if (l.startsWith("ERROR:")) erro = l.substring(6).trim();
+                }
+                cacheProc.waitFor();
+                cacheProc = null;
+                if (cacheCancelado) motivo = "cancelado";
+                else if (achado == null || !achado.exists()) motivo = erro.length() > 0 ? erro : "o site não entregou o vídeo";
+                else gravar(new File(pasta, chave + ".titulo"), titulo);
+            } catch (Throwable e) {
+                motivo = e.getMessage() == null ? e.toString() : e.getMessage();
+            } finally {
+                cacheTrabalhando = false;
+                cacheEstado = "";
+            }
+            if (motivo == null) { Diagnostico.anotar("Vídeo pronto para o VLC: " + Diagnostico.curto(url)); cb.pronto(achado, titulo); }
+            else { Diagnostico.anotar("Vídeo não preparado (" + Diagnostico.curto(url) + "): " + Diagnostico.curto(motivo)); cb.falhou(motivo); }
+        } }, "tocador-cache").start();
+    }
+
+    /** A pasta temporária guarda no máximo ~1,5 GB: os vídeos mais antigos saem primeiro. */
+    private static void limparCache(File pasta) {
+        File[] fs = pasta.listFiles();
+        if (fs == null) return;
+        java.util.Arrays.sort(fs, new java.util.Comparator<File>() { public int compare(File a, File b) { return Long.compare(b.lastModified(), a.lastModified()); } });
+        long total = 0;
+        for (File f : fs) { total += f.length(); if (total > 1500L << 20 || f.getName().endsWith(".part")) f.delete(); }
+    }
+
     private void progresso(String l) {
         // TOC|índice|total|porcentagem|título
         String[] p = l.split("\\|", 5);

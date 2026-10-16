@@ -55,13 +55,8 @@ Falta no celular:
 - Testado aqui: os quatro efeitos e a tela cheia no Chromium, com som simulado e no modo ambiente.
 - Falta no celular: o Visualizer na sessão do VLC (e se a troca de saída de som para AudioTrack não mudou nada no som), os metadados reais das rádios e o Radio Browser.
 
-## Para amanhã (pedido do usuário): animação só quando algo está tocando
+## Versão 3.9: falta testar no celular
 
-Hoje o palco da animação aparece também com o player em "pausado", "carregando" e "abrindo" (`atualizar()` em `assets/painel.html`, variável `radio`), e o Visualizer segue ligado.
-
-Plano:
-- mostrar a animação só com `situacao === 'tocando'`; em pausa, parado, erro ou carregando, voltar ao player simples (ou congelar o último quadro e escurecer);
-- desligar o Visualizer (`T.animacao(false)`) e parar o `requestAnimationFrame` sempre que nada toca, para não gastar bateria;
-- religar sozinho quando voltar a tocar.
-
-O usuário instala a 3.8 amanhã.
+- Animação só com `tocando` (tolera 2,5 s de "carregando"); fora disso o palco some e o Visualizer desliga.
+- Instagram sem conta: `Baixador.paraCache` usa o yt-dlp para buscar o vídeo (melhor até 1080p, áudio junto) para `cache/tocar/<hash>.mp4` e o VLC toca o arquivo. Cache de até ~1,5 GB. Outras redes passam pelo mesmo caminho com "Abrir como: Player VLC". Se falhar, abre o site.
+- Não testado aqui (YouTube/Instagram bloqueados na rede do ambiente e o yt-dlp não pode rodar aqui). Instagram sem conta pode limitar ou recusar alguns vídeos.

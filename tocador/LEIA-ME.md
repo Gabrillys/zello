@@ -17,6 +17,7 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - **Rodapé da rádio**: nome em destaque e, em letras menores, a música tocando agora (rolando quando é comprida), etiquetas de estilo, cidade e país com a bandeira, idioma, qualidade do som (formato, kbps, kHz, estéreo/mono), site e descrição, além do logotipo. Os dados vêm da própria rádio (cabeçalhos "icy-" e metadados), do nome na lista e do **Radio Browser**, um catálogo aberto de rádios.
 - **Playlists de áudio e músicas do aparelho** também têm a animação. O rodapé mostra título, artista e álbum, a capa, a playlist e a posição ("Faixa 7 de 42"), além da qualidade.
 - Links de rádio sem extensão (`…/stream`, `…:8000/`) são reconhecidos e abrem direto no player VLC.
+- A animação aparece só enquanto algo está tocando; em pausa ou parado, ela some e para de gastar bateria.
 - Para a animação reagir à música, o Android exige a permissão de áudio (pedida uma vez). Sem ela, a animação segue num modo ambiente, sem reagir ao som. Com a tela apagada, a animação para e não gasta bateria.
 
 ## Biblioteca: listas M3U, M3U8 e PLS
@@ -39,6 +40,13 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - O motor é o **yt-dlp** (código aberto, o mesmo de sites como o Cobalt), rodando no celular com Python, QuickJS e FFmpeg do projeto youtubedl-android. Se o YouTube mudar algo e os downloads falharem, toque em *Motor de download → Atualizar o motor*: o app baixa o yt-dlp mais novo do PyPI.
 - Só em celulares de 64 bits. Na primeira vez, o motor é instalado (leva alguns segundos).
 - Baixar vídeos do YouTube contraria os termos de uso do YouTube; use para fins pessoais.
+
+## Instagram e outras redes no player VLC (sem conta)
+
+- Links do **Instagram** (colados ou compartilhados do app do Instagram) tocam no **player VLC**, sem entrar em conta nenhuma: o Tocador busca o vídeo como visitante, guarda numa pasta temporária do app e o VLC toca de lá. Leva alguns segundos (uma faixa no topo mostra o progresso e tem um botão para cancelar).
+- Em **TikTok, Facebook, X, Vimeo, YouTube** e outras redes, o mesmo acontece quando você escolhe **Abrir como: Player VLC**.
+- Abrir o mesmo vídeo de novo toca na hora. A pasta temporária guarda no máximo ~1,5 GB e apaga os mais antigos sozinha; nada vai para a galeria.
+- Vídeos privados ou que o Instagram só mostra para quem tem conta não podem ser buscados assim: nesse caso o app abre o site.
 
 ## Vídeos e músicas do aparelho
 
