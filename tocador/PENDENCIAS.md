@@ -60,3 +60,9 @@ Falta no celular:
 - Animação só com `tocando` (tolera 2,5 s de "carregando"); fora disso o palco some e o Visualizer desliga.
 - Instagram sem conta: `Baixador.paraCache` usa o yt-dlp para buscar o vídeo (melhor até 1080p, áudio junto) para `cache/tocar/<hash>.mp4` e o VLC toca o arquivo. Cache de até ~1,5 GB. Outras redes passam pelo mesmo caminho com "Abrir como: Player VLC". Se falhar, abre o site.
 - Não testado aqui (YouTube/Instagram bloqueados na rede do ambiente e o yt-dlp não pode rodar aqui). Instagram sem conta pode limitar ou recusar alguns vídeos.
+
+## Versão 4.0: letra sincronizada, falta testar no celular
+
+- `Letras.java` busca no LRCLIB (`/api/search`), escolhe a versão de duração mais próxima e converte o LRC; `letreiro.js` desenha. Só com o VLC tocando áudio sem vídeo, de 45 s a 20 min.
+- O lrclib.net está bloqueado na rede do ambiente: a busca real não foi testada, só a tela (com letra de exemplo, em pé e deitado, nas duas vistas).
+- Gravações com introdução diferente da versão do catálogo podem sair deslocadas; para isso existe o ajuste manual por música.

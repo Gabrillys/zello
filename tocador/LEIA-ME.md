@@ -20,6 +20,14 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - A animação aparece só enquanto algo está tocando; em pausa ou parado, ela some e para de gastar bateria.
 - Para a animação reagir à música, o Android exige a permissão de áudio (pedida uma vez). Sem ela, a animação segue num modo ambiente, sem reagir ao som. Com a tela apagada, a animação para e não gasta bateria.
 
+## Letra sincronizada (músicas sem vídeo)
+
+- Quando uma **música sem vídeo** toca no player VLC (arquivo do aparelho, playlist de áudio, link direto), o Tocador procura a letra no **LRCLIB**, um catálogo aberto de letras com horário de cada linha. Artista e música vêm dos metadados do arquivo ou do título.
+- Cada linha aparece **meio segundo antes** de ser cantada, para dar tempo de ler, e um degradê dourado percorre a linha no ritmo da música.
+- O botão **Letra / Animação**, no alto do palco, alterna entre as duas vistas: a **letra sozinha**, rolando em letras grandes como a letra do YouTube, ou a **animação sozinha**, sem letra. A escolha fica guardada. Na vista da letra a animação para de vez e não gasta bateria.
+- Em **Áudio e legendas → Letra da música** dá para desligar a letra e corrigir o tempo em passos de meio segundo ("Letra atrasada" / "Letra adiantada"). A correção fica guardada para aquela música.
+- Vídeos nunca recebem essa letra; ela é só para músicas sem imagem.
+
 ## Biblioteca: listas M3U, M3U8 e PLS
 
 - Toque em **Importar lista** e cole o endereço da lista (ou escolha um arquivo do aparelho). Funciona com listas de IPTV (com logotipo e grupos), de rádios, de músicas e com listas simples de endereços.

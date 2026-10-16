@@ -502,6 +502,7 @@ public class Principal extends Activity {
                     || ("vlc".equals(Controle.modo) && motor.temVideoAgora()) || "web".equals(Controle.modo));
             if (telaLigada) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+            try { cuidarDaLetra(); } catch (Exception e) { }
             h.postDelayed(this, 1000);
         }
     };
@@ -529,6 +530,69 @@ public class Principal extends Activity {
         visualizador.desligar(); // a animação não gasta bateria com a tela apagada; volta sozinha ao reabrir
         vizLigada = false;
         super.onStop();
+    }
+
+    // ------------------------------------------------------------ letra sincronizada (só músicas, sem vídeo)
+
+    private String letraChave = "", letraEstado = "", letraTitulo = "";
+    private volatile JSONObject letraDados;
+
+    private boolean letrasLigadas() { return ajustes.getBoolean("letras", true); }
+
+    private int ajusteLetra() { return ajustes.getInt("letraAjuste:" + letraChave, 0); }
+
+    /**
+     * Uma vez por segundo: se uma música (só áudio, com duração) toca no player VLC, busca a letra uma vez
+     * e a entrega à tela da animação. Vídeos e rádios ao vivo não têm letra.
+     */
+    private void cuidarDaLetra() {
+        if (!letrasLigadas()) { if (letraChave.length() > 0) { letraEstado = "desligada"; trocarMusica("", "", "", 0); } return; }
+        if (!"vlc".equals(Controle.modo) || motor.temVideoAgora()) { trocarMusica("", "", "", 0); return; }
+        String url = motor.url() == null ? "" : motor.url();
+        long dur = motor.estado().optLong("duracao");
+        if (url.length() == 0 || dur < 45000 || dur > 20 * 60000) { trocarMusica("", "", "", 0); return; } // rádio ao vivo ou longo demais
+        JSONObject m = motor.meta();
+        String artista = m.optString("artista"), musica = m.optString("tituloFaixa");
+        if (musica.length() == 0) musica = motor.estado().optString("titulo");
+        String[] p = Letras.separar(musica, artista);
+        if (artista.length() == 0) artista = p[0];
+        trocarMusica(url, artista, p[1], dur / 1000.0);
+    }
+
+    private void trocarMusica(final String chave, final String artista, final String musica, final double durSeg) {
+        if (chave.equals(letraChave)) return;
+        letraChave = chave;
+        letraDados = null;
+        letraTitulo = "";
+        empurrarLetra();
+        if (chave.length() == 0) { if (!"desligada".equals(letraEstado)) letraEstado = ""; return; }
+        if (musica.length() == 0) { letraEstado = "sem-titulo"; return; }
+        letraEstado = "buscando";
+        new Thread(new Runnable() { public void run() {
+            final JSONObject r = Letras.buscar(artista, musica, durSeg);
+            runOnUiThread(new Runnable() { public void run() {
+                if (!chave.equals(letraChave)) return;
+                if (r.optBoolean("sincronizada")) {
+                    letraTitulo = r.optString("artista") + " — " + r.optString("musica");
+                    letraEstado = "pronta";
+                    try {
+                        letraDados = new JSONObject().put("linhas", r.optJSONArray("linhas")).put("adiant", 500)
+                                .put("ajuste", ajusteLetra()).put("titulo", letraTitulo).put("diferenca", r.optInt("diferenca"));
+                    } catch (Exception e) { }
+                    Diagnostico.anotar("Letra: " + letraTitulo + " (" + r.optJSONArray("linhas").length() + " linhas, diferença de duração " + r.optInt("diferenca") + " s)");
+                } else {
+                    letraEstado = r.has("erro") && !"sem letra".equals(r.optString("erro")) ? "erro" : "sem-letra";
+                    Diagnostico.anotar("Letra não encontrada para \"" + artista + " — " + musica + "\": " + r.optString("erro", "só existe letra sem horários"));
+                    if ("erro".equals(letraEstado)) letraChave = ""; // falha de rede: tenta de novo depois
+                }
+                empurrarLetra();
+            } });
+        } }, "tocador-letra").start();
+    }
+
+    /** Entrega a letra (ou nada) à tela da animação. */
+    private void empurrarLetra() {
+        js(painel, "window.letra&&letra(" + (letraDados == null ? "null" : letraDados.toString()) + ")");
     }
 
     // ------------------------------------------------------------ animação da rádio
@@ -1531,6 +1595,39 @@ public class Principal extends Activity {
             importarLista(l.origem, l.nome, l.tipo);
         }
 
+        // ---- letra sincronizada
+        @JavascriptInterface
+        public String letraInfo() {
+            try {
+                return new JSONObject().put("ligada", letrasLigadas()).put("estado", letraEstado).put("titulo", letraTitulo)
+                        .put("ajuste", letraChave.length() > 0 ? ajusteLetra() : 0)
+                        .put("diferenca", letraDados != null ? letraDados.optInt("diferenca") : 0).toString();
+            } catch (Exception e) { return "{}"; }
+        }
+
+        @JavascriptInterface
+        public void letraLigar(final boolean sim) {
+            naTela(new Runnable() { public void run() {
+                ajustes.edit().putBoolean("letras", sim).apply();
+                letraEstado = sim ? "" : "desligada";
+                letraChave = "";
+                letraDados = null;
+                empurrarLetra();
+            } });
+        }
+
+        /** Letra adiantada demais (+) ou atrasada (-) em relação ao canto: corrige e guarda para esta música. */
+        @JavascriptInterface
+        public void letraAjustar(final int deltaMs) {
+            naTela(new Runnable() { public void run() {
+                if (letraChave.length() == 0) return;
+                int a = Math.max(-15000, Math.min(15000, ajusteLetra() + deltaMs));
+                ajustes.edit().putInt("letraAjuste:" + letraChave, a).apply();
+                if (letraDados != null) try { letraDados.put("ajuste", a); } catch (Exception e) { }
+                empurrarLetra();
+            } });
+        }
+
         // ---- animação da rádio
         @JavascriptInterface
         public String radio() { return infoRadio().toString(); }
@@ -1774,7 +1871,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 3.10 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 4.0 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

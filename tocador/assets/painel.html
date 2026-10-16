@@ -190,6 +190,16 @@ input.campo:focus{outline:none;border-color:var(--cor)}
 #rodape .etq span.est{background:rgba(245,165,36,.18);color:var(--cor2);border-color:rgba(245,165,36,.3)}
 #vizAviso{position:absolute;left:12px;right:12px;top:54px;z-index:2;font-size:12.5px;color:rgba(255,255,255,.8);background:rgba(0,0,0,.45);border-radius:10px;padding:8px 10px;display:flex;gap:8px;align-items:center}
 #vizAviso button{padding:6px 10px;font-size:12.5px;border-radius:99px;flex:0 0 auto}
+#palco .tl-caixa{z-index:1}
+#palco.so-letra{background:radial-gradient(120% 90% at 12% 18%,rgba(245,165,36,.20),transparent 55%),radial-gradient(110% 90% at 92% 88%,rgba(124,77,255,.20),transparent 58%),#07070a}
+#palco.so-letra canvas{visibility:hidden}
+#palco.so-letra::before{content:"";position:absolute;inset:-20%;background:radial-gradient(40% 35% at 30% 40%,rgba(255,177,59,.10),transparent 70%),radial-gradient(35% 30% at 70% 60%,rgba(150,90,255,.10),transparent 70%);animation:brilhoLetra 18s ease-in-out infinite alternate;pointer-events:none}
+@keyframes brilhoLetra{from{transform:translate(-4%,-3%) rotate(0)}to{transform:translate(4%,3%) rotate(8deg)}}
+#palco .topo-efeito button.ativo{background:rgba(245,165,36,.28);color:var(--cor2)}
+#vistaTroca span{background:none!important;padding:0!important;backdrop-filter:none!important;color:#fff!important;letter-spacing:.2px!important}
+#palco.so-letra .tl-caixa{top:50px}
+#palco.so-letra #rEtq,#palco.so-letra #rDesc{display:none}
+#vistaTroca{width:auto!important;flex:0 0 auto!important;border-radius:99px!important;padding:0 12px 0 9px!important;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#fff}
 body.efeito-cheio{overflow:hidden}
 body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:auto;z-index:8}
 </style>
@@ -276,7 +286,7 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
       <div class="sit" id="sit"></div>
       <div id="palco" class="oculto">
         <canvas id="tela"></canvas>
-        <div class="topo-efeito"><span id="efeitoNome"></span><div style="display:flex;gap:6px"><button id="efeitoTroca" aria-label="Trocar efeito"></button><button id="efeitoCheio" aria-label="Tela cheia"></button></div></div>
+        <div class="topo-efeito"><span id="efeitoNome"></span><div style="display:flex;gap:6px"><button id="vistaTroca" class="oculto"></button><button id="efeitoTroca" aria-label="Trocar efeito"></button><button id="efeitoCheio" aria-label="Tela cheia"></button></div></div>
         <div id="vizAviso" class="oculto"><span style="flex:1">Modo ambiente. Para a animação dançar com a música, permita o áudio.</span><button id="vizPermitir">Permitir</button></div>
         <div id="rodape"><img id="rLogo" class="oculto" alt=""><div class="txt"><b id="rNome"></b><div class="agora" id="rAgora"><i></i></div><div class="desc oculto" id="rDesc"></div><div class="etq" id="rEtq"></div><small id="rInfo"></small></div></div>
       </div>
@@ -313,6 +323,7 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
 </div>
 <div id="toast"></div>
 
+<script src="letreiro.js"></script>
 <script>
 var T = window.Tocador || null;
 function $(i){ return document.getElementById(i); }
@@ -512,7 +523,7 @@ function ambiente(t){ // sem dados reais: movimento suave, com "batidas" de ment
 }
 function medias(){ var g=0,m=0,a=0; for(var i=0;i<48;i++){ if(i<8)g+=vizBandas[i]; else if(i<28)m+=vizBandas[i]; else a+=vizBandas[i]; } return [g/8,m/20,a/20]; }
 function desenhar(){
-  rafId=0; if(!palcoVisivel) return;
+  rafId=0; if(!palcoVisivel||soLetra) return;
   var cv=$('tela'), dpr=Math.min(2,window.devicePixelRatio||1), W=cv.clientWidth, H=cv.clientHeight;
   if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){ cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr); }
   var x=cv.getContext('2d'); x.setTransform(dpr,0,0,dpr,0,0);
@@ -571,7 +582,7 @@ function ondas(x,W,H,t,g,m,a){ // várias camadas de onda brilhante
 }
 function mostrarPalco(sim){
   if(sim===palcoVisivel) return; palcoVisivel=sim; $('palco').classList.toggle('oculto',!sim);
-  if(T) T.animacao(sim);
+  if(T) T.animacao(sim&&!soLetra);
   if(sim){ if(!rafId) rafId=requestAnimationFrame(desenhar); } else if(document.body.classList.contains('efeito-cheio')) cheioEfeito(false);
 }
 function trocarEfeito(){ efeito=(efeito+1)%EFEITOS.length; try{ localStorage.setItem('efeito',efeito); }catch(x){} $('efeitoNome').textContent=EFEITOS[efeito].toUpperCase(); var cv=$('tela'); cv.getContext('2d').clearRect(0,0,cv.width,cv.height); }
@@ -583,8 +594,35 @@ $('efeitoTroca').onclick=function(ev){ ev.stopPropagation(); trocarEfeito(); };
 $('efeitoCheio').onclick=function(ev){ ev.stopPropagation(); cheioEfeito(!document.body.classList.contains('efeito-cheio')); };
 $('tela').onclick=trocarEfeito;
 $('vizPermitir').onclick=function(){ T&&T.pedirPermissaoAnimacao(); };
-document.addEventListener('visibilitychange',function(){ if(!palcoVisivel) return; if(document.hidden){ T&&T.animacao(false); } else { T&&T.animacao(true); if(!rafId) rafId=requestAnimationFrame(desenhar); } });
+document.addEventListener('visibilitychange',function(){ if(!palcoVisivel||soLetra) return; if(document.hidden){ T&&T.animacao(false); } else { T&&T.animacao(true); if(!rafId) rafId=requestAnimationFrame(desenhar); } });
 var radioAnt='';
+// ---- letra sincronizada (só músicas sem vídeo, na lateral direita da animação)
+// Duas vistas, trocadas pelo botão no alto do palco: a animação sozinha, ou a letra sozinha (rolando, como no YouTube).
+var relLetra=Letreiro.relogio(), letraPalco=Letreiro.criar($('palco'),null,relLetra.ler), temLetra=false, soLetra=false, vistaPalco='letra';
+try{ vistaPalco=localStorage.getItem('vistaPalco')||'letra'; }catch(x){}
+letraPalco.vista('cheio');
+var IC_LETRA='<svg viewBox="0 0 24 24" width="17" height="17"><path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="17" r="2.5"/><path d="M20 17V7l-2.5 1"/></svg>',
+    IC_ANIM='<svg viewBox="0 0 24 24" width="17" height="17"><path d="M5 20v-6M9.5 20V8M14 20v-9M18.5 20V4"/></svg>';
+function aplicarVista(){
+  var antes=soLetra; soLetra=temLetra&&vistaPalco==='letra';
+  $('palco').classList.toggle('so-letra',soLetra);
+  letraPalco.ligar(soLetra);
+  var b=$('vistaTroca'); b.classList.toggle('oculto',!temLetra);
+  b.innerHTML=soLetra?IC_ANIM+'<span>Animação</span>':IC_LETRA+'<span>Letra</span>';
+  b.setAttribute('aria-label',soLetra?'Mostrar a animação':'Mostrar a letra');
+  $('efeitoTroca').classList.toggle('oculto',soLetra);
+  $('efeitoNome').textContent=soLetra?'LETRA':EFEITOS[efeito].toUpperCase();
+  encaixarLetra();
+  if(antes===soLetra||!palcoVisivel) return;
+  T&&T.animacao(!soLetra); // na vista da letra a animação para de vez (economiza bateria)
+  if(!soLetra&&!rafId) rafId=requestAnimationFrame(desenhar);
+}
+function encaixarLetra(){ // a letra termina logo acima do nome da música no rodapé
+  var c=$('palco').querySelector('.tl-caixa'); if(c) c.style.bottom=soLetra?Math.max(0,$('rodape').offsetHeight-24)+'px':'';
+}
+window.addEventListener('resize',encaixarLetra);
+$('vistaTroca').onclick=function(ev){ ev.stopPropagation(); vistaPalco=soLetra?'animacao':'letra'; try{ localStorage.setItem('vistaPalco',vistaPalco); }catch(x){} aplicarVista(); };
+window.letra=function(d){ letraPalco.definir(d); temLetra=!!(d&&d.linhas&&d.linhas.length); aplicarVista(); if(gavetaAberta==='leg') atualizarLetraGaveta(); };
 function nomePais(cc){ try{ return cc&&cc.length===2?new Intl.DisplayNames(['pt-BR'],{type:'region'}).of(cc.toUpperCase()):''; }catch(e){ return ''; } }
 var IDIOMAS_PT={portuguese:'Português',english:'Inglês',spanish:'Espanhol',french:'Francês',italian:'Italiano',german:'Alemão',japanese:'Japonês',chinese:'Chinês',korean:'Coreano',russian:'Russo',arabic:'Árabe',hindi:'Hindi',dutch:'Holandês',polish:'Polonês',turkish:'Turco',greek:'Grego',hebrew:'Hebraico',catalan:'Catalão',galician:'Galego',basque:'Basco'};
 function nomeIdioma(n){ n=(n||'').trim(); var k=n.toLowerCase(); return IDIOMAS_PT[k]||(n.charAt(0).toUpperCase()+n.slice(1)); }
@@ -674,10 +712,11 @@ function atualizar(){
   // Animação só enquanto algo toca de verdade (uma piscada de carregamento não a esconde).
   if(tocando) ultimoTocou=Date.now();
   var radio=vlc&&!e.video&&!verInicio&&(tocando||(sit==='carregando'&&Date.now()-ultimoTocou<2500));
+  if(vlc&&e.duracao>0) relLetra.atualizar(e.tempo||0,tocando,1);
   var P=e.preparando||{}; $('prep').classList.toggle('oculto',!P.trabalhando);
   if(P.trabalhando){ $('prepTxt').textContent=P.estado||'Buscando o vídeo…'; $('prepProg').style.width=Math.max(3,P.pct||0)+'%'; }
   mostrarPalco(radio&&!document.body.classList.contains('compacto'));
-  if(radio){ atualizarRadio(); } $('sit').classList.toggle('oculto',radio); $('titulo').classList.toggle('oculto',radio&&palcoVisivel);
+  if(radio){ atualizarRadio(); if(soLetra) encaixarLetra(); } $('sit').classList.toggle('oculto',radio); $('titulo').classList.toggle('oculto',radio&&palcoVisivel);
   $('voltar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0)); $('avancar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0));
   $('aBaixar').classList.toggle('oculto', !(e.modo==='web'||(vlc&&/^https?:/.test(e.url||''))));
   $('aSalvar').classList.toggle('oculto', !e.temporario);
@@ -710,7 +749,12 @@ function opcoes(itens,sel){ return itens.map(function(o){ return '<button class=
 // ---- legendas
 var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
 function abrirLegendas(){
-  abrirGaveta('leg','Áudio e legendas','<div id="lgBox" class="oculto"><h2>Legendador · Whisper</h2>'+
+  abrirGaveta('leg','Áudio e legendas','<div id="ltBox" class="oculto"><h2>Letra da música</h2>'+
+    '<div class="chave-linha" style="padding-top:2px"><span>Mostrar a letra sincronizada<br><small style="color:var(--fraco);font-weight:400" id="ltEstado"></small></span><label class="chave"><input type="checkbox" id="ltChk"><span></span></label></div>'+
+    '<div id="ltAjusteBox" class="oculto"><div class="nota" style="margin:2px 0 6px">A letra deve aparecer meio segundo antes do canto. Se estiver fora disso:</div>'+
+    '<div class="linha"><button id="ltAntes">Letra atrasada</button><button id="ltDepois">Letra adiantada</button></div><div class="nota" id="ltAjuste" style="text-align:center"></div></div>'+
+    '<div style="height:10px"></div></div>'+
+    '<div id="lgBox" class="oculto"><h2>Legendador · Whisper</h2>'+
     '<div class="nota" id="lgEstado" style="margin-top:0"></div><div class="medidor oculto" id="lgBarra"><i id="lgProg"></i></div>'+
     '<div class="chave-linha" id="lgTradLinha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="lgTrad" checked><span></span></label></div>'+
     '<div class="linha"><button class="pri" id="lgIr">'+IC.cc+'<span>Gerar legenda</span></button><button id="lgCancelar" class="oculto">Cancelar</button></div>'+
@@ -740,6 +784,10 @@ function abrirLegendas(){
     '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
   legAnt=''; audAnt=''; atualizarLegendas();
   montarDublagem();
+  $('ltChk').onchange=function(){ T.letraLigar(this.checked); setTimeout(atualizarLetraGaveta,300); };
+  $('ltAntes').onclick=function(){ T.letraAjustar(500); setTimeout(atualizarLetraGaveta,200); };
+  $('ltDepois').onclick=function(){ T.letraAjustar(-500); setTimeout(atualizarLetraGaveta,200); };
+  atualizarLetraGaveta();
   $('lgIr').onclick=function(){ T.legendar($('lgTrad').checked); setTimeout(atualizarLegendador,300); };
   $('lgCancelar').onclick=function(){ T.cancelarLegenda(); };
   [].forEach.call($('lgBaixar').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('legendador',b.dataset.f,b.dataset.o==='1'); }; });
@@ -798,6 +846,15 @@ function atualizarDublagem(){
   var est=d.baixando?(d.andamento||'Baixando…'):mod&&mod.pronto?'Modelo baixado e pronto.':(d.andamento||'Ainda não baixado. Ele é baixado sozinho quando você usar o Whisper pela primeira vez.');
   $('dubModeloEstado').textContent=est;
   $('dubBaixar').classList.toggle('oculto',!!d.baixando||!mod||mod.pronto);
+}
+function atualizarLetraGaveta(){
+  if(!$('ltBox')) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ return; }
+  var musica=ultimo.modo==='vlc'&&!ultimo.video&&ultimo.duracao>0; $('ltBox').classList.toggle('oculto',!musica);
+  if(document.activeElement!==$('ltChk')) $('ltChk').checked=!!I.ligada;
+  var est={buscando:'Procurando a letra…',pronta:I.titulo,'sem-letra':'Não há letra sincronizada para esta música no catálogo LRCLIB.','sem-titulo':'A música não tem nome de artista/título para procurar.',erro:'Sem conexão com o catálogo de letras; o app tenta de novo.',desligada:'Desligada.'}[I.estado]||'Toque uma música para ver a letra.';
+  $('ltEstado').textContent=est;
+  $('ltAjusteBox').classList.toggle('oculto',I.estado!=='pronta');
+  var a=I.ajuste||0; $('ltAjuste').textContent=a===0?'Sem ajuste':(a>0?'Letra ':'Letra ')+(Math.abs(a)/1000).toFixed(1).replace('.',',')+' s '+(a>0?'mais cedo':'mais tarde')+' nesta música';
 }
 function atualizarLegendador(){
   if(!$('lgBox')) return; var G; try{ G=JSON.parse(T.legendador()); }catch(x){ return; }
