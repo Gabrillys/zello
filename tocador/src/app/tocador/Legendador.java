@@ -52,6 +52,7 @@ final class Legendador {
     boolean traduzida() { return traduzida; }
     File arquivoSrt() { return srt; }
     void cancelar() { cancelar = true; }
+    List<Roteiro.Fala> falas() { return falas; }
 
     interface Pronto { void legenda(File srt); }
 
@@ -215,6 +216,42 @@ final class Legendador {
     }
 
     // ------------------------------------------------------------ partes sem Android (testadas fora do celular)
+
+    /**
+     * Falas do Whisper → linhas de letra [{t, x}]: frases curtas (cortadas na pontuação), tempo repartido
+     * pelo tamanho de cada pedaço, e uma linha vazia (♪) nos trechos só instrumentais.
+     */
+    static org.json.JSONArray linhasDeLetra(List<Roteiro.Fala> falas) {
+        org.json.JSONArray r = new org.json.JSONArray();
+        long fimAnt = -1;
+        try {
+            for (Roteiro.Fala f : falas) {
+                String t = (f.original != null ? f.original : f.texto).replaceAll("[♪♫🎵🎶]", "").replaceAll("\\[[^\\]]*\\]|\\([^)]*\\)", "").replaceAll("\\s+", " ").trim();
+                if (t.length() == 0 || t.matches("(?i)[\\p{P}\\s]*|(m[uú]sica|music|instrumental|aplausos|applause)[.!]*")) continue;
+                if (fimAnt >= 0 && f.ini - fimAnt > 6000) r.put(new org.json.JSONObject().put("t", fimAnt + 800).put("x", ""));
+                List<String> partes = new ArrayList<String>();
+                for (String frase : t.split("(?<=[,.;!?])\\s+")) {
+                    List<String> fila = new ArrayList<String>();
+                    fila.add(frase.trim());
+                    while (!fila.isEmpty()) {
+                        String x = fila.remove(0);
+                        String q = x.length() > 42 ? quebrar(x, 42) : x;
+                        int n = q.indexOf('\n');
+                        if (n < 0) { if (x.length() > 0) partes.add(x); } else { fila.add(0, q.substring(n + 1)); fila.add(0, q.substring(0, n)); }
+                    }
+                }
+                int total = 0;
+                for (String x : partes) total += x.length();
+                long dur = Math.max(800, f.fim - f.ini), soma = 0;
+                for (String x : partes) {
+                    r.put(new org.json.JSONObject().put("t", f.ini + dur * soma / Math.max(1, total)).put("x", x));
+                    soma += x.length();
+                }
+                fimAnt = f.fim;
+            }
+        } catch (Exception e) { }
+        return r;
+    }
 
     /** Legenda SubRip (.srt), com linhas de até ~42 caracteres. */
     static String srt(List<Roteiro.Fala> falas, boolean original) {

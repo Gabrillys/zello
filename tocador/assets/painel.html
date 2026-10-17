@@ -199,6 +199,9 @@ input.campo:focus{outline:none;border-color:var(--cor)}
 #vistaTroca span{background:none!important;padding:0!important;backdrop-filter:none!important;color:#fff!important;letter-spacing:.2px!important}
 #palco.so-letra .tl-caixa{top:50px}
 #palco.so-letra #rEtq,#palco.so-letra #rDesc{display:none}
+#letraCriar span{background:none!important;padding:0!important;backdrop-filter:none!important;color:#FFD27A!important;letter-spacing:.2px!important}
+#letraCriar{width:auto!important;flex:0 0 auto!important;border-radius:99px!important;padding:0 12px 0 9px!important;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border:1px solid rgba(245,165,36,.35)!important}
+#letraCriar[disabled]{opacity:1}
 #vistaTroca{width:auto!important;flex:0 0 auto!important;border-radius:99px!important;padding:0 12px 0 9px!important;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#fff}
 body.efeito-cheio{overflow:hidden}
 body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:auto;z-index:8}
@@ -286,7 +289,7 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
       <div class="sit" id="sit"></div>
       <div id="palco" class="oculto">
         <canvas id="tela"></canvas>
-        <div class="topo-efeito"><span id="efeitoNome"></span><div style="display:flex;gap:6px"><button id="vistaTroca" class="oculto"></button><button id="efeitoTroca" aria-label="Trocar efeito"></button><button id="efeitoCheio" aria-label="Tela cheia"></button></div></div>
+        <div class="topo-efeito"><span id="efeitoNome"></span><div style="display:flex;gap:6px"><button id="letraCriar" class="oculto"></button><button id="vistaTroca" class="oculto"></button><button id="efeitoTroca" aria-label="Trocar efeito"></button><button id="efeitoCheio" aria-label="Tela cheia"></button></div></div>
         <div id="vizAviso" class="oculto"><span style="flex:1">Modo ambiente. Para a animação dançar com a música, permita o áudio.</span><button id="vizPermitir">Permitir</button></div>
         <div id="rodape"><img id="rLogo" class="oculto" alt=""><div class="txt"><b id="rNome"></b><div class="agora" id="rAgora"><i></i></div><div class="desc oculto" id="rDesc"></div><div class="etq" id="rEtq"></div><small id="rInfo"></small></div></div>
       </div>
@@ -621,6 +624,17 @@ function encaixarLetra(){ // a letra termina logo acima do nome da música no ro
   var c=$('palco').querySelector('.tl-caixa'); if(c) c.style.bottom=soLetra?Math.max(0,$('rodape').offsetHeight-24)+'px':'';
 }
 window.addEventListener('resize',encaixarLetra);
+// Sem letra nos catálogos: o botão "Criar letra" pede ao Whisper (e mostra o andamento)
+var IC_IA='<svg viewBox="0 0 24 24" width="16" height="16"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/></svg>';
+function botaoCriarLetra(){
+  var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ return; }
+  var b=$('letraCriar'), mostra=!temLetra&&I.ligada&&I.ia&&(I.estado==='sem-letra'||I.estado==='criando'||I.estado==='ia-falhou');
+  b.classList.toggle('oculto',!mostra); if(!mostra) return;
+  var criando=I.estado==='criando', txt=criando?'Criando a letra'+(I.progresso>0?' '+I.progresso+'%':'…'):(I.estado==='ia-falhou'?'Tentar criar a letra':'Criar letra');
+  if(b.getAttribute('data-t')!==txt){ b.innerHTML=IC_IA+'<span>'+txt+'</span>'; b.setAttribute('data-t',txt); }
+  b.disabled=criando;
+}
+$('letraCriar').onclick=function(ev){ ev.stopPropagation(); T.letraCriar(); setTimeout(botaoCriarLetra,300); };
 $('vistaTroca').onclick=function(ev){ ev.stopPropagation(); vistaPalco=soLetra?'animacao':'letra'; try{ localStorage.setItem('vistaPalco',vistaPalco); }catch(x){} aplicarVista(); };
 window.letra=function(d){ letraPalco.definir(d); temLetra=!!(d&&d.linhas&&d.linhas.length); aplicarVista(); if(gavetaAberta==='leg') atualizarLetraGaveta(); };
 function nomePais(cc){ try{ return cc&&cc.length===2?new Intl.DisplayNames(['pt-BR'],{type:'region'}).of(cc.toUpperCase()):''; }catch(e){ return ''; } }
@@ -713,6 +727,7 @@ function atualizar(){
   if(tocando) ultimoTocou=Date.now();
   var radio=vlc&&!e.video&&!verInicio&&(tocando||(sit==='carregando'&&Date.now()-ultimoTocou<2500));
   if(vlc&&e.duracao>0) relLetra.atualizar(e.tempo||0,tocando,1);
+  if(vlc&&!e.video&&e.duracao>0) botaoCriarLetra(); else $('letraCriar').classList.add('oculto');
   var P=e.preparando||{}; $('prep').classList.toggle('oculto',!P.trabalhando);
   if(P.trabalhando){ $('prepTxt').textContent=P.estado||'Buscando o vídeo…'; $('prepProg').style.width=Math.max(3,P.pct||0)+'%'; }
   mostrarPalco(radio&&!document.body.classList.contains('compacto'));
@@ -751,6 +766,9 @@ var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
 function abrirLegendas(){
   abrirGaveta('leg','Áudio e legendas','<div id="ltBox" class="oculto"><h2>Letra da música</h2>'+
     '<div class="chave-linha" style="padding-top:2px"><span>Mostrar a letra sincronizada<br><small style="color:var(--fraco);font-weight:400" id="ltEstado"></small></span><label class="chave"><input type="checkbox" id="ltChk"><span></span></label></div>'+
+    '<div id="ltIaBox" class="oculto"><div class="linha"><button class="pri" id="ltCriar">'+IC_IA+'<span>Criar a letra com o Whisper</span></button></div>'+
+    '<div class="nota" style="margin:4px 0 6px">O Whisper ouve a música no próprio celular e escreve a letra com os horários. Fica guardada para as próximas vezes.</div></div>'+
+    '<div class="chave-linha"><span>Criar sozinho quando não houver letra<br><small style="color:var(--fraco);font-weight:400">Só com o Whisper já baixado</small></span><label class="chave"><input type="checkbox" id="ltIaChk"><span></span></label></div>'+
     '<div id="ltAjusteBox" class="oculto"><div class="nota" style="margin:2px 0 6px">A letra deve aparecer meio segundo antes do canto. Se estiver fora disso:</div>'+
     '<div class="linha"><button id="ltAntes">Letra atrasada</button><button id="ltDepois">Letra adiantada</button></div><div class="nota" id="ltAjuste" style="text-align:center"></div></div>'+
     '<div style="height:10px"></div></div>'+
@@ -785,6 +803,8 @@ function abrirLegendas(){
   legAnt=''; audAnt=''; atualizarLegendas();
   montarDublagem();
   $('ltChk').onchange=function(){ T.letraLigar(this.checked); setTimeout(atualizarLetraGaveta,300); };
+  $('ltCriar').onclick=function(){ T.letraCriar(); setTimeout(atualizarLetraGaveta,300); };
+  $('ltIaChk').onchange=function(){ T.letraIaAutomatica(this.checked); };
   $('ltAntes').onclick=function(){ T.letraAjustar(500); setTimeout(atualizarLetraGaveta,200); };
   $('ltDepois').onclick=function(){ T.letraAjustar(-500); setTimeout(atualizarLetraGaveta,200); };
   atualizarLetraGaveta();
@@ -851,8 +871,10 @@ function atualizarLetraGaveta(){
   if(!$('ltBox')) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ return; }
   var musica=ultimo.modo==='vlc'&&!ultimo.video&&ultimo.duracao>0; $('ltBox').classList.toggle('oculto',!musica);
   if(document.activeElement!==$('ltChk')) $('ltChk').checked=!!I.ligada;
-  var est={buscando:'Procurando a letra…',pronta:I.titulo,'sem-letra':'Não achei letra sincronizada para “'+(I.procurada||'esta música')+'” nos catálogos LRCLIB e NetEase.','sem-titulo':'A música não tem nome de artista/título para procurar.',erro:'Sem conexão com o catálogo de letras; o app tenta de novo.',desligada:'Desligada.'}[I.estado]||'Toque uma música para ver a letra.';
+  var est={buscando:'Procurando a letra…',pronta:I.titulo,'sem-letra':'Não achei letra sincronizada para “'+(I.procurada||'esta música')+'” nos catálogos (LRCLIB, Musixmatch, NetEase e Kugou).',criando:'O Whisper está criando a letra'+(I.progresso>0?': '+I.progresso+'%':'…'),'ia-falhou':I.iaErro||'O Whisper não conseguiu criar a letra.','sem-titulo':'A música não tem nome de artista/título para procurar.',erro:'Sem conexão com o catálogo de letras; o app tenta de novo.',desligada:'Desligada.'}[I.estado]||'Toque uma música para ver a letra.';
   $('ltEstado').textContent=est;
+  $('ltIaBox').classList.toggle('oculto',!(I.ia&&I.ligada&&(I.estado==='sem-letra'||I.estado==='ia-falhou')));
+  if(document.activeElement!==$('ltIaChk')) $('ltIaChk').checked=!!I.iaAuto;
   $('ltAjusteBox').classList.toggle('oculto',I.estado!=='pronta');
   var a=I.ajuste||0; $('ltAjuste').textContent=a===0?'Sem ajuste':(a>0?'Letra ':'Letra ')+(Math.abs(a)/1000).toFixed(1).replace('.',',')+' s '+(a>0?'mais cedo':'mais tarde')+' nesta música';
 }
@@ -871,7 +893,7 @@ function atualizarLegendador(){
 function atualizarLegendas(){
   if(!T||!$('legLista')) return;
   atualizarDublagem();
-  atualizarLegendador();
+  atualizarLegendador(); atualizarLetraGaveta();
   var A; try{ A=JSON.parse(T.audios()); }catch(x){ A={itens:[]}; }
   var ka=JSON.stringify(A);
   if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem); $('legTit').classList.toggle('oculto',tem);

@@ -119,40 +119,26 @@ public final class Letras {
         String chave = (artista + "|" + musica + "|" + Math.round(duracaoSeg)).toLowerCase(Locale.ROOT);
         synchronized (cache) { if (cache.containsKey(chave)) return cache.get(chave); }
         JSONObject r = new JSONObject();
-        Exception falha = null;
+        List<String> falhas = new ArrayList<String>();
+        boolean algumRespondeu = false;
+        String simples = "";
         try {
-            // LRCLIB: artista + música; depois tudo junto; depois só a música (o artista confere na nota)
-            List<JSONObject> candidatos = new ArrayList<JSONObject>();
-            String[] buscas = artista.length() > 0
-                    ? new String[] { "/api/search?track_name=" + enc(musica) + "&artist_name=" + enc(artista), "/api/search?q=" + enc(artista + " " + musica), "/api/search?track_name=" + enc(musica) }
-                    : new String[] { "/api/search?q=" + enc(musica) };
-            JSONObject melhor = null;
-            for (String b : buscas) {
-                try { juntar(candidatos, new JSONArray(baixar(servidor + b, null))); } catch (Exception e) { falha = e; }
-                melhor = escolher(candidatos, artista, musica, duracaoSeg);
-                if (melhor != null && nota(melhor, artista, musica, duracaoSeg) <= 8) break;
-            }
-            if (melhor != null) {
-                r.put("sincronizada", true).put("linhas", lrc(melhor.optString("syncedLyrics")))
-                 .put("artista", melhor.optString("artistName")).put("musica", limpar(melhor.optString("trackName")))
-                 .put("duracao", melhor.optDouble("duration", 0)).put("fonte", "LRCLIB")
-                 .put("diferenca", duracaoSeg > 0 ? Math.round(melhor.optDouble("duration", 0) - duracaoSeg) : 0);
-            } else {
-                JSONObject n = null;
-                try { n = doNetease(artista, musica, duracaoSeg); } catch (Exception e) { falha = e; }
-                if (n != null) r = n;
-                else {
-                    for (JSONObject c : candidatos) if (!c.isNull("plainLyrics") && c.optString("plainLyrics").length() > 0) {
-                        r.put("sincronizada", false).put("texto", c.optString("plainLyrics"))
-                         .put("artista", c.optString("artistName")).put("musica", c.optString("trackName"));
-                        break;
-                    }
-                    if (!r.has("sincronizada")) {
-                        // nada achado: se foi falta de rede, avisa e não guarda (tenta de novo depois)
-                        if (falha != null && candidatos.isEmpty()) { r.put("erro", falha.getMessage() == null ? falha.toString() : falha.getMessage()); return r; }
-                        r.put("erro", "sem letra");
-                    }
+            // os catálogos em ordem; o primeiro com letra sincronizada da mesma gravação vence
+            for (int f = 0; f < 4 && !r.has("linhas"); f++) {
+                try {
+                    JSONObject x = f == 0 ? doLrclib(artista, musica, duracaoSeg) : f == 1 ? doMusixmatch(artista, musica, duracaoSeg)
+                            : f == 2 ? doNetease(artista, musica, duracaoSeg) : doKugou(artista, musica, duracaoSeg);
+                    algumRespondeu = true;
+                    if (x != null && x.has("linhas")) r = x;
+                    else if (x != null && x.optString("texto").length() > 0 && simples.length() == 0) simples = x.optString("texto");
+                } catch (Exception e) {
+                    falhas.add(e.getMessage() == null ? e.toString() : e.getMessage());
                 }
+            }
+            if (!r.has("linhas")) {
+                if (!algumRespondeu) { r.put("erro", falhas.isEmpty() ? "sem rede" : falhas.get(0)); return r; } // sem rede: não guarda
+                r.put("erro", "sem letra");
+                if (simples.length() > 0) r.put("sincronizada", false).put("texto", simples);
             }
         } catch (Exception e) {
             try { r.put("erro", e.getMessage() == null ? e.toString() : e.getMessage()); } catch (Exception x) { }
@@ -162,38 +148,124 @@ public final class Letras {
         return r;
     }
 
-    /** Nota de um candidato do LRCLIB (menor é melhor): diferença de duração, mais multas se artista ou nome não batem. */
-    private static double nota(JSONObject c, String artista, String musica, double duracaoSeg) {
-        return nota(c.optString("artistName"), c.optString("trackName"), c.optDouble("duration", 0), artista, musica, duracaoSeg);
+    /** Resultado padrão de uma fonte. */
+    private static JSONObject achado(String fonte, JSONArray linhas, String art, String mus, double dur, double duracaoSeg) throws Exception {
+        return new JSONObject().put("sincronizada", true).put("linhas", linhas).put("artista", art).put("musica", limpar(mus))
+                .put("duracao", dur).put("fonte", fonte).put("diferenca", duracaoSeg > 0 && dur > 0 ? Math.round(dur - duracaoSeg) : 0);
     }
 
+    /** Nota de um candidato (menor é melhor): diferença de duração, mais multas se artista ou nome não batem. */
     private static double nota(String artC, String musC, double durC, String artista, String musica, double duracaoSeg) {
         double n = duracaoSeg > 0 && durC > 0 ? Math.abs(durC - duracaoSeg) : 3;
         if (artista.length() > 0 && !mesmoArtista(artC, artista)) n += 30;
-        if (!parecido(musC, musica)) n += 20;
+        if (!parecido(musC, musica)) n += 40;
         return n;
     }
 
-    private static JSONObject escolher(List<JSONObject> l, String artista, String musica, double duracaoSeg) {
-        JSONObject melhor = null;
-        double melhorNota = 45; // acima disso é outra música ou outra gravação
-        for (JSONObject c : l) {
-            if (c.isNull("syncedLyrics") || c.optString("syncedLyrics", "").length() == 0) continue;
-            double n = nota(c, artista, musica, duracaoSeg);
-            if (n < melhorNota) { melhorNota = n; melhor = c; }
+    /** Acima disso é outra música, outro artista ou outra gravação (artista diferente só passa com duração quase igual). */
+    private static final double LIMITE = 33;
+
+    /** Linhas boas: sem créditos ("作词 : …", "Composed by : …") e com conteúdo suficiente. */
+    private static JSONArray linhasBoas(String lrcTexto) throws Exception {
+        JSONArray linhas = lrc(lrcTexto), boas = new JSONArray();
+        for (int i = 0; i < linhas.length(); i++) {
+            JSONObject o = linhas.getJSONObject(i);
+            if (o.optString("x").matches("(?i)^\\s*(作词|作曲|编曲|制作人?|词|曲|监制|混音|lyrics? by|composed by|written by|producer|arranged by)\\s*[:：].*")) continue;
+            boas.put(o);
         }
-        return melhor;
+        int comTexto = 0;
+        for (int i = 0; i < boas.length(); i++) if (boas.getJSONObject(i).optString("x").trim().length() > 0) comTexto++;
+        return comTexto >= 4 ? boas : null; // instrumental ("纯音乐") ou letra sem horários
     }
 
-    /** Segundo catálogo: NetEase Cloud Music (busca pública e letra em LRC). */
+    // ---- 1) LRCLIB: artista + música; depois tudo junto; depois só a música
+    private static JSONObject doLrclib(String artista, String musica, double duracaoSeg) throws Exception {
+        String[] buscas = artista.length() > 0
+                ? new String[] { "/api/search?track_name=" + enc(musica) + "&artist_name=" + enc(artista), "/api/search?q=" + enc(artista + " " + musica), "/api/search?track_name=" + enc(musica) }
+                : new String[] { "/api/search?q=" + enc(musica) };
+        List<JSONObject> l = new ArrayList<JSONObject>();
+        Exception falha = null;
+        boolean respondeu = false;
+        JSONObject melhor = null;
+        double melhorNota = LIMITE;
+        for (String b : buscas) {
+            try { juntar(l, new JSONArray(baixar(servidor + b, null, null))); respondeu = true; } catch (Exception e) { falha = e; }
+            for (JSONObject c : l) {
+                if (c.isNull("syncedLyrics") || c.optString("syncedLyrics", "").length() == 0) continue;
+                double n = nota(c.optString("artistName"), c.optString("trackName"), c.optDouble("duration", 0), artista, musica, duracaoSeg);
+                if (n < melhorNota) { melhorNota = n; melhor = c; }
+            }
+            if (melhor != null && melhorNota <= 8) break;
+        }
+        if (!respondeu && falha != null) throw falha;
+        if (melhor != null) {
+            JSONArray linhas = linhasBoas(melhor.optString("syncedLyrics"));
+            if (linhas != null) return achado("LRCLIB", linhas, melhor.optString("artistName"), melhor.optString("trackName"), melhor.optDouble("duration", 0), duracaoSeg);
+        }
+        for (JSONObject c : l)
+            if (!c.isNull("plainLyrics") && c.optString("plainLyrics").length() > 0
+                    && nota(c.optString("artistName"), c.optString("trackName"), c.optDouble("duration", 0), artista, musica, duracaoSeg) < LIMITE)
+                return new JSONObject().put("texto", c.optString("plainLyrics"));
+        return null;
+    }
+
+    // ---- 2) Musixmatch (o maior catálogo, forte em música brasileira), pela API do aplicativo de computador
+    static String musixmatch = "https://apic-desktop.musixmatch.com/ws/1.1/";
+    private static String mxmToken;
+    private static long mxmTokenEm;
+
+    private static JSONObject mxm(String acao, String params) throws Exception {
+        for (int tentativa = 0; tentativa < 2; tentativa++) {
+            if (mxmToken == null || System.currentTimeMillis() - mxmTokenEm > 6 * 3600 * 1000L) {
+                JSONObject t = new JSONObject(baixar(musixmatch + "token.get?app_id=web-desktop-app-v1.0&user_language=en&t=" + System.currentTimeMillis(), null, "AWSELBCORS=0; AWSELB=0"));
+                JSONObject m = t.getJSONObject("message");
+                String tk = m.optJSONObject("body") == null ? "" : m.optJSONObject("body").optString("user_token");
+                if (tk.length() == 0 || tk.startsWith("UpgradeOnly")) throw new Exception("Musixmatch: sem acesso agora (" + m.optJSONObject("header").optInt("status_code") + ")");
+                mxmToken = tk;
+                mxmTokenEm = System.currentTimeMillis();
+            }
+            JSONObject r = new JSONObject(baixar(musixmatch + acao + "?app_id=web-desktop-app-v1.0&usertoken=" + enc(mxmToken) + "&t=" + System.currentTimeMillis() + "&" + params, null, "AWSELBCORS=0; AWSELB=0"));
+            int cod = r.getJSONObject("message").getJSONObject("header").optInt("status_code");
+            if (cod == 401 && tentativa == 0) { mxmToken = null; continue; } // ficha vencida: pega outra
+            if (cod != 200) return null;
+            return r.getJSONObject("message").optJSONObject("body");
+        }
+        return null;
+    }
+
+    private static JSONObject doMusixmatch(String artista, String musica, double duracaoSeg) throws Exception {
+        String p = "page_size=10&page=1&f_has_subtitle=1&s_track_rating=desc&q_track=" + enc(musica) + (artista.length() > 0 ? "&q_artist=" + enc(artista) : "");
+        JSONObject b = mxm("track.search", p);
+        JSONArray l = b == null ? null : b.optJSONArray("track_list");
+        if ((l == null || l.length() == 0) && artista.length() > 0) {
+            b = mxm("track.search", "page_size=10&page=1&f_has_subtitle=1&s_track_rating=desc&q=" + enc(artista + " " + musica));
+            l = b == null ? null : b.optJSONArray("track_list");
+        }
+        if (l == null) return null;
+        JSONObject melhor = null;
+        double melhorNota = LIMITE;
+        for (int i = 0; i < l.length(); i++) {
+            JSONObject t = l.optJSONObject(i) == null ? null : l.optJSONObject(i).optJSONObject("track");
+            if (t == null || t.optInt("has_subtitles") == 0) continue;
+            double n = nota(t.optString("artist_name"), t.optString("track_name"), t.optDouble("track_length", 0), artista, musica, duracaoSeg);
+            if (n < melhorNota) { melhorNota = n; melhor = t; }
+        }
+        if (melhor == null) return null;
+        JSONObject s = mxm("track.subtitle.get", "subtitle_format=lrc&track_id=" + melhor.optLong("track_id"));
+        String corpo = s == null || s.optJSONObject("subtitle") == null ? "" : s.optJSONObject("subtitle").optString("subtitle_body");
+        JSONArray linhas = linhasBoas(corpo);
+        return linhas == null ? null : achado("Musixmatch", linhas, melhor.optString("artist_name"), melhor.optString("track_name"), melhor.optDouble("track_length", 0), duracaoSeg);
+    }
+
+    // ---- 3) NetEase Cloud Music (busca pública e letra em LRC)
     private static JSONObject doNetease(String artista, String musica, double duracaoSeg) throws Exception {
         String ref = netease + "/";
-        JSONObject j = new JSONObject(baixar(netease + "/api/search/get?type=1&limit=15&s=" + enc((artista + " " + musica).trim()), ref));
+        JSONObject j = new JSONObject(baixar(netease + "/api/search/get?type=1&limit=15&s=" + enc((artista + " " + musica).trim()), ref, null));
         JSONArray songs = j.optJSONObject("result") == null ? null : j.optJSONObject("result").optJSONArray("songs");
         if (songs == null) return null;
         JSONObject melhor = null;
         String melhorArt = "";
-        double melhorNota = 25;
+        double melhorNota = LIMITE;
         for (int i = 0; i < songs.length(); i++) {
             JSONObject s = songs.optJSONObject(i);
             if (s == null) continue;
@@ -203,20 +275,32 @@ public final class Letras {
             if (n < melhorNota) { melhorNota = n; melhor = s; melhorArt = art; }
         }
         if (melhor == null) return null;
-        JSONObject l = new JSONObject(baixar(netease + "/api/song/lyric?lv=1&kv=1&tv=-1&id=" + melhor.optLong("id"), ref));
-        String texto = l.optJSONObject("lrc") == null ? "" : l.optJSONObject("lrc").optString("lyric");
-        JSONArray linhas = lrc(texto), boas = new JSONArray();
-        for (int i = 0; i < linhas.length(); i++) {
-            JSONObject o = linhas.getJSONObject(i);
-            // tira os créditos que o NetEase põe como linhas ("作词 : …", "Composed by : …")
-            if (o.optString("x").matches("(?i)^\\s*(作词|作曲|编曲|制作人?|词|曲|lyrics? by|composed by|written by|producer)\\s*[:：].*")) continue;
-            boas.put(o);
+        JSONObject l = new JSONObject(baixar(netease + "/api/song/lyric?lv=1&kv=1&tv=-1&id=" + melhor.optLong("id"), ref, null));
+        JSONArray linhas = linhasBoas(l.optJSONObject("lrc") == null ? "" : l.optJSONObject("lrc").optString("lyric"));
+        return linhas == null ? null : achado("NetEase", linhas, melhorArt, melhor.optString("name"), melhor.optLong("duration") / 1000.0, duracaoSeg);
+    }
+
+    // ---- 4) Kugou (catálogo de letras do player Kugou: procura pela duração e pelo nome)
+    static String kugou = "https://lyrics.kugou.com";
+
+    private static JSONObject doKugou(String artista, String musica, double duracaoSeg) throws Exception {
+        String chave = (artista.length() > 0 ? artista + " - " : "") + musica;
+        JSONObject j = new JSONObject(baixar(kugou + "/search?ver=1&man=yes&client=pc&hash=&keyword=" + enc(chave) + "&duration=" + Math.round(duracaoSeg * 1000), null, null));
+        JSONArray c = j.optJSONArray("candidates");
+        if (c == null) return null;
+        JSONObject melhor = null;
+        double melhorNota = LIMITE;
+        for (int i = 0; i < c.length(); i++) {
+            JSONObject o = c.optJSONObject(i);
+            if (o == null) continue;
+            double n = nota(o.optString("singer"), o.optString("song"), o.optLong("duration") / 1000.0, artista, musica, duracaoSeg);
+            if (n < melhorNota) { melhorNota = n; melhor = o; }
         }
-        if (boas.length() < 4) return null; // "纯音乐" (instrumental) ou letra sem horários
-        double dur = melhor.optLong("duration") / 1000.0;
-        return new JSONObject().put("sincronizada", true).put("linhas", boas).put("artista", melhorArt)
-                .put("musica", limpar(melhor.optString("name"))).put("duracao", dur).put("fonte", "NetEase")
-                .put("diferenca", duracaoSeg > 0 ? Math.round(dur - duracaoSeg) : 0);
+        if (melhor == null) return null;
+        JSONObject d = new JSONObject(baixar(kugou + "/download?ver=1&client=pc&fmt=lrc&charset=utf8&id=" + enc(melhor.optString("id")) + "&accesskey=" + enc(melhor.optString("accesskey")), null, null));
+        String texto = new String(android.util.Base64.decode(d.optString("content"), android.util.Base64.DEFAULT), "UTF-8");
+        JSONArray linhas = linhasBoas(texto);
+        return linhas == null ? null : achado("Kugou", linhas, melhor.optString("singer"), melhor.optString("song"), melhor.optLong("duration") / 1000.0, duracaoSeg);
     }
 
     static boolean mesmoArtista(String a, String b) {
@@ -234,12 +318,13 @@ public final class Letras {
         for (int i = 0; i < a.length() && i < 25; i++) { JSONObject o = a.optJSONObject(i); if (o != null) l.add(o); }
     }
 
-    private static String baixar(String endereco, String referer) throws Exception {
+    private static String baixar(String endereco, String referer, String biscoito) throws Exception {
         HttpURLConnection c = (HttpURLConnection) new URL(endereco).openConnection();
         c.setConnectTimeout(8000);
         c.setReadTimeout(10000);
-        c.setRequestProperty("User-Agent", referer == null ? "Tocador/4.1 (app Android de código aberto)" : "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36");
+        c.setRequestProperty("User-Agent", referer == null ? "Tocador/4.2 (app Android de código aberto)" : "Mozilla/5.0 (Linux; Android 16) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Mobile Safari/537.36");
         if (referer != null) c.setRequestProperty("Referer", referer);
+        if (biscoito != null) c.setRequestProperty("Cookie", biscoito);
         try {
             if (c.getResponseCode() == 404) return "[]";
             if (c.getResponseCode() != 200) throw new Exception(new URL(endereco).getHost() + ": HTTP " + c.getResponseCode());

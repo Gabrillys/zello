@@ -22,8 +22,13 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 
 ## Letra sincronizada (músicas sem vídeo)
 
-- Quando uma **música sem vídeo** toca no player VLC (arquivo do aparelho, playlist de áudio, link direto), o Tocador procura a letra no **LRCLIB**, um catálogo aberto de letras com horário de cada linha, e, se não achar, no catálogo do **NetEase Cloud Music**, forte em música internacional. Artista e música vêm dos metadados do arquivo ou do título; número da faixa ("01 - ") e marcas de versão ("- Remastered 2009", "- 2015 Mix", "(Live)") são ignorados na busca.
-- Se não achar, a seção **Letra da música** mostra exatamente o que foi procurado, para conferir o nome.
+- Quando uma **música sem vídeo** toca no player VLC (arquivo do aparelho, playlist de áudio, link direto), o Tocador procura a letra com horários, nesta ordem:
+  1. letra já achada ou criada antes (fica guardada no aparelho, funciona sem internet);
+  2. arquivo **.lrc** com o mesmo nome da música, na mesma pasta;
+  3. catálogos na internet: **LRCLIB**, **Musixmatch** (o maior, forte em música brasileira), **NetEase Cloud Music** e **Kugou**;
+  4. se nenhum tiver, o **Whisper** ouve a música no próprio celular e **cria a letra** com os horários. Acontece sozinho quando o Whisper já está baixado (dá para desligar), ou pelo botão **Criar letra** no palco.
+- Artista e música vêm dos metadados do arquivo ou do título; número da faixa ("01 - ") e marcas de versão ("- Remastered 2009", "- 2015 Mix", "(Live)") são ignorados. Covers e gravações de duração muito diferente são descartados.
+- Se não achar, a seção **Letra da música** mostra exatamente o que foi procurado.
 - Cada linha aparece **meio segundo antes** de ser cantada, para dar tempo de ler, e um degradê dourado percorre a linha no ritmo da música.
 - O botão **Letra / Animação**, no alto do palco, alterna entre as duas vistas: a **letra sozinha**, rolando em letras grandes como a letra do YouTube, ou a **animação sozinha**, sem letra. A escolha fica guardada. Na vista da letra a animação para de vez e não gasta bateria.
 - Em **Áudio e legendas → Letra da música** dá para desligar a letra e corrigir o tempo em passos de meio segundo ("Letra atrasada" / "Letra adiantada"). A correção fica guardada para aquela música.

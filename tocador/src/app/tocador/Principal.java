@@ -1,5 +1,6 @@
 package app.tocador;
 
+import java.io.File;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ClipData;
@@ -534,10 +535,14 @@ public class Principal extends Activity {
 
     // ------------------------------------------------------------ letra sincronizada (só músicas, sem vídeo)
 
-    private String letraChave = "", letraEstado = "", letraTitulo = "", letraProcurada = "";
+    private String letraChave = "", letraEstado = "", letraTitulo = "", letraProcurada = "", letraIaErro = "";
+    private final java.util.Set<String> letraIaTentada = new java.util.HashSet<String>();
     private volatile JSONObject letraDados;
 
     private boolean letrasLigadas() { return ajustes.getBoolean("letras", true); }
+
+    /** Criar a letra com o Whisper quando nenhum catálogo tiver (liga por padrão; só roda com o Whisper já baixado). */
+    private boolean letraIaAuto() { return ajustes.getBoolean("letraIaAuto", true); }
 
     private int ajusteLetra() { return ajustes.getInt("letraAjuste:" + letraChave, 0); }
 
@@ -551,6 +556,11 @@ public class Principal extends Activity {
         String url = motor.url() == null ? "" : motor.url();
         long dur = motor.estado().optLong("duracao");
         if (url.length() == 0 || dur < 45000 || dur > 20 * 60000) { trocarMusica("", "", "", 0); return; } // rádio ao vivo ou longo demais
+        if ("criando".equals(letraEstado) && !Legendador.de(this).trabalhando()) { // o Whisper parou sem entregar
+            letraEstado = "ia-falhou";
+            letraIaErro = Legendador.de(this).estado();
+        }
+        if ("sem-letra".equals(letraEstado) && letraIaAuto() && !letraIaTentada.contains(letraChave)) criarLetraComIA(false);
         JSONObject m = motor.meta();
         String artista = m.optString("artista"), musica = m.optString("tituloFaixa");
         if (musica.length() == 0) musica = motor.estado().optString("titulo");
@@ -571,11 +581,16 @@ public class Principal extends Activity {
         if (musica.length() == 0) { letraEstado = "sem-titulo"; return; }
         letraEstado = "buscando";
         new Thread(new Runnable() { public void run() {
-            final JSONObject r = Letras.buscar(artista, musica, durSeg);
+            // 1) já achada (ou criada) antes  2) arquivo .lrc ao lado da música  3) catálogos na internet
+            JSONObject g = letraGuardada(chave);
+            if (g == null) g = lrcAoLado(chave);
+            if (g == null) { g = Letras.buscar(artista, musica, durSeg); if (g.optBoolean("sincronizada")) guardarLetra(chave, g); }
+            final JSONObject r = g;
             runOnUiThread(new Runnable() { public void run() {
                 if (!chave.equals(letraChave)) return;
                 if (r.optBoolean("sincronizada")) {
-                    letraTitulo = r.optString("artista") + " — " + r.optString("musica");
+                    letraTitulo = "Whisper".equals(r.optString("fonte")) ? letraProcurada + " · criada pelo Whisper"
+                            : r.optString("artista") + " — " + r.optString("musica");
                     letraEstado = "pronta";
                     try {
                         letraDados = new JSONObject().put("linhas", r.optJSONArray("linhas")).put("adiant", 500)
@@ -590,6 +605,84 @@ public class Principal extends Activity {
                 empurrarLetra();
             } });
         } }, "tocador-letra").start();
+    }
+
+    private File arquivoLetra(String chave) { return new File(new File(getFilesDir(), "letras"), Dublador.hash(chave) + ".json"); }
+
+    private JSONObject letraGuardada(String chave) {
+        try {
+            File f = arquivoLetra(chave);
+            if (!f.exists()) return null;
+            java.io.FileInputStream in = new java.io.FileInputStream(f);
+            try { return new JSONObject(Listas.ler(in, 4 << 20)); } finally { in.close(); }
+        } catch (Exception e) { return null; }
+    }
+
+    private void guardarLetra(String chave, JSONObject r) {
+        try {
+            File f = arquivoLetra(chave);
+            f.getParentFile().mkdirs();
+            java.io.FileOutputStream o = new java.io.FileOutputStream(f);
+            o.write(r.toString().getBytes("UTF-8"));
+            o.close();
+        } catch (Exception e) { }
+    }
+
+    /** "Musica.mp3" com "Musica.lrc" na mesma pasta: usa esse arquivo. */
+    private static JSONObject lrcAoLado(String chave) {
+        try {
+            if (!chave.startsWith("file://") && !chave.startsWith("/")) return null;
+            String c = chave.startsWith("file://") ? android.net.Uri.parse(chave).getPath() : chave;
+            int ponto = c.lastIndexOf('.');
+            File f = new File((ponto > c.lastIndexOf('/') ? c.substring(0, ponto) : c) + ".lrc");
+            if (!f.canRead()) return null;
+            java.io.FileInputStream in = new java.io.FileInputStream(f);
+            JSONArray l;
+            try { l = Letras.lrc(Listas.ler(in, 2 << 20)); } finally { in.close(); }
+            if (l.length() < 3) return null;
+            return new JSONObject().put("sincronizada", true).put("linhas", l).put("fonte", "arquivo .lrc")
+                    .put("artista", "").put("musica", f.getName().replaceAll("\\.lrc$", ""));
+        } catch (Exception e) { return null; }
+    }
+
+    /** Sem letra nos catálogos: o Whisper ouve a música e cria a letra com os horários (fica guardada). */
+    private void criarLetraComIA(boolean pedido) {
+        final String chave = letraChave;
+        if (chave.length() == 0) return;
+        letraIaTentada.add(chave);
+        final Legendador lg = Legendador.de(this);
+        if (!whisperDisponivel()) { if (pedido) avisar("Criar a letra precisa do Whisper, que pede um celular de 64 bits."); return; }
+        if (lg.trabalhando()) { if (pedido) avisar("O Whisper está ocupado com outra legenda. Tente quando terminar."); return; }
+        final String mod = Dublador.de(this).modelo();
+        if (!Modelos.pronto(this, mod)) {
+            if (!pedido) return; // automático só com o Whisper já baixado
+            if (!Modelos.baixando()) Modelos.baixar(this, mod, null);
+            avisar("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
+            return;
+        }
+        letraEstado = "criando";
+        letraIaErro = "";
+        Diagnostico.anotar("Letra: criando com o Whisper para \"" + letraProcurada + "\"");
+        lg.iniciar(chave, letraProcurada, false, mod, new Legendador.Pronto() {
+            public void legenda(File srt) {
+                JSONArray linhas = Legendador.linhasDeLetra(lg.falas());
+                final JSONObject r = new JSONObject();
+                try { r.put("sincronizada", linhas.length() >= 3).put("linhas", linhas).put("fonte", "Whisper").put("artista", "").put("musica", ""); } catch (Exception e) { }
+                if (linhas.length() >= 3) guardarLetra(chave, r);
+                runOnUiThread(new Runnable() { public void run() {
+                    if (!chave.equals(letraChave)) return;
+                    if (!r.optBoolean("sincronizada")) { letraEstado = "ia-falhou"; letraIaErro = "O Whisper não ouviu canto nesta música."; return; }
+                    letraTitulo = letraProcurada + " · criada pelo Whisper";
+                    letraEstado = "pronta";
+                    try {
+                        letraDados = new JSONObject().put("linhas", r.optJSONArray("linhas")).put("adiant", 500)
+                                .put("ajuste", ajusteLetra()).put("titulo", letraTitulo).put("diferenca", 0);
+                    } catch (Exception e) { }
+                    Diagnostico.anotar("Letra criada pelo Whisper: " + r.optJSONArray("linhas").length() + " linhas");
+                    empurrarLetra();
+                } });
+            }
+        });
     }
 
     /** Entrega a letra (ou nada) à tela da animação. */
@@ -1602,6 +1695,8 @@ public class Principal extends Activity {
         public String letraInfo() {
             try {
                 return new JSONObject().put("ligada", letrasLigadas()).put("estado", letraEstado).put("titulo", letraTitulo).put("procurada", letraProcurada)
+                        .put("iaAuto", letraIaAuto()).put("iaErro", letraIaErro).put("ia", whisperDisponivel())
+                        .put("progresso", "criando".equals(letraEstado) ? Legendador.de(Principal.this).progresso() : -1)
                         .put("ajuste", letraChave.length() > 0 ? ajusteLetra() : 0)
                         .put("diferenca", letraDados != null ? letraDados.optInt("diferenca") : 0).toString();
             } catch (Exception e) { return "{}"; }
@@ -1617,6 +1712,12 @@ public class Principal extends Activity {
                 empurrarLetra();
             } });
         }
+
+        @JavascriptInterface
+        public void letraCriar() { naTela(new Runnable() { public void run() { criarLetraComIA(true); } }); }
+
+        @JavascriptInterface
+        public void letraIaAutomatica(boolean sim) { ajustes.edit().putBoolean("letraIaAuto", sim).apply(); }
 
         /** Letra adiantada demais (+) ou atrasada (-) em relação ao canto: corrige e guarda para esta música. */
         @JavascriptInterface
@@ -1873,7 +1974,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 4.1 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 4.2 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

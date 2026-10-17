@@ -71,3 +71,9 @@ Falta no celular:
 
 - Títulos como "Here Comes The Sun - Remastered 2009", "01 - Come Together" e "Hey Jude - 2015 Mix" eram procurados errado (o sufixo virava a música, o número virava o artista). Corrigido e testado aqui com um servidor falso.
 - A busca agora tenta três formas no LRCLIB e cai no NetEase Cloud Music (API pública não oficial, a mesma usada por players de código aberto). Nenhum dos dois pôde ser testado de verdade: a rede do ambiente bloqueia ambos.
+
+## Versão 4.2: mais letras (10% era pouco)
+
+- Fontes novas: Musixmatch (API do app de computador, com ficha "usertoken"), Kugou (busca + download em base64). Todas testadas só com servidor falso; a rede do ambiente bloqueia os quatro catálogos. O Musixmatch às vezes nega a ficha (captcha/limite); aí o app segue para os outros.
+- Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
+- Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
