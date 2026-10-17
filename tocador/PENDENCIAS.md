@@ -77,3 +77,8 @@ Falta no celular:
 - Fontes novas: Musixmatch (API do app de computador, com ficha "usertoken"), Kugou (busca + download em base64). Todas testadas só com servidor falso; a rede do ambiente bloqueia os quatro catálogos. O Musixmatch às vezes nega a ficha (captcha/limite); aí o app segue para os outros.
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
+
+## Versão 4.4: interface nova (abas, player em tela inteira), falta testar no celular
+
+- Testada só no Chromium com dados simulados (`ferramentas/banca.mjs` e `ferramentas/fluxo.mjs`): 24 cenas cabem na tela, 12 passos sem erro. No celular, conferir principalmente: o "minimizar" no modo site (recolhe o painel), o mini player, o cartão de dublagem no YouTube e a área segura das bordas no Android 16.
+- Relatório da bancada em `BANCADA.md`.

@@ -63,6 +63,7 @@ public class Principal extends Activity {
     private LinearLayout coluna;
     private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
+    static final String VERSAO = "4.4";
     private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;
@@ -78,15 +79,15 @@ public class Principal extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         requestWindowFeature(Window.FEATURE_NO_TITLE);
-        getWindow().setStatusBarColor(0xFF0B0D12);
-        getWindow().setNavigationBarColor(0xFF0B0D12);
+        getWindow().setStatusBarColor(0xFF07080B);
+        getWindow().setNavigationBarColor(0xFF0A0B0F);
         setVolumeControlStream(android.media.AudioManager.STREAM_MUSIC);
 
         motor = Motor.de(this);
         ajustes = getSharedPreferences("ajustes", MODE_PRIVATE);
 
         raiz = new FrameLayout(this);
-        raiz.setBackgroundColor(0xFF0B0D12);
+        raiz.setBackgroundColor(0xFF07080B);
         coluna = new LinearLayout(this);
         coluna.setOrientation(LinearLayout.VERTICAL);
         raiz.addView(coluna, new FrameLayout.LayoutParams(-1, -1));
@@ -110,7 +111,7 @@ public class Principal extends Activity {
         motor.aoTerminar(new Runnable() { public void run() { proximoDaFila(1, true); } });
         coluna.addView(area, new LinearLayout.LayoutParams(-1, 0));
 
-        painel = criarPainelWeb("file:///android_asset/painel.html", 0xFF0B0D12);
+        painel = criarPainelWeb("file:///android_asset/painel.html", 0xFF07080B);
         coluna.addView(painel, new LinearLayout.LayoutParams(-1, 0, 1f));
 
         // Camada de controles sobre o vídeo: toque duplo para voltar/avançar, barra de progresso, legendas.
@@ -1715,6 +1716,9 @@ public class Principal extends Activity {
         }
 
         @JavascriptInterface
+        public String versao() { return VERSAO; }
+
+        @JavascriptInterface
         public void letraCriar() { naTela(new Runnable() { public void run() { criarLetraComIA(true); } }); }
 
         @JavascriptInterface
@@ -1975,7 +1979,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 4.3 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: " + VERSAO + " · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

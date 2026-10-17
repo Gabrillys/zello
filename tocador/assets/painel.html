@@ -5,111 +5,240 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Tocador</title>
 <style>
-:root{--fundo:#08090D;--sup:#12141B;--sup2:#1A1D27;--sup3:#252A37;--linha:#242937;--brilho:rgba(255,203,107,.10);--texto:#EEF1F6;--suave:#98A2B3;--fraco:#667085;--cor:#F5A524;--cor2:#FFCB6B;--corTx:#1A1200;--verde:#3DD68C;--verm:#FF6B6B;--raio:16px}
+/* ===== Tocador Ultra · sistema visual =====
+   Escuro profundo, um só acento dourado, superfícies em vidro, raios generosos, alvos de toque de 44 px no mínimo.
+   Tudo cabe na tela do celular: páginas com rolagem própria, abas embaixo, funções secundárias empilhadas em "Mais". */
+:root{--fundo:#07080B;--sup:#111319;--sup2:#191C24;--sup3:#242833;--linha:rgba(255,255,255,.07);--texto:#F2F4F8;--suave:#A3ACBB;--fraco:#6B7486;
+ --cor:#F5A524;--cor2:#FFCB6B;--corTx:#1A1200;--verde:#3DD68C;--verm:#FF6B6B;--raio:18px;--vidro:rgba(20,22,29,.72);
+ --sombra:0 12px 32px rgba(0,0,0,.35);--ouro:linear-gradient(135deg,#FFD98A 0%,#F5A524 55%,#E08A0B 100%)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;background:var(--fundo);color:var(--texto);font-family:system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;font-size:16px;line-height:1.45;-webkit-user-select:none;user-select:none}
-body{padding:14px max(16px,env(safe-area-inset-right)) 28px max(16px,env(safe-area-inset-left));overflow-x:hidden;
- background:radial-gradient(120% 60% at 50% -10%,rgba(245,165,36,.13),transparent 60%),var(--fundo);background-attachment:fixed;-webkit-font-smoothing:antialiased}
-#completo{max-width:1180px;margin:0 auto}
+html,body{margin:0;height:100%;background:var(--fundo);color:var(--texto);font-family:"Google Sans Flex","Google Sans",Roboto,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;font-size:16px;line-height:1.4;-webkit-user-select:none;user-select:none;-webkit-font-smoothing:antialiased}
+body{overflow:hidden;background:radial-gradient(130% 55% at 50% -12%,rgba(245,165,36,.16),transparent 62%),radial-gradient(90% 40% at 100% 110%,rgba(124,77,255,.10),transparent 60%),var(--fundo)}
 svg{width:22px;height:22px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
-button{font:inherit;font-weight:650;color:var(--texto);background:var(--sup2);border:0;border-radius:13px;padding:12px 14px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .08s,background .15s,box-shadow .15s;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
+button{font:inherit;font-weight:650;color:var(--texto);background:var(--sup2);border:0;border-radius:14px;padding:12px 14px;min-height:44px;display:inline-flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;transition:transform .12s cubic-bezier(.2,.8,.2,1),background .2s,box-shadow .2s,opacity .2s;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;box-shadow:inset 0 1px 0 rgba(255,255,255,.05)}
 button>span{min-width:0;overflow:hidden;text-overflow:ellipsis}
-button:active{transform:scale(.96)}
-button.pri{background:linear-gradient(180deg,#FFC14D,var(--cor));color:var(--corTx);box-shadow:0 6px 18px rgba(245,165,36,.25),inset 0 1px 0 rgba(255,255,255,.35)}
-button.fant{background:transparent}
+button:active{transform:scale(.95)}
+button.pri{background:var(--ouro);color:var(--corTx);font-weight:750;box-shadow:0 8px 22px rgba(245,165,36,.28),inset 0 1px 0 rgba(255,255,255,.45)}
+button.fant{background:transparent;box-shadow:none}
 button.ic{width:44px;height:44px;padding:0;border-radius:50%}
+button:disabled{opacity:.35}
 .oculto{display:none!important}
-.topo{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;gap:10px;min-width:0}
-.marca{display:flex;align-items:center;gap:10px;font-weight:850;font-size:21px;letter-spacing:-.2px;white-space:nowrap;min-width:0}
-.marca em{font-style:normal;font-size:10px;font-weight:800;letter-spacing:1.2px;color:var(--corTx);background:linear-gradient(135deg,var(--cor2),var(--cor));padding:3px 6px;border-radius:6px;margin-left:2px}
-.marca i{width:32px;height:32px;border-radius:10px;box-shadow:0 4px 14px rgba(245,165,36,.35);flex:0 0 32px;background:linear-gradient(135deg,var(--cor2),var(--cor));display:flex;align-items:center;justify-content:center;color:var(--corTx)}
-.marca i svg{width:16px;height:16px;fill:currentColor;stroke:none}
-.chip{font-size:12.5px;font-weight:650;padding:5px 10px;border-radius:99px;background:var(--sup2);color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:46vw}
-.topo .chip,.topo .ic{flex:0 0 auto}
-.chip.on{background:rgba(61,214,140,.14);color:var(--verde)}
-.cartao{background:linear-gradient(180deg,rgba(255,255,255,.025),rgba(255,255,255,0)),var(--sup);border:1px solid var(--linha);border-radius:18px;padding:16px;margin:12px 0;box-shadow:0 10px 30px rgba(0,0,0,.25);min-width:0}
-h2{font-size:11.5px;margin:0 0 10px;color:var(--fraco);font-weight:750;text-transform:uppercase;letter-spacing:1.2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cab2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}.cab2 h2{margin:0}
-.cab2 button{padding:7px 12px;font-size:13px;border-radius:99px}
-.grande{font-size:22px;font-weight:850;margin:0 0 12px;letter-spacing:-.3px}
-textarea{width:100%;min-height:58px;resize:none;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;font:inherit;font-size:15.5px;-webkit-user-select:text;user-select:text}
-textarea:focus{outline:none;border-color:var(--cor)}
 .linha{display:flex;gap:10px;align-items:center}
 .linha>*{flex:1;min-width:0}
 .mt{margin-top:10px}
-.pilulas{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;align-items:center;font-size:13px;color:var(--fraco)}
-.pilulas button{font-size:13px;font-weight:600;padding:6px 12px;border-radius:99px;background:var(--sup2)}
-.atalhos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
-.atalho{flex-direction:column;gap:6px;padding:12px 4px;font-size:12.5px;font-weight:600;color:var(--suave);background:var(--sup2);border-radius:14px}
-.atalho b{width:36px;height:36px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff}
+h2{font-size:11.5px;margin:0 0 10px;color:var(--fraco);font-weight:750;text-transform:uppercase;letter-spacing:1.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.grande{font-size:26px;font-weight:800;letter-spacing:-.6px;line-height:1.15;margin:0}
+.vazio{color:var(--fraco);font-size:14px;padding:6px 2px}
+.nota{font-size:13.5px;color:var(--suave);margin:10px 0}
+textarea,input.campo{width:100%;background:rgba(0,0,0,.35);color:var(--texto);border:1.5px solid var(--linha);border-radius:14px;padding:12px 14px;font:inherit;font-size:15.5px;-webkit-user-select:text;user-select:text;transition:border-color .2s,box-shadow .2s}
+textarea{resize:none;min-height:52px;max-height:52px;line-height:1.5;overflow:hidden}
+textarea:focus,input.campo:focus{outline:none;border-color:var(--cor);box-shadow:0 0 0 4px rgba(245,165,36,.14)}
+input.campo{margin:6px 0}
+input[type=range]{width:100%;accent-color:var(--cor);height:30px;margin:0}
+select{font:inherit;font-size:14.5px;background:rgba(0,0,0,.35);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:9px 10px;min-height:44px;max-width:62%}
+
+/* ===== moldura: topo · páginas · mini player · abas ===== */
+#completo{display:flex;flex-direction:column;height:100%;max-width:680px;margin:0 auto}
+.topo{flex:0 0 auto;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:max(10px,env(safe-area-inset-top)) max(18px,env(safe-area-inset-right)) 4px max(18px,env(safe-area-inset-left));min-width:0}
+.marca{display:flex;align-items:center;gap:10px;font-weight:850;font-size:20px;letter-spacing:-.4px;white-space:nowrap;min-width:0}
+.marca i{width:34px;height:34px;border-radius:11px;flex:0 0 34px;background:var(--ouro);display:flex;align-items:center;justify-content:center;color:var(--corTx);box-shadow:0 6px 18px rgba(245,165,36,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.marca i svg{width:16px;height:16px;fill:currentColor;stroke:none}
+.marca em{font-style:normal;font-size:9.5px;font-weight:850;letter-spacing:1.6px;color:var(--cor2);border:1px solid rgba(255,203,107,.45);padding:3px 6px 2px;border-radius:6px}
+.chip{font-size:12.5px;font-weight:650;padding:6px 11px;border-radius:99px;background:var(--sup2);color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:44vw}
+.chip.on{background:rgba(61,214,140,.13);color:var(--verde)}
+#paginas{flex:1 1 auto;min-height:0;position:relative}
+.pagina{position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;padding:8px max(18px,env(safe-area-inset-right)) 18px max(18px,env(safe-area-inset-left));display:none;flex-direction:column;gap:14px;scrollbar-width:none;overscroll-behavior:contain}
+.pagina::-webkit-scrollbar{display:none}
+.pagina.on{display:flex;animation:entra .26s cubic-bezier(.2,.8,.2,1)}
+@keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+#abas{flex:0 0 auto;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:4px;padding:6px max(10px,env(safe-area-inset-right)) max(8px,env(safe-area-inset-bottom)) max(10px,env(safe-area-inset-left));background:rgba(9,10,14,.86);border-top:1px solid var(--linha);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px)}
+#abas button{flex-direction:column;gap:3px;background:transparent;box-shadow:none;padding:6px 2px;min-height:52px;font-size:11.5px;font-weight:650;color:var(--fraco);border-radius:14px;position:relative}
+#abas button svg{width:23px;height:23px}
+#abas button.on{color:var(--cor2)}
+#abas button.on:before{content:"";position:absolute;top:4px;left:50%;width:46px;height:30px;margin-left:-23px;border-radius:99px;background:rgba(245,165,36,.13)}
+#abas button svg,#abas button span{position:relative}
+#abas button .ponto{position:absolute;top:6px;left:calc(50% + 10px);width:8px;height:8px;border-radius:50%;background:var(--verde);box-shadow:0 0 0 3px rgba(9,10,14,.9)}
+#mini{flex:0 0 auto;margin:0 max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));display:flex;align-items:center;gap:10px;padding:8px 8px 8px 8px;border-radius:18px;background:linear-gradient(90deg,rgba(245,165,36,.16),rgba(255,255,255,.03)),var(--sup2);box-shadow:var(--sombra),inset 0 0 0 1px rgba(255,255,255,.06);cursor:pointer;min-width:0;animation:entra .3s ease}
+#mini .capa{width:44px;height:44px;border-radius:12px;flex:0 0 44px;background:var(--ouro);display:flex;align-items:center;justify-content:center;color:var(--corTx)}
+#mini .capa svg{width:22px;height:22px}
+#mini .txt{flex:1;min-width:0}
+#mini b{display:block;font-size:14.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini small{display:block;font-size:12.5px;color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#mini button{flex:0 0 44px;background:rgba(255,255,255,.08)}
+#mini .play{background:var(--cor);color:var(--corTx)}
+body.no-player .topo,body.no-player #abas,body.no-player #mini{display:none!important}
+
+/* ===== início ===== */
+.heroi{position:relative;padding:18px;border-radius:24px;background:linear-gradient(160deg,rgba(255,203,107,.10),rgba(255,255,255,.02) 45%),var(--sup);box-shadow:var(--sombra),inset 0 0 0 1px var(--linha);overflow:hidden}
+.heroi:after{content:"";position:absolute;right:-60px;top:-60px;width:180px;height:180px;border-radius:50%;background:radial-gradient(rgba(245,165,36,.22),transparent 70%);pointer-events:none}
+.saud{font-size:13px;color:var(--cor2);font-weight:700;letter-spacing:.3px;margin-bottom:4px}
+.heroi .grande{margin-bottom:14px}
+.pilulas{display:flex;gap:6px;margin-top:10px;align-items:center;font-size:12.5px;color:var(--fraco);flex-wrap:wrap}
+.pilulas button{font-size:12.5px;font-weight:650;padding:0 14px;min-height:40px;border-radius:99px;background:rgba(255,255,255,.06);color:var(--suave)}
+.blocos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.bloco{flex-direction:column;align-items:flex-start;justify-content:space-between;gap:10px;padding:14px 12px;min-height:96px;border-radius:20px;background:var(--sup);box-shadow:inset 0 0 0 1px var(--linha);font-size:13.5px;font-weight:700;text-align:left;white-space:normal;line-height:1.2}
+.bloco i{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center;color:#fff}
+.bloco i svg{width:20px;height:20px}
+.cab2{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cab2 h2{margin:0}
+.cab2 button{min-height:36px;padding:0 14px;font-size:13px;border-radius:99px}
+.rec{display:flex;align-items:center;gap:12px;width:100%;padding:8px 10px;border-radius:16px;background:transparent;box-shadow:none;text-align:left;justify-content:flex-start}
+.rec:active{background:var(--sup2)}
+.rec i{width:40px;height:40px;border-radius:12px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;background:var(--sup2);color:var(--suave)}
+.rec i svg{width:19px;height:19px}
+.rec .txt{flex:1;min-width:0}
+.rec b{display:block;font-size:14.5px;font-weight:650;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rec small{display:block;font-size:12px;color:var(--fraco);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.selo{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;font-weight:700;color:var(--verde);background:rgba(61,214,140,.10);padding:7px 12px;border-radius:99px;align-self:flex-start}
+.selo svg{width:16px;height:16px}
+.faixa{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--sup2);border-radius:16px;min-width:0;cursor:pointer}
+.faixa .txt{flex:1;min-width:0;font-size:13px;color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.medidor{height:6px;border-radius:3px;background:var(--sup3);overflow:hidden;margin:4px 0 6px}
+.medidor i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cor2),var(--cor));transition:width .3s}
+
+/* ===== páginas internas ===== */
+.cab-pag{display:flex;align-items:center;justify-content:space-between;gap:10px;padding-top:4px}
+.grupo{background:var(--sup);border-radius:20px;padding:4px 16px;box-shadow:inset 0 0 0 1px var(--linha)}
+.grupo>*+*{border-top:1px solid var(--linha)}
+.item{display:flex;align-items:center;gap:12px;width:100%;padding:13px 0;background:transparent;box-shadow:none;border-radius:0;text-align:left;justify-content:flex-start;font-weight:600;white-space:normal}
+.item i{width:34px;height:34px;border-radius:10px;flex:0 0 34px;display:flex;align-items:center;justify-content:center;background:var(--sup3);color:var(--cor2)}
+.item i svg{width:18px;height:18px}
+.item .txt{flex:1;min-width:0}
+.item small{display:block;color:var(--fraco);font-weight:500;font-size:12.5px;margin-top:1px}
+.item .seta{color:var(--fraco);width:18px;height:18px}
+.versao{text-align:center;color:var(--fraco);font-size:12px;padding:4px 0 8px}
+.versao b{color:var(--cor2);font-weight:800;letter-spacing:1px}
+details summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px}
+details summary::-webkit-details-marker{display:none}
+details ul{padding-left:18px;margin:10px 0 4px;color:var(--suave);font-size:14px}
+details li{margin:6px 0}
+details.mais{margin-top:12px;border-top:1px solid var(--linha);padding-top:8px}
+details.mais summary{font-weight:700;padding:10px 0;color:var(--suave)}
+
+/* ===== player ===== */
+#player{gap:8px;padding-bottom:max(12px,env(safe-area-inset-bottom))}
+.p-topo{display:flex;align-items:center;justify-content:space-between;gap:8px;flex:0 0 auto;margin:0 -6px}
+.p-topo button{background:transparent;box-shadow:none}
+.fonte{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:var(--suave);background:rgba(255,255,255,.06);padding:6px 12px;border-radius:99px;min-width:0;max-width:70%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fonte span{overflow:hidden;text-overflow:ellipsis}
+.fonte i{width:8px;height:8px;border-radius:50%;background:var(--fraco);flex:0 0 8px}
+.fonte.on i{background:var(--verde);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
+.p-info{flex:0 0 auto;min-width:0}
+.titulo{font-size:21px;font-weight:800;letter-spacing:-.4px;line-height:1.25;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
+.sit{color:var(--suave);font-size:13.5px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#player .espaco{flex:1 1 0;min-height:0}
+.progresso{flex:0 0 auto}
+.tempos{display:flex;justify-content:space-between;font-size:12px;color:var(--fraco);font-variant-numeric:tabular-nums;margin-top:-2px}
+.transporte{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:clamp(10px,5vw,28px)}
+.transporte .ic{width:50px;height:50px;background:transparent;box-shadow:none;color:var(--texto)}
+.transporte .ic svg{width:28px;height:28px}
+.transporte .play{width:70px;height:70px;background:var(--ouro);color:var(--corTx);box-shadow:0 10px 28px rgba(245,165,36,.35),inset 0 1px 0 rgba(255,255,255,.5)}
+.transporte .play svg{width:32px;height:32px}
+.transporte .modo{width:44px;height:44px;color:var(--fraco);position:relative}
+.transporte .modo svg{width:22px;height:22px}
+.transporte .modo.on{color:var(--cor2)}
+.transporte .modo.on:after{content:"";position:absolute;bottom:3px;left:50%;width:4px;height:4px;margin-left:-2px;border-radius:50%;background:var(--cor2)}
+.transporte .modo b{position:absolute;right:6px;top:6px;font-size:9px;font-weight:900}
+.vol{flex:0 0 auto;display:flex;align-items:center;gap:10px;color:var(--fraco);font-size:12.5px;font-variant-numeric:tabular-nums}
+.vol svg{width:18px;height:18px}
+.acoes{flex:0 0 auto;display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}
+.acoes button{flex-direction:column;gap:5px;padding:9px 2px 8px;min-height:62px;font-size:11.5px;font-weight:650;color:var(--suave);background:rgba(255,255,255,.045);border-radius:16px}
+.acoes button svg{color:var(--texto);width:21px;height:21px}
+.acoes button.destaque{background:rgba(245,165,36,.13);color:var(--cor2)}
+.acoes button.destaque svg{color:var(--cor2)}
+#aSalvar{flex:0 0 auto;width:100%}
+/* telas baixas (vídeo em cima do painel, celular deitado): tudo menor, nada some da tela */
+body.baixo .titulo{font-size:16.5px;-webkit-line-clamp:1}
+body.baixo .sit,body.baixo .vol,body.baixo .p-topo .fonte{display:none}
+body.baixo .p-topo{position:absolute;right:12px;top:4px;z-index:3}
+body.baixo .p-topo #minimizar{display:none}
+body.baixo .p-info{padding-right:50px}
+body.baixo .transporte .play{width:54px;height:54px}
+body.baixo .transporte .ic{width:46px;height:46px}
+body.baixo .acoes button{min-height:46px;flex-direction:row;font-size:12px;padding:4px 6px}
+body.baixo .acoes button svg{width:19px;height:19px}
+body.baixo #player{gap:4px;padding-top:4px}
+#player .espaco{display:flex;flex-direction:column;justify-content:center;overflow:hidden}
+.dub-cartao{display:flex;align-items:center;gap:14px;width:100%;padding:16px;border-radius:22px;text-align:left;white-space:normal;justify-content:flex-start;
+ background:radial-gradient(120% 140% at 0% 0%,rgba(245,165,36,.22),transparent 60%),linear-gradient(160deg,rgba(124,77,255,.14),rgba(255,255,255,.02)),var(--sup);box-shadow:var(--sombra),inset 0 0 0 1px rgba(255,203,107,.18)}
+.dub-cartao .onda{width:52px;height:52px;border-radius:16px;flex:0 0 52px;display:flex;align-items:center;justify-content:center;background:var(--ouro);color:var(--corTx)}
+.dub-cartao .onda svg{width:26px;height:26px}
+.dub-cartao b{display:block;font-size:16.5px;letter-spacing:-.2px}
+.dub-cartao small{display:block;color:var(--suave);font-size:13px;font-weight:500;margin-top:2px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dub-cartao.ativo .onda{animation:pulsa 1.6s ease-in-out infinite}
+@keyframes pulsa{0%,100%{box-shadow:0 0 0 0 rgba(245,165,36,.45)}50%{box-shadow:0 0 0 10px rgba(245,165,36,0)}}
+@media (max-height:360px){.dub-cartao{display:none}}
+@media (orientation:landscape) and (min-width:600px){
+ #completo{max-width:none}
+ #inicio.on{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);grid-auto-rows:min-content;column-gap:16px;row-gap:12px;align-items:start}
+ #inicio .heroi{grid-row:span 4}
+ .heroi .grande{font-size:22px}
+ .bloco{min-height:78px}
+}
+@media (orientation:landscape) and (max-height:500px){
+ .topo{padding-top:6px}
+ .marca i{width:30px;height:30px;flex-basis:30px}
+ .heroi{padding:14px 16px}
+ .saud{display:none}
+ .pagina{padding-bottom:6px;padding-top:4px}
+ .heroi .grande{font-size:20px;margin-bottom:8px}
+ .pilulas{margin-top:8px}
+ .heroi .mt{margin-top:8px}
+ #abas button{flex-direction:row;min-height:44px;gap:8px;font-size:12.5px}
+ #abas button.on:before{top:5px;left:8px;right:8px;width:auto;height:34px;margin-left:0}
+ #abas button .ponto{top:8px;left:calc(50% + 6px)}
+ #recentes .rec:nth-child(n+3){display:none}
+ .bloco{min-height:64px;flex-direction:row;align-items:center;justify-content:flex-start;padding:10px}
+ .bloco i{width:34px;height:34px;flex:0 0 34px}
+ #mini{margin-bottom:6px;padding:6px}
+}
+
+/* ===== barra compacta (vídeo do site na tela, painel recolhido) ===== */
+#compacto{display:none}
+body.compacto{background:var(--sup)}
+body.compacto #completo{display:none}
+body.compacto #compacto{display:flex;align-items:center;gap:8px;height:100%;padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left))}
+#compacto .info{flex:1;min-width:0;overflow:hidden}
+#compacto .titulo{display:block;white-space:nowrap;text-overflow:ellipsis;font-size:14.5px;-webkit-line-clamp:1}
+#compacto .sit{font-size:12.5px;margin-top:0}
+#compacto .ic{flex:0 0 44px;background:var(--sup2)}
+#compacto .play{background:var(--ouro);color:var(--corTx)}
+#compacto .dub{background:rgba(245,165,36,.14);color:var(--cor2)}
+
+/* ===== gaveta (folha que sobe) ===== */
+#veu{position:fixed;inset:0;background:rgba(0,0,0,.55);opacity:0;pointer-events:none;transition:opacity .25s;z-index:5;backdrop-filter:blur(2px)}
+#veu.on{opacity:1;pointer-events:auto}
+#gaveta{position:fixed;left:0;right:0;bottom:0;max-height:90%;max-width:680px;margin:0 auto;padding:6px max(18px,env(safe-area-inset-right)) max(22px,env(safe-area-inset-bottom)) max(18px,env(safe-area-inset-left));box-shadow:0 -16px 50px rgba(0,0,0,.5);overflow:auto;background:linear-gradient(180deg,rgba(255,255,255,.035),rgba(255,255,255,0) 120px),var(--sup);border-radius:26px 26px 0 0;transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);z-index:6;overscroll-behavior:contain}
+#gaveta.on{transform:none}
+#gaveta .alca{width:40px;height:4px;border-radius:2px;background:var(--sup3);margin:6px auto 10px}
+#gaveta .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;gap:8px}
+#gaveta .cab b{font-size:19px;font-weight:800;letter-spacing:-.3px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#gaveta h2{margin-top:6px}
+.opcao{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 14px;margin:6px 0;background:var(--sup2);border-radius:14px;font-weight:600;text-align:left;white-space:normal}
+.opcao span{flex:1}
+.opcao.sel{background:rgba(245,165,36,.13);color:var(--cor2);box-shadow:inset 0 0 0 1.5px var(--cor)}
+.opcao .marc{width:18px;height:18px;border-radius:50%;border:2px solid var(--fraco);flex:0 0 18px}
+.opcao.sel .marc{border-color:var(--cor);background:radial-gradient(var(--cor) 45%,transparent 50%)}
+.menu-op{display:flex;align-items:center;gap:14px;width:100%;padding:12px 6px;background:transparent;box-shadow:none;border-radius:14px;text-align:left;justify-content:flex-start;font-weight:650;font-size:15.5px}
+.menu-op:active{background:var(--sup2)}
+.menu-op i{width:40px;height:40px;border-radius:12px;flex:0 0 40px;display:flex;align-items:center;justify-content:center;background:var(--sup2);color:var(--cor2)}
+.menu-op small{display:block;color:var(--fraco);font-size:12.5px;font-weight:500}
+.menu-op.risco i{background:rgba(255,107,107,.12);color:var(--verm)}
+.menu-op.risco{color:var(--verm)}
+#dlTipo{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#dlTipo button{justify-content:center;min-height:44px;padding:0 8px}
+.chave-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 0}
+.chave-linha>span{min-width:0}
+.chave{position:relative;width:52px;height:32px;flex:0 0 52px}
+.chave input{opacity:0;width:0;height:0}
+.chave span{position:absolute;inset:0;background:var(--sup3);border-radius:99px;transition:.25s}
+.chave span:before{content:"";position:absolute;width:26px;height:26px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.25s cubic-bezier(.2,.8,.2,1);box-shadow:0 2px 6px rgba(0,0,0,.3)}
+.chave input:checked+span{background:var(--cor)}
+.chave input:checked+span:before{transform:translateX(20px)}
 .lista-item{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--linha);min-width:0}
 .lista-item:first-child{border-top:0}
 .lista-item .u{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--suave);font-size:14px}
-.vazio{color:var(--fraco);font-size:14px}
-details summary{list-style:none;cursor:pointer;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:15px}
-details summary::-webkit-details-marker{display:none}
-details ul{padding-left:18px;margin:10px 0 4px;color:var(--suave);font-size:14.5px}
-details li{margin:6px 0}
-/* player */
-.fonte{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--suave);background:var(--sup2);padding:4px 10px;border-radius:99px;margin-bottom:10px}
-.fonte i{width:8px;height:8px;border-radius:50%;background:var(--fraco)}
-.fonte.on i{background:var(--verde);box-shadow:0 0 0 3px rgba(61,214,140,.18)}
-.titulo{font-size:19px;font-weight:800;letter-spacing:-.2px;line-height:1.3;overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;word-break:break-word}
-.sit{color:var(--suave);font-size:14px;margin-top:4px}
-.progresso{margin-top:14px}
-input[type=range]{width:100%;accent-color:var(--cor);height:28px;margin:0}
-.tempos{display:flex;justify-content:space-between;font-size:12.5px;color:var(--fraco);font-variant-numeric:tabular-nums}
-.transporte{display:flex;align-items:center;justify-content:center;gap:22px;margin-top:12px}
-.transporte .ic{width:52px;height:52px;background:var(--sup2)}
-.transporte .ic svg{width:26px;height:26px}
-.transporte .play{width:72px;height:72px;background:var(--cor);color:var(--corTx)}
-.transporte .play svg{width:32px;height:32px}
-.transporte button:disabled{opacity:.35}
-.grade{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:14px}
-.acao{flex-direction:column;gap:6px;padding:14px 4px;font-size:13px;font-weight:600;color:var(--suave);border-radius:14px}
-.acao svg{color:var(--texto)}
-.acao:disabled{opacity:.35}
-.vol{display:flex;align-items:center;gap:10px;margin-top:12px;color:var(--suave);font-size:13px}
-/* barra compacta */
-#compacto{display:none}
-body.compacto{padding:8px max(12px,env(safe-area-inset-right)) 8px max(12px,env(safe-area-inset-left));overflow:hidden}
-body.compacto #completo{display:none}
-body.compacto #compacto{display:flex;align-items:center;gap:8px;height:100%}
-#compacto .info{flex:1;min-width:0;overflow:hidden}
-#compacto .titulo{display:block;white-space:nowrap;text-overflow:ellipsis}
-#compacto .sit{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-#compacto .ic{flex:0 0 42px}
-#compacto .titulo{font-size:14.5px;-webkit-line-clamp:1}
-#compacto .sit{font-size:12.5px;margin-top:0}
-#compacto .ic{width:42px;height:42px;background:var(--sup2)}
-#compacto .play{background:var(--cor);color:var(--corTx)}
-/* gaveta (bottom sheet) */
-#veu{position:fixed;inset:0;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .2s;z-index:5}
-#veu.on{opacity:1;pointer-events:auto}
-#gaveta{position:fixed;left:0;right:0;bottom:0;max-height:92%;max-width:760px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left))!important;padding-right:max(16px,env(safe-area-inset-right))!important;box-shadow:0 -12px 40px rgba(0,0,0,.45);overflow:auto;background:var(--sup);border-top:1px solid var(--linha);border-radius:20px 20px 0 0;padding:8px 16px 22px;transform:translateY(105%);transition:transform .22s ease;z-index:6}
-#gaveta.on{transform:none}
-#gaveta .alca{width:40px;height:4px;border-radius:2px;background:var(--sup3);margin:4px auto 10px}
-#gaveta .cab{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
-#gaveta .cab b{font-size:18px;font-weight:800;letter-spacing:-.2px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.opcao{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;padding:13px 14px;margin:6px 0;background:var(--sup2);border-radius:12px;font-weight:600;text-align:left;white-space:normal}
-.opcao span{flex:1}
-.opcao.sel{background:rgba(245,165,36,.14);color:var(--cor2);box-shadow:inset 0 0 0 1.5px var(--cor)}
-.opcao .marc{width:18px;height:18px;border-radius:50%;border:2px solid var(--fraco);flex:0 0 18px}
-.opcao.sel .marc{border-color:var(--cor);background:radial-gradient(var(--cor) 45%,transparent 50%)}
-.nota{font-size:13.5px;color:var(--suave);margin:10px 0}
-.medidor{height:6px;border-radius:3px;background:var(--sup3);overflow:hidden;margin:4px 0 6px}
-.medidor i{display:block;height:100%;width:0;background:var(--verde);transition:width .3s}
-details.mais{margin-top:12px;border-top:1px solid var(--linha);padding-top:8px}
-details.mais summary{font-weight:700;padding:8px 0;cursor:pointer;color:var(--suave)}
-.chave-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 2px}
-.chave{position:relative;width:50px;height:30px;flex:0 0 50px}
-.chave input{opacity:0;width:0;height:0}
-.chave span{position:absolute;inset:0;background:var(--sup3);border-radius:99px;transition:.2s}
-.chave span:before{content:"";position:absolute;width:24px;height:24px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
-.chave input:checked+span{background:var(--cor)}
-.chave input:checked+span:before{transform:translateX(20px)}
 /* equalizador */
-select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:10px;padding:8px 10px;max-width:62%}
 #curva{width:100%;height:84px;display:block;margin:8px 0 2px}
 .bandas{display:flex;justify-content:space-between;gap:2px;touch-action:none}
 .banda{flex:1;display:flex;flex-direction:column;align-items:center;min-width:0}
@@ -122,54 +251,37 @@ select{font:inherit;font-size:14.5px;background:var(--fundo);color:var(--texto);
 .banda .hz{font-size:10.5px;color:var(--fraco);margin-top:6px;white-space:nowrap}
 .desligado .trilho .cheio{background:var(--sup3)}
 .desligado .trilho .bola{background:var(--fraco);box-shadow:none}
-#toast{position:fixed;left:14px;right:14px;max-width:560px;margin:0 auto;bottom:16px;background:#2A3140;color:var(--texto);padding:12px 14px;border-radius:12px;font-size:14.5px;opacity:0;transform:translateY(20px);transition:.25s;pointer-events:none;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+#toast{position:fixed;left:16px;right:16px;max-width:560px;margin:0 auto;bottom:calc(84px + env(safe-area-inset-bottom));background:rgba(42,49,64,.96);color:var(--texto);padding:12px 16px;border-radius:14px;font-size:14.5px;opacity:0;transform:translateY(16px);transition:.3s cubic-bezier(.2,.8,.2,1);pointer-events:none;z-index:9;box-shadow:0 10px 28px rgba(0,0,0,.45);backdrop-filter:blur(10px)}
 #toast.on{opacity:1;transform:none}
-/* biblioteca de listas, arquivos, ajustes */
-.acoes-inicio{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:10px}
-.acoes-inicio button{justify-content:flex-start;padding:12px;font-size:14px}
-.acoes-inicio svg{color:var(--cor2)}
-.lst{display:flex;align-items:center;gap:12px;width:100%;padding:11px 10px;margin:4px 0;background:var(--sup2);border-radius:14px;text-align:left;white-space:normal}
-.lst .ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex:0 0 40px;color:#fff;font-size:18px}
+/* biblioteca */
+.lst{display:flex;align-items:center;gap:12px;width:100%;padding:10px;margin:4px 0;background:var(--sup);border-radius:16px;text-align:left;white-space:normal;box-shadow:inset 0 0 0 1px var(--linha);justify-content:flex-start}
+.lst .ico{width:44px;height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;flex:0 0 44px;color:#fff;font-size:18px}
 .lst .txt{flex:1;min-width:0}
 .lst .txt b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:15px}
 .lst .txt small{display:block;color:var(--fraco);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
-.lst img{width:40px;height:40px;border-radius:10px;object-fit:contain;background:#0d0f14;flex:0 0 40px}
+.lst img{width:44px;height:44px;border-radius:12px;object-fit:contain;background:#0d0f14;flex:0 0 44px}
+#gaveta .lst{background:var(--sup2);box-shadow:none}
 .t-musica{background:linear-gradient(135deg,#FF5E8A,#B23A9B)}.t-radio{background:linear-gradient(135deg,#FFB547,#F06A2B)}
 .t-tv{background:linear-gradient(135deg,#4F8BFF,#3A4FD8)}.t-camera{background:linear-gradient(135deg,#3DD68C,#17936A)}.t-outro{background:linear-gradient(135deg,#8C97AB,#4A5366)}
-input.campo{width:100%;background:var(--fundo);color:var(--texto);border:1.5px solid var(--linha);border-radius:12px;padding:12px 14px;font:inherit;font-size:15px;-webkit-user-select:text;user-select:text;margin:6px 0}
-input.campo:focus{outline:none;border-color:var(--cor)}
+.t-yt{background:linear-gradient(135deg,#FF4D5E,#C4001A)}.t-arq{background:linear-gradient(135deg,#5AA9FF,#2F6BDB)}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}
-.chips button{padding:7px 12px;border-radius:99px;font-size:13px;background:var(--sup2)}
+.chips button{padding:0 14px;min-height:38px;border-radius:99px;font-size:13px;background:var(--sup2)}
 .chips button.sel{background:rgba(245,165,36,.16);color:var(--cor2);box-shadow:inset 0 0 0 1.5px var(--cor)}
 .grupos{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin:6px 0;scrollbar-width:none}
 .grupos::-webkit-scrollbar{display:none}
-.grupos button{flex:0 0 auto;padding:7px 12px;border-radius:99px;font-size:13px}
+.grupos button{flex:0 0 auto;padding:0 14px;min-height:38px;border-radius:99px;font-size:13px}
 .grupos button.sel{background:var(--cor);color:var(--corTx)}
-.fila{display:flex;align-items:center;gap:8px;margin-top:12px;padding:8px 10px;background:var(--sup2);border-radius:14px;min-width:0}
-.fila .txt{flex:1;min-width:0;font-size:13px;color:var(--suave);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.fila button{width:40px;height:40px;padding:0;border-radius:50%;flex:0 0 40px;background:var(--sup3)}
 .lst-linha{display:flex;align-items:center;gap:6px}
 .lst-linha .lst{flex:1;min-width:0}
-.lst-linha .apaga{width:42px;height:42px;padding:0;border-radius:12px;flex:0 0 42px;background:transparent;color:var(--fraco)}
+.lst-linha .apaga{width:44px;height:44px;padding:0;border-radius:13px;flex:0 0 44px;background:transparent;color:var(--fraco);box-shadow:none}
 .lst-acoes{display:flex;gap:8px;margin:2px 0 8px}
 .lst-acoes .pri{flex:1.4}.lst-acoes button{flex:1}
-.lst-acoes .so-ic{flex:0 0 46px;padding:0}
-.fila .modo{background:transparent;color:var(--fraco);width:36px;height:36px;flex:0 0 36px}
-.fila .modo.on{color:var(--cor2);background:rgba(245,165,36,.14)}
-.fila .modo{position:relative}
-.fila .modo b{position:absolute;right:3px;bottom:2px;font-size:9px;font-weight:900}
-.perigo{background:rgba(255,107,107,.14)!important;color:var(--verm)!important}
-.selo{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:700;color:var(--verde);background:rgba(61,214,140,.12);padding:4px 9px;border-radius:99px}
+.lst-acoes .so-ic{flex:0 0 48px;padding:0}
+.perigo{background:rgba(255,107,107,.13)!important;color:var(--verm)!important}
 .menu-lista{display:flex;gap:8px;margin:4px 0 10px}
 .menu-lista button{flex:1;padding:9px;font-size:13px}
-@media (orientation:landscape) and (min-width:720px){
- #inicio{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:0 14px;align-items:start}
- #inicio>.cartao{margin:6px 0}
- #inicio>.cartao:first-child{grid-row:span 2}
- #player .cartao{max-width:760px;margin-left:auto;margin-right:auto}
-}
 /* animação da rádio */
-#palco{position:relative;margin:4px -4px 2px;border-radius:16px;overflow:hidden;background:#000;height:min(46vh,420px);min-height:220px;touch-action:manipulation}
+#palco{position:relative;flex:1 1 0;min-height:150px;margin:2px 0 4px;border-radius:22px;overflow:hidden;background:#000;touch-action:manipulation;box-shadow:0 18px 40px rgba(0,0,0,.45),inset 0 0 0 1px rgba(255,255,255,.05)}
 #palco canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 #palco .topo-efeito{position:absolute;left:10px;right:10px;top:10px;display:flex;justify-content:space-between;align-items:center;gap:8px;z-index:2}
 #palco .topo-efeito span{font-size:12px;font-weight:700;letter-spacing:.6px;color:rgba(255,255,255,.75);background:rgba(0,0,0,.35);padding:5px 10px;border-radius:99px;backdrop-filter:blur(6px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -210,6 +322,8 @@ input.campo:focus{outline:none;border-color:var(--cor)}
 #vistaTroca{width:auto!important;flex:0 0 auto!important;border-radius:99px!important;padding:0 12px 0 9px!important;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#fff}
 body.efeito-cheio{overflow:hidden}
 body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:auto;z-index:8}
+#palco .topo-efeito button{width:40px;height:40px;flex:0 0 40px}
+body.baixo #palco #rEtq,body.baixo #palco #rDesc{display:none}
 </style>
 </head>
 <body>
@@ -217,110 +331,118 @@ body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:
 <div id="compacto">
   <button class="ic play" id="cTp" aria-label="Tocar ou pausar"></button>
   <div class="info"><div class="titulo" id="cTitulo">Tocador</div><div class="sit" id="cSit"></div></div>
+  <button class="ic" id="cAcao" aria-label="Legendas"></button>
   <button class="ic" id="cCheio" aria-label="Tela cheia"></button>
-  <button class="ic" id="cLeg" aria-label="Legendas"></button>
   <button class="ic" id="cMais" aria-label="Abrir painel"></button>
 </div>
 
 <div id="completo">
-  <div class="topo">
-    <div class="marca"><i id="logo"></i><span>Tocador</span><em>PRO</em></div>
-    <div class="linha" style="flex:0 0 auto;gap:8px">
-      <span class="chip" id="chip">pronto</span>
-      <button class="ic fant oculto" id="recolher" aria-label="Recolher painel"></button>
-    </div>
-  </div>
+  <header class="topo">
+    <div class="marca"><i id="logo"></i><span>Tocador</span><em>ULTRA</em></div>
+    <span class="chip" id="chip">pronto</span>
+  </header>
 
-  <div class="fila oculto" id="prep" style="margin:0 0 10px"><div class="txt" id="prepTxt"></div><div class="medidor" style="flex:0 0 70px;margin:0"><i id="prepProg"></i></div><button id="prepX" aria-label="Cancelar" style="width:34px;height:34px;flex:0 0 34px"></button></div>
-
-  <!-- tela de início -->
-  <section id="inicio">
-    <div class="cartao">
-      <div class="grande">O que vamos tocar?</div>
-      <textarea id="link" placeholder="Cole o link de um vídeo (YouTube e outros sites) ou de uma rádio" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
-      <div class="linha mt">
-        <button id="colar"></button>
-        <button class="pri" id="tocar"></button>
+  <main id="paginas">
+    <!-- Início -->
+    <section id="inicio" class="pagina">
+      <div class="heroi">
+        <div class="saud" id="saud">Boa noite</div>
+        <div class="grande">O que vamos tocar?</div>
+        <textarea id="link" rows="1" placeholder="Cole um link para tocar" autocapitalize="off" autocorrect="off" spellcheck="false"></textarea>
+        <div class="linha mt"><button id="colar"></button><button class="pri" id="tocar"></button></div>
+        <div class="pilulas">Abrir no <button id="forcarWeb">Site</button><button id="forcarVlc">Player VLC</button></div>
       </div>
-      <div class="pilulas">Abrir como: <button id="forcarWeb">Site</button><button id="forcarVlc">Player VLC</button></div>
-      <div class="acoes-inicio">
-        <button id="abrirArq"></button>
-        <button id="novaLista"></button>
-        <button id="abrirBaixar" style="grid-column:span 2"></button>
+      <div class="faixa oculto" id="prep"><div class="txt" id="prepTxt"></div><div class="medidor" style="flex:0 0 70px;margin:0"><i id="prepProg"></i></div><button class="ic fant" id="prepX" aria-label="Cancelar"></button></div>
+      <div id="dlResumo" class="faixa oculto"><div class="txt" id="dlResumoTxt"></div></div>
+      <div class="blocos">
+        <button class="bloco" id="atYT"><i class="t-yt"></i>YouTube</button>
+        <button class="bloco" id="abrirArq"><i class="t-arq"></i>Do aparelho</button>
+        <button class="bloco" id="novaLista"><i class="t-musica"></i>Importar lista</button>
       </div>
-      <div id="dlResumo" class="fila oculto" style="cursor:pointer"><div class="txt" id="dlResumoTxt"></div></div>
-    </div>
+      <div>
+        <div class="cab2" style="margin-bottom:6px"><h2>Recentes</h2></div>
+        <div id="recentes"><div class="vazio">Os links que você tocar aparecem aqui.</div></div>
+      </div>
+      <div class="selo oculto" id="adSelo"></div>
+    </section>
 
-    <div class="cartao">
-      <div class="cab2"><h2>Biblioteca</h2><button id="novaLista2">+ Importar</button></div>
+    <!-- Biblioteca -->
+    <section id="pBiblioteca" class="pagina">
+      <div class="cab-pag"><div class="grande">Biblioteca</div><button class="pri" id="novaLista2" style="min-height:40px;padding:0 16px;border-radius:99px">+ Importar</button></div>
       <div id="biblioteca"><div class="vazio">Importe listas .m3u, .m3u8 ou .pls da internet ou do aparelho: músicas, rádios, TVs, câmeras…</div></div>
-    </div>
+    </section>
 
-    <div class="cartao">
-      <h2>Atalhos</h2>
-      <div class="atalhos" id="atalhos"></div>
-    </div>
+    <!-- Baixar -->
+    <section id="pBaixar" class="pagina">
+      <div class="cab-pag"><div class="grande">Baixar</div></div>
+      <div id="baixarConteudo"></div>
+    </section>
 
-    <div class="cartao">
-      <h2>Recentes</h2>
-      <div id="recentes"><div class="vazio">Os links que você tocar aparecem aqui.</div></div>
-    </div>
+    <!-- Ajustes -->
+    <section id="pAjustes" class="pagina">
+      <div class="cab-pag"><div class="grande">Ajustes</div></div>
+      <div class="grupo">
+        <div class="chave-linha"><span><b>Bloquear anúncios</b><br><small style="color:var(--fraco);font-weight:500" id="adInfo">YouTube e outros sites</small></span><label class="chave"><input type="checkbox" id="adChk"><span></span></label></div>
+        <div class="chave-linha"><span><b>Letra sincronizada nas músicas</b><br><small style="color:var(--fraco);font-weight:500">Na animação, só em músicas sem vídeo</small></span><label class="chave"><input type="checkbox" id="ajLetra"><span></span></label></div>
+        <div class="chave-linha"><span><b>Criar a letra com o Whisper</b><br><small style="color:var(--fraco);font-weight:500">Quando nenhum catálogo tiver a música</small></span><label class="chave"><input type="checkbox" id="ajLetraIa"><span></span></label></div>
+      </div>
+      <div class="grupo">
+        <button class="item" id="ajDub"><i></i><span class="txt">Dublagem e Whisper<small>Voz, modelo, idioma do vídeo</small></span></button>
+        <button class="item" id="ajEq"><i></i><span class="txt">Equalizador<small>10 bandas no player VLC</small></span></button>
+        <button class="item" id="bateria"><i></i><span class="txt">Tocar com a tela apagada<small>Liberar o app da economia de bateria</small></span></button>
+        <button class="item" id="diag"><i></i><span class="txt">Copiar diagnóstico<small>Para enviar ao suporte</small></span></button>
+      </div>
+      <div class="grupo" style="padding:4px 16px 12px">
+        <details>
+          <summary style="padding:12px 0">Dicas <span id="setaDicas"></span></summary>
+          <ul>
+            <li>No app do YouTube ou do Instagram, toque em <b>Compartilhar</b> e escolha <b>Tocador</b>.</li>
+            <li>Pode apagar a tela ou trocar de app: o som continua. Controle pela notificação.</li>
+            <li>Em vídeo, <b>toque duas vezes</b> no lado direito para avançar 10 s e no esquerdo para voltar.</li>
+            <li>Na animação, o botão <b>Letra / Animação</b> alterna as duas vistas.</li>
+          </ul>
+        </details>
+      </div>
+      <div class="versao" id="versao"><b>TOCADOR ULTRA</b></div>
+    </section>
 
-    <div class="cartao">
-      <details>
-        <summary>Dicas <span id="setaDicas"></span></summary>
-        <ul>
-          <li>No app do YouTube (ou de outra rede), toque em <b>Compartilhar</b> e escolha <b>Tocador</b>.</li>
-          <li>Pode apagar a tela ou trocar de app: o som continua. Controle pela notificação.</li>
-          <li>Em vídeo, <b>toque duas vezes</b> no lado direito para avançar 10 s e no esquerdo para voltar.</li>
-          <li><b>Tela cheia</b> mostra só o vídeo, sem nada do site em volta.</li>
-          <li>Se o som parar com a tela apagada, libere o app da economia de bateria.</li>
-        </ul>
-        <div class="linha mt"><button id="bateria">Ajuste de bateria</button><button id="diag">Copiar diagnóstico</button></div>
-      </details>
-    </div>
-
-    <div class="cartao">
-      <h2>Ajustes</h2>
-      <div class="chave-linha" style="padding-top:2px"><span>Bloquear anúncios<br><small style="color:var(--fraco);font-weight:400" id="adInfo">YouTube e outros sites</small></span><label class="chave"><input type="checkbox" id="adChk"><span></span></label></div>
-    </div>
-  </section>
-
-  <!-- tela do player -->
-  <section id="player" class="oculto">
-    <div class="cartao">
-      <div class="fonte" id="fonte"><i></i><span id="fonteTxt">Site</span></div>
-      <div class="titulo" id="titulo">—</div>
-      <div class="sit" id="sit"></div>
+    <!-- Player -->
+    <section id="player" class="pagina">
+      <div class="p-topo"><button class="ic" id="minimizar" aria-label="Minimizar"></button><div class="fonte" id="fonte"><i></i><span id="fonteTxt">Site</span></div><button class="ic" id="pMais" aria-label="Mais opções"></button></div>
+      <div class="p-info" id="pInfo"><div class="titulo" id="titulo">—</div><div class="sit" id="sit"></div></div>
       <div id="palco" class="oculto">
         <canvas id="tela"></canvas>
         <div class="topo-efeito"><span id="efeitoNome"></span><div style="display:flex;gap:6px"><button id="letraCriar" class="oculto"></button><button id="vistaTroca" class="oculto"></button><button id="efeitoTroca" aria-label="Trocar efeito"></button><button id="efeitoCheio" aria-label="Tela cheia"></button></div></div>
         <div id="vizAviso" class="oculto"><span style="flex:1">Modo ambiente. Para a animação dançar com a música, permita o áudio.</span><button id="vizPermitir">Permitir</button></div>
         <div id="rodape"><img id="rLogo" class="oculto" alt=""><div class="txt"><b id="rNome"></b><div class="agora" id="rAgora"><i></i></div><div class="desc oculto" id="rDesc"></div><div class="etq" id="rEtq"></div><small id="rInfo"></small></div></div>
       </div>
+      <div class="espaco" id="espaco"><button class="dub-cartao oculto" id="dubCartao"><span class="onda" id="dubCartaoIc"></span><span><b id="dubCartaoTit">Dublar em português</b><small id="dubCartaoTxt">Voz neural natural, com o texto da legenda ou ouvido pelo Whisper.</small></span></button></div>
       <div class="progresso oculto" id="progBox">
         <input type="range" id="busca" min="0" max="1000" value="0" aria-label="Posição">
         <div class="tempos"><span id="tAgora">0:00</span><span id="tTotal">0:00</span></div>
       </div>
       <div class="transporte">
+        <button class="ic modo oculto" id="filaAleat" aria-label="Aleatório"></button>
+        <button class="ic oculto" id="filaAnt" aria-label="Anterior"></button>
         <button class="ic" id="voltar10" aria-label="Voltar 10 segundos"></button>
         <button class="ic play" id="tp" aria-label="Tocar ou pausar"></button>
         <button class="ic" id="avancar10" aria-label="Avançar 10 segundos"></button>
+        <button class="ic oculto" id="filaProx" aria-label="Próximo"></button>
+        <button class="ic modo oculto" id="filaRep" aria-label="Repetir"></button>
       </div>
-      <div class="fila oculto" id="filaBox"><button class="modo" id="filaAleat" aria-label="Aleatório"></button><button id="filaAnt" aria-label="Anterior"></button><div class="txt" id="filaTxt"></div><button id="filaProx" aria-label="Próximo"></button><button class="modo" id="filaRep" aria-label="Repetir"></button></div>
-      <div class="vol oculto" id="volBox"><span>Volume</span><input type="range" id="vol" min="0" max="200" value="100"><span id="volTxt" style="min-width:42px;text-align:right">100%</span></div>
-      <div class="grade">
-        <button class="acao" id="aCheio"><span></span>Tela cheia</button>
-        <button class="acao" id="aLeg"><span></span>Áudio e legendas</button>
-        <button class="acao" id="aQual"><span></span>Qualidade</button>
-        <button class="acao" id="aEq"><span></span>Equalizador</button>
-        <button class="acao" id="aLink"><span></span>Novo link</button>
-        <button class="acao" id="aParar"><span></span>Parar</button>
-      </div>
-      <button id="aBaixar" class="oculto" style="width:100%;margin-top:8px"></button>
-      <button id="aSalvar" class="pri oculto" style="width:100%;margin-top:8px"></button>
-    </div>
-  </section>
+      <div class="vol oculto" id="volBox"><span id="volIc"></span><input type="range" id="vol" min="0" max="200" value="100" aria-label="Volume"><span id="volTxt" style="min-width:40px;text-align:right">100%</span></div>
+      <div class="acoes" id="acoes"></div>
+      <button id="aSalvar" class="pri oculto"></button>
+    </section>
+  </main>
+
+  <div id="mini" class="oculto"><div class="capa" id="mCapa"></div><div class="txt"><b id="mTit"></b><small id="mSit"></small></div><button class="ic play" id="mTp" aria-label="Tocar ou pausar"></button></div>
+  <nav id="abas">
+    <button data-aba="inicio" class="on"><span class="ic-aba"></span><span>Início</span></button>
+    <button data-aba="pBiblioteca"><span class="ic-aba"></span><span>Biblioteca</span></button>
+    <button data-aba="pBaixar"><span class="ic-aba"></span><span>Baixar</span><i class="ponto oculto" id="dlPonto"></i></button>
+    <button data-aba="pAjustes"><span class="ic-aba"></span><span>Ajustes</span></button>
+  </nav>
 </div>
 
 <div id="veu"></div>
@@ -369,29 +491,49 @@ var IC={
  repetir:'<svg viewBox="0 0 24 24"><path d="M17 3.5L20 6.5l-3 3M20 6.5H8a4 4 0 0 0-4 4v1M7 20.5L4 17.5l3-3M4 17.5h12a4 4 0 0 0 4-4v-1"/></svg>',
  lixo:'<svg viewBox="0 0 24 24"><path d="M4.5 7h15M9.5 7V4.5h5V7M6.5 7l1 12.5h9l1-12.5M10 10.5v6M14 10.5v6"/></svg>',
  nuvem:'<svg viewBox="0 0 24 24"><path d="M7 18.5h10.5a4 4 0 0 0 .6-7.95A6 6 0 0 0 6.6 9.1 4.7 4.7 0 0 0 7 18.5z"/><path d="M12 10.5v6M9.5 14l2.5 2.5 2.5-2.5"/></svg>',
- escudo:'<svg viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M8.8 12l2.2 2.2 4.4-4.4"/></svg>'
+ escudo:'<svg viewBox="0 0 24 24"><path d="M12 3l7.5 3v5.5c0 4.5-3.2 8.2-7.5 9.5-4.3-1.3-7.5-5-7.5-9.5V6z"/><path d="M8.8 12l2.2 2.2 4.4-4.4"/></svg>',
+ casa:'<svg viewBox="0 0 24 24"><path d="M4 10.5L12 4l8 6.5V19a1.5 1.5 0 0 1-1.5 1.5H15v-5.5H9v5.5H5.5A1.5 1.5 0 0 1 4 19z"/></svg>',
+ biblio:'<svg viewBox="0 0 24 24"><path d="M5 4v16M9.5 4v16"/><path d="M14 4.8l4.6 14.6"/></svg>',
+ ajustes:'<svg viewBox="0 0 24 24"><path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2.2"/><circle cx="9" cy="17" r="2.2"/></svg>',
+ mais:'<svg viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.6" fill="currentColor" stroke="none"/><circle cx="18.5" cy="12" r="1.6" fill="currentColor" stroke="none"/></svg>',
+ dub:'<svg viewBox="0 0 24 24"><path d="M4 10.5v3M7.5 8v8M11 5.5v13M14.5 9v6"/><path d="M18 8.5c1.2 1 1.9 2.2 1.9 3.5s-.7 2.5-1.9 3.5"/></svg>',
+ letra:'<svg viewBox="0 0 24 24"><path d="M4 6h11M4 11h11M4 16h7"/><circle cx="17.5" cy="17" r="2.5"/><path d="M20 17V7l-2.5 1"/></svg>',
+ som:'<svg viewBox="0 0 24 24"><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4.5 4.5 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11"/></svg>',
+ bateria:'<svg viewBox="0 0 24 24"><rect x="3" y="7" width="16" height="10" rx="2.5"/><path d="M21 10.5v3M7 10v4M10.5 10v4"/></svg>',
+ copiar:'<svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></svg>',
+ seta:'<svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg>',
+ yt:'<svg viewBox="0 0 24 24"><rect x="2.5" y="5.5" width="19" height="13" rx="4" fill="currentColor" stroke="none" opacity=".25"/><path d="M10 9l5 3-5 3z" fill="currentColor" stroke="none"/></svg>',
+ cel:'<svg viewBox="0 0 24 24"><rect x="6.5" y="3" width="11" height="18" rx="2.5"/><path d="M11 18h2"/></svg>'
 };
 function icone(el,nome,texto){ el.innerHTML=IC[nome]+(texto?'<span>'+texto+'</span>':''); }
 $('logo').innerHTML=IC.logo;
 icone($('colar'),'colar','Colar'); icone($('tocar'),'play','Tocar');
 icone($('voltar10'),'voltar'); icone($('avancar10'),'avancar');
-icone($('cCheio'),'cheio'); icone($('cLeg'),'cc'); icone($('cMais'),'cima'); icone($('recolher'),'baixo'); icone($('gFechar'),'fechar');
-[['aCheio','cheio'],['aLeg','cc'],['aQual','hd'],['aEq','eq'],['aLink','link'],['aParar','parar']].forEach(function(p){ $(p[0]).firstChild.outerHTML=IC[p[1]]; });
+icone($('cCheio'),'cheio'); icone($('cMais'),'cima'); icone($('gFechar'),'fechar');
+icone($('minimizar'),'baixo'); icone($('pMais'),'mais'); icone($('mTp'),'play'); $('mCapa').innerHTML=IC.musica; $('volIc').innerHTML=IC.som;
 $('setaDicas').innerHTML=IC.baixo;
-icone($('abrirArq'),'pasta','Abrir arquivo'); icone($('novaLista'),'lista','Importar lista');
-icone($('abrirBaixar'),'nuvem','Baixar músicas, vídeos e playlists'); icone($('aBaixar'),'nuvem','Baixar este vídeo ou playlist');
+$('atYT').firstChild.innerHTML=IC.yt; $('abrirArq').firstChild.innerHTML=IC.cel; $('novaLista').firstChild.innerHTML=IC.lista;
+[['ajDub','dub'],['ajEq','eq'],['bateria','bateria'],['diag','copiar']].forEach(function(p){ $(p[0]).firstChild.innerHTML=IC[p[1]]; $(p[0]).insertAdjacentHTML('beforeend',IC.seta.replace('<svg','<svg class="seta"')); });
 icone($('filaAnt'),'ant'); icone($('filaProx'),'prox');
+[].forEach.call(document.querySelectorAll('#abas button'),function(b){ b.querySelector('.ic-aba').outerHTML={inicio:IC.casa,pBiblioteca:IC.biblio,pBaixar:IC.nuvem,pAjustes:IC.ajustes}[b.dataset.aba]; });
 
 // ------------------------------------------------ atalhos e recentes
-var ATALHOS=[['YouTube','#FF0033','▶','https://m.youtube.com/'],['Vimeo','#1AB7EA','v','https://vimeo.com/'],['Dailymotion','#0A3FFF','d','https://www.dailymotion.com/'],['Twitch','#9146FF','t','https://m.twitch.tv/']];
-$('atalhos').innerHTML=ATALHOS.map(function(a,i){return '<button class="atalho" data-i="'+i+'"><b style="background:'+a[1]+'">'+a[2]+'</b>'+a[0]+'</button>';}).join('');
-[].forEach.call($('atalhos').children,function(b){ b.onclick=function(){ mostrarInicio=false; T&&T.abrir(ATALHOS[+b.dataset.i][3],'web'); }; });
+$('atYT').onclick=function(){ verAbas=false; T&&T.abrir('https://m.youtube.com/','web'); };
+(function(){ var h=new Date().getHours(); $('saud').textContent=h<5?'Boa noite':h<12?'Bom dia':h<18?'Boa tarde':'Boa noite'; })();
 function lerRecentes(){ try{ return JSON.parse(localStorage.getItem('recentes')||'[]'); }catch(e){ return []; } }
 function guardarRecente(u){ var r=lerRecentes().filter(function(x){return x!==u;}); r.unshift(u); try{ localStorage.setItem('recentes',JSON.stringify(r.slice(0,10))); }catch(e){} mostrarRecentes(); }
+function descRecente(u){ // nome amigável e ícone de cada link recente
+  if(/^content:|^file:/.test(u)) return [IC.cel,decodeURIComponent(u.split('%2F').pop().split('/').pop()),'Arquivo do aparelho'];
+  var h=(u.match(/^\w+:\/\/([^\/:?#]+)/)||[,''])[1].replace(/^(www|m)\./,''), resto=u.replace(/^\w+:\/\/[^\/]+/,'')||'/';
+  if(/youtu/.test(h)) return [IC.yt,/list=/.test(u)?'Playlist do YouTube':'Vídeo do YouTube',resto];
+  if(/instagram/.test(h)) return [IC.camera,'Instagram',resto];
+  if(/:\d{2,5}\b|stream|radio|\.m3u|\.pls|\.aac|\.mp3/i.test(u)) return [IC.radio,h,'Rádio ou transmissão'];
+  return [IC.link,h,resto];
+}
 function mostrarRecentes(){
-  var r=lerRecentes(); if(!r.length) return;
-  $('recentes').innerHTML=r.map(function(u,i){return '<div class="lista-item"><span class="u">'+esc(/^content:/.test(u)?'Arquivo do aparelho · '+decodeURIComponent(u.split('%2F').pop().split('/').pop()):u.replace(/^https?:\/\/(www\.|m\.)?/,''))+'</span><button class="ic" data-i="'+i+'" aria-label="Tocar">'+IC.play+'</button></div>';}).join('');
-  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ var u=lerRecentes()[+b.dataset.i]; if(/^content:/.test(u)){ mostrarInicio=false; T&&T.abrir(u,'vlc'); } else { $('link').value=u; abrir('auto'); } }; });
+  var r=lerRecentes().slice(0,3); if(!r.length) return;
+  $('recentes').innerHTML=r.map(function(u,i){ var d=descRecente(u); return '<button class="rec" data-i="'+i+'"><i>'+d[0]+'</i><span class="txt"><b>'+esc(d[1])+'</b><small>'+esc(d[2])+'</small></span></button>'; }).join('');
+  [].forEach.call($('recentes').querySelectorAll('button'),function(b){ b.onclick=function(){ var u=lerRecentes()[+b.dataset.i]; if(/^content:/.test(u)){ verAbas=false; T&&T.abrir(u,'vlc'); } else { $('link').value=u; abrir('auto'); } }; });
 }
 window.guardarRecente=guardarRecente;
 
@@ -437,8 +579,8 @@ function abrirLista(id){
     '<div class="grupos" id="lstGrupos"></div><div id="lstItens"></div><button id="lstMais" class="oculto" style="width:100%;margin-top:6px">Mostrar mais</button>'+
     '<details class="mais"><summary>Gerenciar lista</summary><input class="campo" id="lstNome"><div class="chips" id="lstTipo"></div>'+
     '<div class="menu-lista"><button id="lstSalvar">Salvar</button><button id="lstAtualizar">Atualizar</button><button id="lstApagar" style="color:var(--verm)">Apagar</button></div></details>');
-  $('lstTodos').onclick=function(){ T.tocarTodos(listaAtual,false); fecharGaveta(); mostrarInicio=false; };
-  $('lstAleat').onclick=function(){ T.tocarTodos(listaAtual,true); fecharGaveta(); mostrarInicio=false; avisar('Tocando em ordem aleatória.'); };
+  $('lstTodos').onclick=function(){ T.tocarTodos(listaAtual,false); fecharGaveta(); verAbas=false; };
+  $('lstAleat').onclick=function(){ T.tocarTodos(listaAtual,true); fecharGaveta(); verAbas=false; avisar('Tocando em ordem aleatória.'); };
   $('lstLixo').onclick=function(){ confirmarApagar(listaAtual); };
   $('lstBusca').oninput=function(){ clearTimeout(tFiltro); var v=this.value; tFiltro=setTimeout(function(){ listaFiltro=v; listaInicio=0; carregarItens(false); },200); };
   $('lstMais').onclick=function(){ listaInicio+=120; carregarItens(true); };
@@ -463,7 +605,7 @@ function carregarItens(somar){
     var ico=it.logo?'<img loading="lazy" src="'+esc(it.logo)+'" onerror="this.style.visibility=\'hidden\'">':'<span class="ico t-'+esc(R.tipo)+'">'+(IC[R.tipo]||IC.outro)+'</span>';
     return '<button class="lst" data-i="'+it.i+'">'+ico+'<span class="txt"><b>'+esc(it.nome)+'</b><small>'+esc(it.grupo||it.url)+'</small></span></button>'; }).join('');
   if(somar) $('lstItens').insertAdjacentHTML('beforeend',html); else $('lstItens').innerHTML=html||'<div class="vazio">Nada encontrado.</div>';
-  [].forEach.call($('lstItens').querySelectorAll('.lst:not([data-ok])'),function(b){ b.setAttribute('data-ok','1'); b.onclick=function(){ T.tocarItem(listaAtual,+b.dataset.i); fecharGaveta(); mostrarInicio=false; }; });
+  [].forEach.call($('lstItens').querySelectorAll('.lst:not([data-ok])'),function(b){ b.setAttribute('data-ok','1'); b.onclick=function(){ T.tocarItem(listaAtual,+b.dataset.i); fecharGaveta(); verAbas=false; }; });
   $('lstMais').classList.toggle('oculto',listaInicio+120>=R.total);
 }
 $('novaLista').onclick=$('novaLista2').onclick=abrirImportar;
@@ -482,16 +624,19 @@ $('filaProx').onclick=function(){ T&&T.pularNaFila(1); };
 // ------------------------------------------------ downloads (yt-dlp)
 function ehLista(u){ return /[?&]list=|\/playlist|\/@|\/channel\/|\/c\/|\/user\/|music\.youtube\.com\/browse/.test(u||''); }
 function abrirBaixar(sugestao){
+  fecharGaveta(); irAba('pBaixar'); montarBaixar(sugestao);
+}
+function montarBaixar(sugestao){
   var D; try{ D=JSON.parse(T.downloads()); }catch(x){ D={}; }
-  var u=sugestao||D.endereco||'', tipo='audio';
-  abrirGaveta('baixar','Baixar','<div id="dlForm"><input class="campo" id="dlUrl" placeholder="Link do vídeo, da playlist ou do canal" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(u)+'">'+
-    '<div class="chips" id="dlTipo"><button data-t="audio" class="sel">'+IC.musica+' Música (áudio)</button><button data-t="video">'+IC.tv+' Vídeo (até 1080p)</button></div>'+
+  var u=sugestao||($('dlUrl')&&$('dlUrl').value)||D.endereco||'', tipo='audio';
+  $('baixarConteudo').innerHTML=('<div class="heroi" style="padding:16px"><div id="dlForm"><input class="campo" id="dlUrl" placeholder="Link do vídeo, da playlist ou do canal" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(u)+'">'+
+    '<div class="chips" id="dlTipo"><button data-t="audio" class="sel">'+IC.musica+'<span>Música</span></button><button data-t="video">'+IC.tv+'<span>Vídeo 1080p</span></button></div>'+
     '<div class="chave-linha"><span>Playlist ou canal inteiro<br><small style="color:var(--fraco);font-weight:400">Todas as músicas de um cantor: use a playlist ou o canal dele</small></span><label class="chave"><input type="checkbox" id="dlLista"><span></span></label></div>'+
     '<div class="linha"><button id="dlColar">'+IC.colar+'<span>Colar</span></button><button class="pri" id="dlIr">'+IC.baixar+'<span>Baixar</span></button></div></div>'+
     '<div id="dlAndamento" class="oculto"><div class="nota" id="dlEstado" style="margin-top:0"></div><div class="medidor"><i id="dlProg"></i></div><button id="dlCancelar" style="width:100%">Cancelar</button></div>'+
     '<div class="nota" id="dlFim"></div>'+
     '<details class="mais"><summary>Motor de download</summary><div class="nota" id="dlVersao"></div><button id="dlAtualizar" style="width:100%">Atualizar o motor (yt-dlp)</button>'+
-    '<div class="nota">Usa o yt-dlp, o mesmo motor de código aberto de sites como o Cobalt, rodando no próprio celular. As músicas vão para <b>Música/Tocador</b> (m4a, com artista e título) e os vídeos para <b>Filmes/Tocador</b> (mp4). Tudo o que for baixado também aparece na Biblioteca. Se o YouTube mudar algo e os downloads falharem, atualize o motor.</div></details>');
+    '<div class="nota">Usa o yt-dlp, o mesmo motor de código aberto de sites como o Cobalt, rodando no próprio celular. As músicas vão para <b>Música/Tocador</b> (m4a, com artista e título) e os vídeos para <b>Filmes/Tocador</b> (mp4). Tudo o que for baixado também aparece na Biblioteca. Se o YouTube mudar algo e os downloads falharem, atualize o motor.</div></details></div>');
   $('dlLista').checked=ehLista(u);
   $('dlUrl').oninput=function(){ $('dlLista').checked=ehLista(this.value); };
   [].forEach.call($('dlTipo').children,function(b){ b.onclick=function(){ tipo=b.dataset.t; [].forEach.call($('dlTipo').children,function(x){ x.classList.toggle('sel',x===b); }); }; });
@@ -506,15 +651,14 @@ function atualizarDownloads(){
   var trab=!!D.trabalhando;
   $('dlResumo').classList.toggle('oculto',!trab&&!D.estado);
   $('dlResumoTxt').textContent=trab?(D.total>1?'Baixando '+D.atual+' de '+D.total+' · '+Math.round(D.pct||0)+'%':'Baixando… '+Math.round(D.pct||0)+'%')+(D.titulo?' · '+D.titulo:''):(D.estado||'');
-  if(gavetaAberta!=='baixar') return;
+  $('dlPonto').classList.toggle('oculto',!trab);
+  if(!$('dlForm')) return;
   $('dlForm').classList.toggle('oculto',trab); $('dlAndamento').classList.toggle('oculto',!trab);
   $('dlEstado').textContent=D.estado||''; $('dlProg').style.width=Math.max(2,D.pct||0)+'%';
   $('dlFim').textContent=trab?'':(D.estado||'');
   $('dlVersao').textContent=D.disponivel?'Versão do yt-dlp: '+(D.versao||'—'):'O download precisa de um celular de 64 bits.';
   $('dlAtualizar').disabled=trab;
 }
-$('abrirBaixar').onclick=function(){ abrirBaixar(''); };
-$('aBaixar').onclick=function(){ abrirBaixar(''); };
 icone($('aSalvar'),'baixar','Salvar este vídeo no aparelho');
 $('aSalvar').onclick=function(){ T&&T.salvarVideoAtual(); };
 $('dlResumo').onclick=function(){ abrirBaixar(''); };
@@ -641,7 +785,7 @@ function botaoCriarLetra(){
 }
 $('letraCriar').onclick=function(ev){ ev.stopPropagation(); T.letraCriar(); setTimeout(botaoCriarLetra,300); };
 $('vistaTroca').onclick=function(ev){ ev.stopPropagation(); vistaPalco=soLetra?'animacao':'letra'; try{ localStorage.setItem('vistaPalco',vistaPalco); }catch(x){} aplicarVista(); };
-window.letra=function(d){ letraPalco.definir(d); temLetra=!!(d&&d.linhas&&d.linhas.length); aplicarVista(); if(gavetaAberta==='leg') atualizarLetraGaveta(); };
+window.letra=function(d){ letraPalco.definir(d); temLetra=!!(d&&d.linhas&&d.linhas.length); aplicarVista(); if(gavetaAberta==='letra') atualizarLetraGaveta(); };
 function nomePais(cc){ try{ return cc&&cc.length===2?new Intl.DisplayNames(['pt-BR'],{type:'region'}).of(cc.toUpperCase()):''; }catch(e){ return ''; } }
 var IDIOMAS_PT={portuguese:'Português',english:'Inglês',spanish:'Espanhol',french:'Francês',italian:'Italiano',german:'Alemão',japanese:'Japonês',chinese:'Chinês',korean:'Coreano',russian:'Russo',arabic:'Árabe',hindi:'Hindi',dutch:'Holandês',polish:'Polonês',turkish:'Turco',greek:'Grego',hebrew:'Hebraico',catalan:'Catalão',galician:'Galego',basque:'Basco'};
 function nomeIdioma(n){ n=(n||'').trim(); var k=n.toLowerCase(); return IDIOMAS_PT[k]||(n.charAt(0).toUpperCase()+n.slice(1)); }
@@ -669,14 +813,27 @@ function atualizarRadio(){
 // ------------------------------------------------ anúncios
 function mostrarAnuncios(){ if(!T) return; var A; try{ A=JSON.parse(T.anuncios()); }catch(x){ return; }
   if(document.activeElement!==$('adChk')) $('adChk').checked=!!A.ligado;
-  $('adInfo').textContent=A.ligado?(A.bloqueados>0?A.bloqueados+' pedidos de anúncio bloqueados nesta sessão':'Ligado no YouTube e em outros sites'):'Desligado'; }
+  $('adInfo').textContent=A.ligado?(A.bloqueados>0?A.bloqueados+' pedidos de anúncio bloqueados nesta sessão':'Ligado no YouTube e em outros sites'):'Desligado';
+  $('adSelo').classList.toggle('oculto',!A.ligado);
+  $('adSelo').innerHTML=IC.escudo+'<span>'+(A.bloqueados>0?A.bloqueados+' anúncios bloqueados':'Anúncios bloqueados')+'</span>'; }
 $('adChk').onchange=function(){ T&&T.bloquearAnuncios(this.checked); avisar(this.checked?'Bloqueio de anúncios ligado. A página foi recarregada.':'Bloqueio de anúncios desligado.'); setTimeout(mostrarAnuncios,300); };
+
+// ------------------------------------------------ ajustes
+function mostrarAjustes(){ if(!T) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ I={}; }
+  if(document.activeElement!==$('ajLetra')) $('ajLetra').checked=I.ligada!==false;
+  if(document.activeElement!==$('ajLetraIa')) $('ajLetraIa').checked=!!I.iaAuto;
+  $('ajLetraIa').closest('.chave-linha').classList.toggle('oculto',I.ia===false);
+  try{ var v=T.versao&&T.versao(); if(v) $('versao').innerHTML='<b>TOCADOR ULTRA</b><br>versão '+esc(v); }catch(x){} }
+$('ajLetra').onchange=function(){ T&&T.letraLigar(this.checked); };
+$('ajLetraIa').onchange=function(){ T&&T.letraIaAutomatica(this.checked); };
+$('ajDub').onclick=function(){ abrirDublar(); };
+$('ajEq').onclick=function(){ abrirEq(); };
 
 // ------------------------------------------------ abrir link
 function abrir(modo){
   var u=$('link').value.trim(); if(!u){ $('link').focus(); return; }
   var m=u.match(/\b(https?|rtsp|rtmp|mms):\/\/[^\s"'<>]+/i); if(m) u=m[0];
-  $('link').value=''; guardarRecente(u); fecharGaveta(); mostrarInicio=false;
+  $('link').value=''; guardarRecente(u); fecharGaveta(); verAbas=false;
   if(T) T.abrir(u,modo);
   if(document.activeElement&&document.activeElement.blur) document.activeElement.blur();
 }
@@ -684,72 +841,136 @@ $('tocar').onclick=function(){ abrir('auto'); };
 $('forcarVlc').onclick=function(){ abrir('vlc'); };
 $('forcarWeb').onclick=function(){ abrir('web'); };
 $('colar').onclick=function(){ var t=T?T.colar():''; if(t){ $('link').value=t; abrir('auto'); } else $('link').focus(); };
+$('link').onkeydown=function(ev){ if(ev.key==='Enter'){ ev.preventDefault(); abrir('auto'); } };
 $('bateria').onclick=function(){ T&&T.bateria(); };
 $('diag').onclick=function(){ T&&T.copiarDiagnostico(); avisar('Diagnóstico copiado. Cole na conversa de suporte.'); };
+
+// ------------------------------------------------ navegação: abas, player e mini player
+// verAbas: o player foi minimizado (ou nada toca) e as abas aparecem; aba: qual página das abas.
+var aba='inicio', verAbas=false;
+function irAba(a){ aba=a; verAbas=true; if(a==='pBiblioteca') mostrarBiblioteca(); if(a==='pAjustes'){ mostrarAjustes(); mostrarAnuncios(); } if(a==='pBaixar'&&!$('dlForm')) montarBaixar(''); atualizar(); }
+[].forEach.call(document.querySelectorAll('#abas button'),function(b){ b.onclick=function(){ irAba(b.dataset.aba); }; });
+$('mini').onclick=function(ev){ if(ev.target.closest('#mTp')) return; verAbas=false; atualizar(); };
+$('mTp').onclick=function(){ T&&T.tocarPausar(); };
+$('minimizar').onclick=function(){ if(ultimo.modo==='web'){ T&&T.expandir(false); return; } verAbas=true; atualizar(); };
+function irInicio(){ fecharGaveta(); verAbas=true; aba='inicio'; if(ultimo.modo==='web'&&!ultimo.expandido) T&&T.expandir(true); atualizar(); setTimeout(function(){ $('link').focus(); },80); }
 
 // ------------------------------------------------ transporte
 $('tp').onclick=$('cTp').onclick=function(){ T&&T.tocarPausar(); };
 $('voltar10').onclick=function(){ T&&T.pular(-10); };
 $('avancar10').onclick=function(){ T&&T.pular(10); };
-$('aCheio').onclick=$('cCheio').onclick=function(){ T&&T.telaCheia(true); };
-$('aParar').onclick=function(){ fecharGaveta(); T&&T.parar(); };
+$('cCheio').onclick=function(){ T&&T.telaCheia(true); };
 $('cMais').onclick=function(){ T&&T.expandir(true); };
-$('recolher').onclick=function(){ T&&T.expandir(false); };
+$('cAcao').onclick=function(){ if(ultimo.modo==='web') abrirDublar(); else abrirLegendas(); };
 window.recolhido=function(){ fecharGaveta(); };
 var buscando=false;
 $('busca').oninput=function(){ buscando=true; $('tAgora').textContent=tempo(this.value/1000*ultimo.duracao); };
 $('busca').onchange=function(){ T&&T.buscar(this.value/1000); buscando=false; };
 $('vol').oninput=function(){ $('volTxt').textContent=this.value+'%'; T&&T.volume(+this.value); };
 
+// ------------------------------------------------ ações do player (as mais usadas à vista; o resto em "Mais")
+var acoesAnt='';
+function acoesDoMomento(e){
+  var vlc=e.modo==='vlc', web=e.modo==='web', musica=vlc&&!e.video&&e.duracao>0, video=web||(vlc&&e.video);
+  var A=[];
+  if(e.podeCheio) A.push(['cheio','Tela cheia',function(){ T&&T.telaCheia(true); }]);
+  if(web) A.push(['dub','Dublar',abrirDublar,true]);
+  if(musica) A.push(['letra','Letra',abrirLetra,temLetra]);
+  if(video||musica) A.push(['cc','Legendas',abrirLegendas]);
+  if(web||(vlc&&/^https?:/.test(e.url||''))) A.push(['baixar','Baixar',function(){ abrirBaixar(''); }]);
+  if(A.length<2){ A.push(['eq','Equalizador',abrirEq]); A.push(['parar','Parar',function(){ T&&T.parar(); }]); } // rádio: atalhos úteis no lugar do vazio
+  return A;
+}
+function montarAcoes(e){
+  var A=acoesDoMomento(e), vis=A.slice(0,4), k=JSON.stringify(vis.map(function(a){ return a[0]+(a[3]?1:0); }));
+  if(k===acoesAnt) return; acoesAnt=k;
+  $('acoes').innerHTML=vis.map(function(a,i){ return '<button data-i="'+i+'"'+(a[3]?' class="destaque"':'')+'>'+IC[a[0]==='letra'?'letra':a[0]==='dub'?'dub':a[0]==='baixar'?'nuvem':a[0]]+'<span>'+a[1]+'</span></button>'; }).join('')+'<button data-i="mais">'+IC.mais+'<span>Mais</span></button>';
+  [].forEach.call($('acoes').children,function(b){ b.onclick=function(){ if(b.dataset.i==='mais') abrirMais(); else vis[+b.dataset.i][2](); }; });
+}
+function abrirMais(){
+  var e=ultimo, A=acoesDoMomento(e).slice(4), vlc=e.modo==='vlc';
+  var ops=A.map(function(a){ return [a[0]==='baixar'?'nuvem':a[0],a[1],'',a[2]]; });
+  if(e.modo==='web'||vlc) ops.push(['hd','Qualidade','Resolução do vídeo ou da transmissão',abrirQualidade]);
+  ops.push(['eq','Equalizador',vlc?'10 bandas':'Equalizador do Android',abrirEq]);
+  if(vlc&&!e.video) ops.push(['dub','Criar legenda com o Whisper','Transcreve este áudio',abrirLegendas]);
+  ops.push(['casa','Tocar outro link','Volta ao início',irInicio]);
+  ops.push(['parar','Parar','Encerra a reprodução',function(){ fecharGaveta(); T&&T.parar(); },true]);
+  abrirGaveta('mais','Mais opções',ops.map(function(o,i){ return '<button class="menu-op'+(o[4]?' risco':'')+'" data-i="'+i+'"><i>'+IC[o[0]]+'</i><span>'+esc(o[1])+(o[2]?'<small>'+esc(o[2])+'</small>':'')+'</span></button>'; }).join(''));
+  [].forEach.call($('gConteudo').querySelectorAll('.menu-op'),function(b){ b.onclick=function(){ var f=ops[+b.dataset.i][3]; if(f!==irInicio&&ops[+b.dataset.i][0]!=='parar') fecharGaveta(); setTimeout(f,f===irInicio?0:60); }; });
+}
+$('pMais').onclick=abrirMais;
+// Cartão da dublagem no player do site: a função mais usada, à vista, com o andamento.
+var dubConta=0;
+$('dubCartaoIc').innerHTML=IC.dub;
+$('dubCartao').onclick=function(){ abrirDublar(); };
+function cartaoDublagem(e,verPlayer){
+  var mostra=verPlayer&&e.modo==='web'&&!document.body.classList.contains('baixo');
+  $('dubCartao').classList.toggle('oculto',!mostra); if(!mostra||(dubConta++%4)) return;
+  var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ d={}; }
+  $('dubCartao').classList.toggle('ativo',!!d.ativo);
+  $('dubCartaoTit').textContent=d.ativo?'Dublando em português':'Dublar em português';
+  $('dubCartaoTxt').textContent=d.ativo?(d.estado||'A voz acompanha o vídeo.'):(d.yt&&d.temLegenda?'Instantâneo, pela legenda do vídeo, com voz neural natural.':'O Whisper ouve o vídeo e uma voz neural natural fala em português.');
+}
+
 // ------------------------------------------------ estado
 var NOMES={parado:'parado',abrindo:'abrindo…',carregando:'carregando…',tocando:'tocando',pausado:'pausado',erro:'não foi possível tocar'};
-var ultimo={}, modoAnt=null, mostrarInicio=false, contaInicio=0;
+var ultimo={}, modoAnt=null, contaInicio=0;
 function atualizar(){
   if(!T) return;
   var e; try{ e=JSON.parse(T.estado()); }catch(x){ return; }
   ultimo=e;
   var nada=e.modo==='nada'||!e.modo, vlc=e.modo==='vlc', tocando=!!e.tocando, sit=e.situacao||'parado';
+  if(e.modo!==modoAnt){ modoAnt=e.modo; verAbas=false; if(gavetaAberta&&gavetaAberta!=='lista'&&gavetaAberta!=='importar') fecharGaveta(); }
   document.body.classList.toggle('compacto', window.innerHeight<200 && !nada);
-  $('recolher').classList.toggle('oculto', !e.expandido);
-  var verInicio=nada||mostrarInicio;
-  $('inicio').classList.toggle('oculto', !verInicio);
-  $('player').classList.toggle('oculto', verInicio);
+  var verPlayer=!nada&&!verAbas;
+  document.body.classList.toggle('no-player',verPlayer);
+  document.body.classList.toggle('baixo',verPlayer&&window.innerHeight<440);
+  ['inicio','pBiblioteca','pBaixar','pAjustes'].forEach(function(id){ $(id).classList.toggle('on',!verPlayer&&aba===id); });
+  $('player').classList.toggle('on',verPlayer);
+  [].forEach.call(document.querySelectorAll('#abas button'),function(b){ b.classList.toggle('on',b.dataset.aba===aba); });
+  $('mini').classList.toggle('oculto',nada||verPlayer);
   var nomeSit=NOMES[sit]||sit; if(sit==='carregando'&&e.buffer>0&&e.buffer<100) nomeSit='carregando '+e.buffer+'%';
   $('chip').textContent=nada?'pronto':nomeSit; $('chip').classList.toggle('on',tocando);
   var titulo=e.titulo||(vlc?e.url:'')||'Página aberta';
-  $('titulo').textContent=titulo; $('cTitulo').textContent=titulo;
+  $('titulo').textContent=titulo; $('cTitulo').textContent=titulo; $('mTit').textContent=titulo;
   var fonte=vlc?(e.video?'Player VLC · vídeo':'Player VLC · áudio'):(e.qualidade!==undefined?'YouTube':'Site');
   if(e.qualidade) fonte+=' · '+e.qualidade;
   $('fonteTxt').textContent=fonte; $('fonte').classList.toggle('on',tocando);
-  $('sit').textContent=tocando?'Pode apagar a tela: o som continua.':(vlc?nomeSit:'Dê play no vídeo (aqui ou na página).');
+  var linhaFila=e.fila?e.fila.nome+' · '+(e.fila.aleatorio?(e.fila.ordem+1):(e.fila.indice+1))+' de '+e.fila.total:'';
+  $('sit').textContent=linhaFila||(tocando?'Pode apagar a tela: o som continua.':(vlc?nomeSit:'Dê play no vídeo (aqui ou na página).'));
   $('cSit').textContent=nomeSit+(e.qualidade?' · '+e.qualidade:'');
-  var ic=tocando?IC.pausa:IC.play; if($('tp').getAttribute('data-ic')!==(tocando?'p':'t')){ $('tp').innerHTML=ic; $('cTp').innerHTML=ic; $('tp').setAttribute('data-ic',tocando?'p':'t'); }
+  $('mSit').textContent=linhaFila||fonte;
+  $('mCapa').innerHTML=vlc&&!e.video?(e.duracao>0?IC.musica:IC.radio):(e.modo==='web'?IC.yt:IC.tv);
+  var dub=e.modo==='web'; $('cAcao').innerHTML=dub?IC.dub:IC.cc; $('cAcao').className='ic'+(dub?' dub':''); $('cAcao').setAttribute('aria-label',dub?'Dublar':'Legendas');
+  var ic=tocando?IC.pausa:IC.play; if($('tp').getAttribute('data-ic')!==(tocando?'p':'t')){ $('tp').innerHTML=ic; $('cTp').innerHTML=ic; $('mTp').innerHTML=ic; $('tp').setAttribute('data-ic',tocando?'p':'t'); }
   $('progBox').classList.toggle('oculto', !(e.busca&&e.duracao>0));
   if(e.duracao>0&&!buscando){ $('busca').value=Math.round((e.posicao||0)*1000); $('tAgora').textContent=tempo(e.tempo); $('tTotal').textContent=tempo(e.duracao); }
   $('volBox').classList.toggle('oculto', !vlc);
-  $('filaBox').classList.toggle('oculto', !e.fila);
-  // Animação só enquanto algo toca de verdade (uma piscada de carregamento não a esconde).
+  // fila: anterior/próximo, aleatório e repetir no lugar de -10/+10
+  var fila=!!e.fila, pode=!!(e.busca&&e.duracao>0);
+  ['filaAleat','filaAnt','filaProx','filaRep'].forEach(function(i){ $(i).classList.toggle('oculto',!fila); });
+  $('voltar10').classList.toggle('oculto',fila||(vlc&&!pode)); $('avancar10').classList.toggle('oculto',fila||(vlc&&!pode));
+  $('voltar10').disabled=$('avancar10').disabled=!pode;
   if(tocando) ultimoTocou=Date.now();
-  var radio=vlc&&!e.video&&!verInicio&&(tocando||(sit==='carregando'&&Date.now()-ultimoTocou<2500));
+  // Animação só enquanto algo toca de verdade (uma piscada de carregamento não a esconde).
+  var radio=vlc&&!e.video&&verPlayer&&(tocando||(sit==='carregando'&&Date.now()-ultimoTocou<2500));
   if(vlc&&e.duracao>0) relLetra.atualizar(e.tempo||0,tocando,1);
   if(vlc&&!e.video&&e.duracao>0) botaoCriarLetra(); else $('letraCriar').classList.add('oculto');
   var P=e.preparando||{}; $('prep').classList.toggle('oculto',!P.trabalhando);
   if(P.trabalhando){ $('prepTxt').textContent=P.estado||'Buscando o vídeo…'; $('prepProg').style.width=Math.max(3,P.pct||0)+'%'; }
   mostrarPalco(radio&&!document.body.classList.contains('compacto'));
-  if(radio){ atualizarRadio(); if(soLetra) encaixarLetra(); } $('sit').classList.toggle('oculto',radio); $('titulo').classList.toggle('oculto',radio&&palcoVisivel);
-  $('voltar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0)); $('avancar10').classList.toggle('oculto',vlc&&!(e.busca&&e.duracao>0));
-  $('aBaixar').classList.toggle('oculto', !(e.modo==='web'||(vlc&&/^https?:/.test(e.url||''))));
+  if(radio){ atualizarRadio(); if(soLetra) encaixarLetra(); }
+  $('pInfo').classList.toggle('oculto',radio&&palcoVisivel); $('espaco').classList.toggle('oculto',radio&&palcoVisivel);
   $('aSalvar').classList.toggle('oculto', !e.temporario);
+  montarAcoes(e);
+  cartaoDublagem(e,verPlayer);
   atualizarDownloads();
-  if(e.fila){ $('filaTxt').textContent=e.fila.nome+' · '+(e.fila.aleatorio?(e.fila.ordem+1):(e.fila.indice+1))+' de '+e.fila.total; pintarModo(e.fila); }
-  if(verInicio&&(++contaInicio%5===1)){ mostrarAnuncios(); }
+  if(e.fila) pintarModo(e.fila);
+  if(!verPlayer&&aba==='inicio'&&(++contaInicio%5===1)) mostrarAnuncios();
   if(vlc&&e.volume>=0&&document.activeElement!==$('vol')){ $('vol').value=e.volume; $('volTxt').textContent=e.volume+'%'; }
-  $('aCheio').disabled=!e.podeCheio; $('cCheio').classList.toggle('oculto',!e.podeCheio);
-  $('voltar10').disabled=$('avancar10').disabled=!(e.busca&&e.duracao>0);
-  if(e.modo!==modoAnt){ modoAnt=e.modo; mostrarInicio=false; if(gavetaAberta) fecharGaveta(); }
-  if(gavetaAberta==='leg') atualizarLegendas();
+  $('cCheio').classList.toggle('oculto',!e.podeCheio);
+  if(/^(leg|dub|letra)$/.test(gavetaAberta)) atualizarAudioGavetas();
 }
-$('aLink').onclick=function(){ mostrarInicio=true; atualizar(); setTimeout(function(){ $('link').focus(); },50); };
 
 // ------------------------------------------------ gaveta
 var gavetaAberta=null, expandiuParaGaveta=false;
@@ -768,8 +989,7 @@ function opcoes(itens,sel){ return itens.map(function(o){ return '<button class=
 
 // ---- legendas
 var legChaveSel='', legTraduzir=false, legAnt='', audAnt='';
-function abrirLegendas(){
-  abrirGaveta('leg','Áudio e legendas','<div id="ltBox" class="oculto"><h2>Letra da música</h2>'+
+var HTML_LETRA=function(){ return '<div id="ltBox" class="oculto">'+
     '<div class="chave-linha" style="padding-top:2px"><span>Mostrar a letra sincronizada<br><small style="color:var(--fraco);font-weight:400" id="ltEstado"></small></span><label class="chave"><input type="checkbox" id="ltChk"><span></span></label></div>'+
     '<div id="ltIaBox" class="oculto"><div class="linha"><button class="pri" id="ltCriar">'+IC_IA+'<span>Criar a letra com o Whisper</span></button></div>'+
     '<div class="nota" style="margin:4px 0 6px">O Whisper ouve a música no próprio celular e escreve a letra com os horários. Fica guardada para as próximas vezes.</div></div>'+
@@ -778,16 +998,17 @@ function abrirLegendas(){
     '<div class="lt-fino"><button id="ltMenos" aria-label="0,1 segundo mais tarde">−0,1</button><input type="range" id="ltFino" min="-10" max="10" step="1" value="0" aria-label="Ajuste da letra"><button id="ltMais" aria-label="0,1 segundo mais cedo">+0,1</button></div>'+
     '<div class="lt-escala"><span>−1 s · mais tarde</span><b id="ltAjuste">0,0 s</b><span>mais cedo · +1 s</span></div>'+
     '<div class="linha" style="margin-top:6px"><button id="ltZerar">Zerar ajuste</button></div></div>'+
-    '<div style="height:10px"></div></div>'+
-    '<div id="lgBox" class="oculto"><h2>Legendador · Whisper</h2>'+
+    '<div style="height:10px"></div></div>'; };
+var HTML_LEG=function(){ return '<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><h2 id="legTit" style="margin-top:16px">Legendas</h2><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
+    '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
+    '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>'+'<div id="lgBox" class="oculto"><h2>Legendador · Whisper</h2>'+
     '<div class="nota" id="lgEstado" style="margin-top:0"></div><div class="medidor oculto" id="lgBarra"><i id="lgProg"></i></div>'+
     '<div class="chave-linha" id="lgTradLinha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="lgTrad" checked><span></span></label></div>'+
     '<div class="linha"><button class="pri" id="lgIr">'+IC.cc+'<span>Gerar legenda</span></button><button id="lgCancelar" class="oculto">Cancelar</button></div>'+
     '<div id="lgBaixar" class="oculto"><div class="linha mt"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div>'+
     '<div class="linha mt"><button data-f="txt" data-o="0">'+IC.baixar+'<span>.txt português</span></button><button data-f="txt" data-o="1">'+IC.baixar+'<span>.txt original</span></button></div></div>'+
-    '<div style="height:14px"></div></div>'+
-    '<div id="lgDubBox" class="oculto"><h2>Legenda gerada pela dublagem</h2><div class="linha"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div></div>'+
-    '<div id="dubBox" class="oculto"><h2>Dublagem em português</h2>'+
+    '<div style="height:14px"></div></div>'; };
+var HTML_DUB=function(){ return '<div id="dubBox" class="oculto">'+
     '<div id="dubEscolha"><div class="nota" style="margin-top:0">De onde vem o texto falado:</div><div id="dubModos"></div>'+
     '<button class="pri" id="dubBotao" style="width:100%;margin-top:6px"></button></div>'+
     '<div id="dubAtivo" class="oculto"><div class="nota" id="dubEstado" style="white-space:pre-line"></div>'+
@@ -803,30 +1024,34 @@ function abrirLegendas(){
     '<div class="chave-linha"><span>Idioma do vídeo</span><select id="dubIdioma"></select></div>'+
     '<div class="chave-linha"><span>Velocidade ao preparar</span><select id="dubVel"><option value="1">1x (mais preciso)</option><option value="1.5">1,5x</option><option value="2">2x (mais rápido)</option></select></div>'+
     '<div class="nota">O Whisper (OpenAI, código aberto) roda no próprio celular: ouve o som do vídeo e escreve o que é falado, mesmo em vídeos sem legenda. O texto é traduzido para português e lido por uma voz neural. Na primeira vez, o modelo é baixado (só com Wi-Fi é melhor).</div></details>'+
-    '</div>'+
-    '<div id="audBox" class="oculto"><h2>Áudio</h2><div id="audLista"></div><div class="nota">Vídeos dublados pelo YouTube têm o áudio em outros idiomas.</div><h2 style="margin-top:14px">Legendas</h2></div><h2 id="legTit" style="margin-top:16px">Legendas</h2><div id="legLista"></div><div id="legTrad" class="oculto"><div class="chave-linha"><span>Traduzir para português</span><label class="chave"><input type="checkbox" id="legTradChk"><span></span></label></div></div>'+
-    '<div id="legNota" class="nota"></div><button class="pri oculto" id="legBaixar" style="width:100%;margin-top:6px">'+IC.baixar+'<span>Baixar legenda como texto (.txt)</span></button>'+
-    '<div id="legArqs"></div><button class="oculto" id="legAbrir" style="width:100%;margin-top:8px">Abrir o arquivo salvo</button>');
-  legAnt=''; audAnt=''; atualizarLegendas();
-  montarDublagem();
-  $('ltChk').onchange=function(){ T.letraLigar(this.checked); setTimeout(atualizarLetraGaveta,300); };
-  $('ltCriar').onclick=function(){ T.letraCriar(); setTimeout(atualizarLetraGaveta,300); };
-  $('ltIaChk').onchange=function(){ T.letraIaAutomatica(this.checked); };
+    '</div>'+'<div id="lgDubBox" class="oculto"><h2>Legenda gerada pela dublagem</h2><div class="linha"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div></div>'+'<div class="nota oculto" id="dubVazio">A dublagem funciona com vídeos abertos no modo Site (YouTube e outros). Abra um vídeo para dublar em português.</div>'; };
+function abrirLegendas(){ abrirGaveta('leg','Áudio e legendas',HTML_LEG()); ligarAudioGavetas(); }
+function abrirDublar(){ abrirGaveta('dub','Dublar em português',HTML_DUB()); ligarAudioGavetas(); }
+function abrirLetra(){ abrirGaveta('letra','Letra da música',HTML_LETRA()); ligarAudioGavetas(); }
+function ligarAudioGavetas(){
+  legAnt=''; audAnt='';
+  var tem=function(id){ return !!$(id); };
+  if(tem('dubBox')) montarDublagem();
+  if(tem('ltChk')) $('ltChk').onchange=function(){ T.letraLigar(this.checked); setTimeout(atualizarLetraGaveta,300); };
+  if(tem('ltCriar')) $('ltCriar').onclick=function(){ T.letraCriar(); setTimeout(atualizarLetraGaveta,300); };
+  if(tem('ltIaChk')) $('ltIaChk').onchange=function(){ T.letraIaAutomatica(this.checked); };
   function fino(v){ v=Math.max(-10,Math.min(10,v)); $('ltFino').value=v; mostrarFino(v); T.letraDefinirAjuste(v*100); }
-  $('ltFino').oninput=function(){ fino(+this.value); };
-  $('ltMenos').onclick=function(){ fino(+$('ltFino').value-1); };
-  $('ltMais').onclick=function(){ fino(+$('ltFino').value+1); };
-  $('ltZerar').onclick=function(){ fino(0); };
+  if(tem('ltFino')) $('ltFino').oninput=function(){ fino(+this.value); };
+  if(tem('ltMenos')) $('ltMenos').onclick=function(){ fino(+$('ltFino').value-1); };
+  if(tem('ltMais')) $('ltMais').onclick=function(){ fino(+$('ltFino').value+1); };
+  if(tem('ltZerar')) $('ltZerar').onclick=function(){ fino(0); };
   atualizarLetraGaveta();
-  $('lgIr').onclick=function(){ T.legendar($('lgTrad').checked); setTimeout(atualizarLegendador,300); };
-  $('lgCancelar').onclick=function(){ T.cancelarLegenda(); };
-  [].forEach.call($('lgBaixar').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('legendador',b.dataset.f,b.dataset.o==='1'); }; });
-  [].forEach.call($('lgDubBox').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('dublagem',b.dataset.f,b.dataset.o==='1'); }; });
+  if(tem('lgIr')) $('lgIr').onclick=function(){ T.legendar($('lgTrad').checked); setTimeout(atualizarLegendador,300); };
+  if(tem('lgCancelar')) $('lgCancelar').onclick=function(){ T.cancelarLegenda(); };
+  if(tem('lgBaixar')) [].forEach.call($('lgBaixar').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('legendador',b.dataset.f,b.dataset.o==='1'); }; });
+  if(tem('lgDubBox')) [].forEach.call($('lgDubBox').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegendaGerada('dublagem',b.dataset.f,b.dataset.o==='1'); }; });
   atualizarLegendador();
-  $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
-  $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
-  $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
+  if(tem('legTradChk')) $('legTradChk').onchange=function(){ legTraduzir=this.checked; if(legChaveSel&&legChaveSel!=='off') T.escolherLegenda(legChaveSel,legTraduzir); };
+  if(tem('legBaixar')) $('legBaixar').onclick=function(){ if(!legChaveSel||legChaveSel==='off'){ avisar('Escolha uma legenda acima.'); return; } T.baixarLegenda(legChaveSel,legTraduzir); };
+  if(tem('legAbrir')) $('legAbrir').onclick=function(){ T.abrirLegendaSalva(); };
+  atualizarAudioGavetas();
 }
+function atualizarAudioGavetas(){ atualizarDublagem(); atualizarLegendador(); atualizarLetraGaveta(); atualizarLegendas(); }
 window.legendaSalva=function(podeAbrir){ var b=$('legAbrir'); if(b) b.classList.toggle('oculto',!podeAbrir); };
 var dubModo='', IDIOMAS_DUB=[['','Automático'],['en','Inglês'],['es','Espanhol'],['fr','Francês'],['it','Italiano'],['de','Alemão'],['ja','Japonês'],['ko','Coreano'],['zh','Chinês'],['ru','Russo'],['ar','Árabe'],['hi','Hindi'],['pt','Português']];
 function montarDublagem(){
@@ -852,6 +1077,7 @@ function atualizarDublagem(){
   if(!$('dubBox')) return;
   var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ return; }
   $('dubBox').classList.toggle('oculto',!d.disponivel&&!d.ativo);
+  if($('dubVazio')) $('dubVazio').classList.toggle('oculto',!!(d.disponivel||d.ativo));
   var modos=[];
   if(d.pronta) modos.push({chave:'pronta',nome:'Dublagem já preparada deste vídeo (sincronizada)'});
   if(d.yt&&d.temLegenda) modos.push({chave:'legenda',nome:'Legenda do vídeo (instantâneo)'});
@@ -903,8 +1129,6 @@ function atualizarLegendador(){
 }
 function atualizarLegendas(){
   if(!T||!$('legLista')) return;
-  atualizarDublagem();
-  atualizarLegendador(); atualizarLetraGaveta();
   var A; try{ A=JSON.parse(T.audios()); }catch(x){ A={itens:[]}; }
   var ka=JSON.stringify(A);
   if(ka!==audAnt){ audAnt=ka; var tem=(A.itens||[]).length>1; $('audBox').classList.toggle('oculto',!tem); $('legTit').classList.toggle('oculto',tem);
@@ -930,7 +1154,6 @@ function atualizarLegendas(){
     return '<div class="lista-item"><span class="u" style="color:var(--texto)">'+esc(a.nome)+'</span><button class="pri" data-c="'+esc(a.chave)+'" style="padding:9px 12px">'+IC.baixar+'<span>.txt</span></button></div>'; }).join(''):'';
   [].forEach.call($('legArqs').querySelectorAll('button'),function(b){ b.onclick=function(){ T.baixarLegenda(b.dataset.c,false); }; });
 }
-$('aLeg').onclick=$('cLeg').onclick=abrirLegendas;
 
 // ---- qualidade
 function abrirQualidade(){
@@ -952,7 +1175,6 @@ function abrirQualidade(){
   [].forEach.call($('gConteudo').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ T.escolherQualidade(b.dataset.c); [].forEach.call($('gConteudo').querySelectorAll('.opcao'),function(x){ x.classList.toggle('sel',x===b); }); avisar('Qualidade: '+b.textContent); }; });
   if($('qComp')) $('qComp').onchange=function(){ T.modoComputador(this.checked); avisar(this.checked?'Abrindo a versão para computador…':'Voltando à versão para celular…'); };
 }
-$('aQual').onclick=abrirQualidade;
 
 // ---- equalizador
 var EQ=null, espera={};
@@ -965,7 +1187,6 @@ function abrirEq(){
   $('preamp').oninput=function(){ $('preTxt').textContent=(this.value>0?'+':'')+(+this.value).toFixed(1)+' dB'; var v=+this.value; clearTimeout(espera.p); espera.p=setTimeout(function(){ T.eqPreamp(v); },60); };
   setTimeout(carregarEq,30);
 }
-$('aEq').onclick=abrirEq;
 function hz(f){ return f>=1000?(Math.round(f/100)/10+'k').replace('.0k','k'):Math.round(f)+''; }
 function carregarEq(){
   try{ EQ=JSON.parse(T.eqInfo()); }catch(x){ EQ=null; }

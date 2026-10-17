@@ -7,9 +7,11 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 ## Como usar
 
 - **Pelo Compartilhar:** no app do YouTube (ou de outro site), toque em *Compartilhar* e escolha **Tocador**.
-- **Colando o link:** abra o Tocador, toque em *Colar* e depois em *Tocar*. Os atalhos levam direto ao YouTube, Vimeo, Dailymotion e Twitch.
+- **Colando o link:** abra o Tocador, toque em *Colar* e depois em *Tocar*. O bloco **YouTube** abre o site direto.
+- **Navegação (versão 4.4):** quatro abas embaixo: **Início**, **Biblioteca**, **Baixar** e **Ajustes**. O que está tocando abre o **player em tela inteira**; a seta ⌄ no alto o minimiza e um **mini player** fica acima das abas (toque nele para voltar). Tudo cabe na tela do celular, em pé ou deitado.
+- **Player:** os botões de baixo mudam conforme o que toca. Por exemplo, **Dublar** no YouTube, **Letra** nas músicas e **Tela cheia** nos vídeos. **Qualidade**, **Equalizador**, **Tocar outro link** e **Parar** ficam em **Mais** (⋯).
 - Pode **apagar a tela** ou trocar de app: o som continua. A notificação, os fones e a tela de bloqueio controlam a reprodução.
-- O botão **voltar** não fecha o app. Para encerrar, use **Parar**.
+- O botão **voltar** não fecha o app. Para encerrar, use **Mais → Parar**.
 
 ## Rádio com animação
 
@@ -81,7 +83,7 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - **Player VLC**: escolhe as legendas embutidas no arquivo ou transmissão. Elas não podem ser baixadas como texto.
   - Na tela cheia, a legenda continua sendo a do próprio site (uma só, por cima do vídeo). No YouTube, ela fica na base da tela, a 64 px do rodapé nas duas orientações, com o dobro do tamanho.
 - **Áudio dublado (YouTube)**: em vídeos com o áudio em vários idiomas, a gaveta **Áudio e legendas** mostra as faixas para trocar com um toque. Se o YouTube não aceitar a troca por ali, use a engrenagem do próprio vídeo → *Faixa de áudio*.
-- **Dublagem em português**: na gaveta **Áudio e legendas**, escolha de onde vem o texto e toque em **Dublar em português**.
+- **Dublagem em português**: no YouTube, o cartão **Dublar em português** fica no meio do player (e o botão **Dublar** embaixo e na barra recolhida). Escolha de onde vem o texto e toque em **Dublar em português**.
   - **Legenda do vídeo** (só YouTube, instantâneo): usa a legenda do vídeo, traduzida para português pelo próprio YouTube.
   - **Whisper: ouvir o vídeo inteiro antes** (sincronia perfeita): o Whisper, a inteligência artificial de reconhecimento de fala da OpenAI (código aberto), roda no próprio celular. Ele ouve o vídeo do começo ao fim, na velocidade escolhida (1x é mais preciso; 2x é mais rápido). Depois o vídeo recomeça dublado, com cada frase na hora certa. A dublagem fica guardada: da próxima vez, aparece **Dublagem já preparada deste vídeo**.
   - **Whisper ao vivo**: dubla enquanto o vídeo toca. A voz vem alguns segundos depois da fala original.
@@ -95,7 +97,7 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - O Whisper requer celular de 64 bits (como o Galaxy S22). Em celulares de 32 bits, só a dublagem pela legenda funciona. A dublagem funciona no modo Site; no player VLC, não.
 - **Legendador (Whisper)**: na gaveta **Áudio e legendas** de um arquivo do aparelho ou de um vídeo gravado aberto no player VLC, toque em **Gerar legenda**. O Whisper ouve o som direto do arquivo, mais rápido que assistir. A legenda aparece no vídeo e pode ser baixada em **.srt** (com horários) ou **.txt**, no idioma original ou **traduzida para português**. Funciona em vídeos sem legenda nenhuma. Transmissões ao vivo não podem ser legendadas.
   - No modo site, a legenda criada pela dublagem do Whisper também pode ser baixada em .srt.
-- **Bloquear anúncios**: chave em *Ajustes*, na tela inicial (ligada por padrão). No YouTube, o app apaga a lista de anúncios que vem com o vídeo, recusa os pedidos aos servidores de anúncio e, se algum anúncio ainda começar, deixa mudo, adianta até o fim e toca em "Pular". Também esconde os banners. O YouTube muda isso com frequência, e às vezes um anúncio pode escapar. Bloquear anúncios contraria os termos de uso do YouTube.
+- **Bloquear anúncios**: chave na aba *Ajustes* (ligada por padrão); a tela inicial mostra quantos foram bloqueados. No YouTube, o app apaga a lista de anúncios que vem com o vídeo, recusa os pedidos aos servidores de anúncio e, se algum anúncio ainda começar, deixa mudo, adianta até o fim e toca em "Pular". Também esconde os banners. O YouTube muda isso com frequência, e às vezes um anúncio pode escapar. Bloquear anúncios contraria os termos de uso do YouTube.
 - **Equalizador**: no player VLC, 10 bandas, pré-amplificação e presets. No modo site, o equalizador do Android (depende do aparelho).
 
 ## jw.org
