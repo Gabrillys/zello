@@ -534,7 +534,7 @@ public class Principal extends Activity {
 
     // ------------------------------------------------------------ letra sincronizada (só músicas, sem vídeo)
 
-    private String letraChave = "", letraEstado = "", letraTitulo = "";
+    private String letraChave = "", letraEstado = "", letraTitulo = "", letraProcurada = "";
     private volatile JSONObject letraDados;
 
     private boolean letrasLigadas() { return ajustes.getBoolean("letras", true); }
@@ -556,6 +556,7 @@ public class Principal extends Activity {
         if (musica.length() == 0) musica = motor.estado().optString("titulo");
         String[] p = Letras.separar(musica, artista);
         if (artista.length() == 0) artista = p[0];
+        else if (p[0].length() > 0 && !Letras.mesmoArtista(p[0], artista)) p[1] = Letras.limpar(musica); // o traço era da versão, não do artista
         trocarMusica(url, artista, p[1], dur / 1000.0);
     }
 
@@ -566,6 +567,7 @@ public class Principal extends Activity {
         letraTitulo = "";
         empurrarLetra();
         if (chave.length() == 0) { if (!"desligada".equals(letraEstado)) letraEstado = ""; return; }
+        letraProcurada = (artista.length() > 0 ? artista + " — " : "") + musica;
         if (musica.length() == 0) { letraEstado = "sem-titulo"; return; }
         letraEstado = "buscando";
         new Thread(new Runnable() { public void run() {
@@ -579,7 +581,7 @@ public class Principal extends Activity {
                         letraDados = new JSONObject().put("linhas", r.optJSONArray("linhas")).put("adiant", 500)
                                 .put("ajuste", ajusteLetra()).put("titulo", letraTitulo).put("diferenca", r.optInt("diferenca"));
                     } catch (Exception e) { }
-                    Diagnostico.anotar("Letra: " + letraTitulo + " (" + r.optJSONArray("linhas").length() + " linhas, diferença de duração " + r.optInt("diferenca") + " s)");
+                    Diagnostico.anotar("Letra (" + r.optString("fonte") + "): " + letraTitulo + " (" + r.optJSONArray("linhas").length() + " linhas, diferença de duração " + r.optInt("diferenca") + " s)");
                 } else {
                     letraEstado = r.has("erro") && !"sem letra".equals(r.optString("erro")) ? "erro" : "sem-letra";
                     Diagnostico.anotar("Letra não encontrada para \"" + artista + " — " + musica + "\": " + r.optString("erro", "só existe letra sem horários"));
@@ -1599,7 +1601,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public String letraInfo() {
             try {
-                return new JSONObject().put("ligada", letrasLigadas()).put("estado", letraEstado).put("titulo", letraTitulo)
+                return new JSONObject().put("ligada", letrasLigadas()).put("estado", letraEstado).put("titulo", letraTitulo).put("procurada", letraProcurada)
                         .put("ajuste", letraChave.length() > 0 ? ajusteLetra() : 0)
                         .put("diferenca", letraDados != null ? letraDados.optInt("diferenca") : 0).toString();
             } catch (Exception e) { return "{}"; }
@@ -1871,7 +1873,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 4.0 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 4.1 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }

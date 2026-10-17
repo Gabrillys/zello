@@ -66,3 +66,8 @@ Falta no celular:
 - `Letras.java` busca no LRCLIB (`/api/search`), escolhe a versão de duração mais próxima e converte o LRC; `letreiro.js` desenha. Só com o VLC tocando áudio sem vídeo, de 45 s a 20 min.
 - O lrclib.net está bloqueado na rede do ambiente: a busca real não foi testada, só a tela (com letra de exemplo, em pé e deitado, nas duas vistas).
 - Gravações com introdução diferente da versão do catálogo podem sair deslocadas; para isso existe o ajuste manual por música.
+
+## Versão 4.1: letras dos Beatles e afins
+
+- Títulos como "Here Comes The Sun - Remastered 2009", "01 - Come Together" e "Hey Jude - 2015 Mix" eram procurados errado (o sufixo virava a música, o número virava o artista). Corrigido e testado aqui com um servidor falso.
+- A busca agora tenta três formas no LRCLIB e cai no NetEase Cloud Music (API pública não oficial, a mesma usada por players de código aberto). Nenhum dos dois pôde ser testado de verdade: a rede do ambiente bloqueia ambos.

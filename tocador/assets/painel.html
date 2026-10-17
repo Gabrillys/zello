@@ -851,7 +851,7 @@ function atualizarLetraGaveta(){
   if(!$('ltBox')) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ return; }
   var musica=ultimo.modo==='vlc'&&!ultimo.video&&ultimo.duracao>0; $('ltBox').classList.toggle('oculto',!musica);
   if(document.activeElement!==$('ltChk')) $('ltChk').checked=!!I.ligada;
-  var est={buscando:'Procurando a letra…',pronta:I.titulo,'sem-letra':'Não há letra sincronizada para esta música no catálogo LRCLIB.','sem-titulo':'A música não tem nome de artista/título para procurar.',erro:'Sem conexão com o catálogo de letras; o app tenta de novo.',desligada:'Desligada.'}[I.estado]||'Toque uma música para ver a letra.';
+  var est={buscando:'Procurando a letra…',pronta:I.titulo,'sem-letra':'Não achei letra sincronizada para “'+(I.procurada||'esta música')+'” nos catálogos LRCLIB e NetEase.','sem-titulo':'A música não tem nome de artista/título para procurar.',erro:'Sem conexão com o catálogo de letras; o app tenta de novo.',desligada:'Desligada.'}[I.estado]||'Toque uma música para ver a letra.';
   $('ltEstado').textContent=est;
   $('ltAjusteBox').classList.toggle('oculto',I.estado!=='pronta');
   var a=I.ajuste||0; $('ltAjuste').textContent=a===0?'Sem ajuste':(a>0?'Letra ':'Letra ')+(Math.abs(a)/1000).toFixed(1).replace('.',',')+' s '+(a>0?'mais cedo':'mais tarde')+' nesta música';
