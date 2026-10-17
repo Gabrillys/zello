@@ -202,6 +202,11 @@ input.campo:focus{outline:none;border-color:var(--cor)}
 #letraCriar span{background:none!important;padding:0!important;backdrop-filter:none!important;color:#FFD27A!important;letter-spacing:.2px!important}
 #letraCriar{width:auto!important;flex:0 0 auto!important;border-radius:99px!important;padding:0 12px 0 9px!important;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;border:1px solid rgba(245,165,36,.35)!important}
 #letraCriar[disabled]{opacity:1}
+.lt-fino{display:flex;align-items:center;gap:10px}
+.lt-fino button{flex:0 0 auto;min-width:54px;padding:8px 10px;font-variant-numeric:tabular-nums;font-weight:700}
+.lt-fino input{flex:1;min-width:0}
+.lt-escala{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;color:var(--fraco);margin-top:4px}
+.lt-escala b{font-size:15px;color:var(--cor2);font-variant-numeric:tabular-nums;min-width:56px;text-align:center}
 #vistaTroca{width:auto!important;flex:0 0 auto!important;border-radius:99px!important;padding:0 12px 0 9px!important;display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:#fff}
 body.efeito-cheio{overflow:hidden}
 body.efeito-cheio #palco{position:fixed;inset:0;margin:0;border-radius:0;height:auto;z-index:8}
@@ -769,8 +774,10 @@ function abrirLegendas(){
     '<div id="ltIaBox" class="oculto"><div class="linha"><button class="pri" id="ltCriar">'+IC_IA+'<span>Criar a letra com o Whisper</span></button></div>'+
     '<div class="nota" style="margin:4px 0 6px">O Whisper ouve a música no próprio celular e escreve a letra com os horários. Fica guardada para as próximas vezes.</div></div>'+
     '<div class="chave-linha"><span>Criar sozinho quando não houver letra<br><small style="color:var(--fraco);font-weight:400">Só com o Whisper já baixado</small></span><label class="chave"><input type="checkbox" id="ltIaChk"><span></span></label></div>'+
-    '<div id="ltAjusteBox" class="oculto"><div class="nota" style="margin:2px 0 6px">A letra deve aparecer meio segundo antes do canto. Se estiver fora disso:</div>'+
-    '<div class="linha"><button id="ltAntes">Letra atrasada</button><button id="ltDepois">Letra adiantada</button></div><div class="nota" id="ltAjuste" style="text-align:center"></div></div>'+
+    '<div id="ltAjusteBox" class="oculto"><div class="nota" style="margin:2px 0 8px">Ajuste fino da sincronia (fica guardado para esta música):</div>'+
+    '<div class="lt-fino"><button id="ltMenos" aria-label="0,1 segundo mais tarde">−0,1</button><input type="range" id="ltFino" min="-10" max="10" step="1" value="0" aria-label="Ajuste da letra"><button id="ltMais" aria-label="0,1 segundo mais cedo">+0,1</button></div>'+
+    '<div class="lt-escala"><span>−1 s · mais tarde</span><b id="ltAjuste">0,0 s</b><span>mais cedo · +1 s</span></div>'+
+    '<div class="linha" style="margin-top:6px"><button id="ltZerar">Zerar ajuste</button></div></div>'+
     '<div style="height:10px"></div></div>'+
     '<div id="lgBox" class="oculto"><h2>Legendador · Whisper</h2>'+
     '<div class="nota" id="lgEstado" style="margin-top:0"></div><div class="medidor oculto" id="lgBarra"><i id="lgProg"></i></div>'+
@@ -805,8 +812,11 @@ function abrirLegendas(){
   $('ltChk').onchange=function(){ T.letraLigar(this.checked); setTimeout(atualizarLetraGaveta,300); };
   $('ltCriar').onclick=function(){ T.letraCriar(); setTimeout(atualizarLetraGaveta,300); };
   $('ltIaChk').onchange=function(){ T.letraIaAutomatica(this.checked); };
-  $('ltAntes').onclick=function(){ T.letraAjustar(500); setTimeout(atualizarLetraGaveta,200); };
-  $('ltDepois').onclick=function(){ T.letraAjustar(-500); setTimeout(atualizarLetraGaveta,200); };
+  function fino(v){ v=Math.max(-10,Math.min(10,v)); $('ltFino').value=v; mostrarFino(v); T.letraDefinirAjuste(v*100); }
+  $('ltFino').oninput=function(){ fino(+this.value); };
+  $('ltMenos').onclick=function(){ fino(+$('ltFino').value-1); };
+  $('ltMais').onclick=function(){ fino(+$('ltFino').value+1); };
+  $('ltZerar').onclick=function(){ fino(0); };
   atualizarLetraGaveta();
   $('lgIr').onclick=function(){ T.legendar($('lgTrad').checked); setTimeout(atualizarLegendador,300); };
   $('lgCancelar').onclick=function(){ T.cancelarLegenda(); };
@@ -867,6 +877,7 @@ function atualizarDublagem(){
   $('dubModeloEstado').textContent=est;
   $('dubBaixar').classList.toggle('oculto',!!d.baixando||!mod||mod.pronto);
 }
+function mostrarFino(v){ $('ltAjuste').textContent=(v>0?'+':v<0?'−':'')+(Math.abs(v)/10).toFixed(1).replace('.',',')+' s'; }
 function atualizarLetraGaveta(){
   if(!$('ltBox')) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ return; }
   var musica=ultimo.modo==='vlc'&&!ultimo.video&&ultimo.duracao>0; $('ltBox').classList.toggle('oculto',!musica);
@@ -876,7 +887,7 @@ function atualizarLetraGaveta(){
   $('ltIaBox').classList.toggle('oculto',!(I.ia&&I.ligada&&(I.estado==='sem-letra'||I.estado==='ia-falhou')));
   if(document.activeElement!==$('ltIaChk')) $('ltIaChk').checked=!!I.iaAuto;
   $('ltAjusteBox').classList.toggle('oculto',I.estado!=='pronta');
-  var a=I.ajuste||0; $('ltAjuste').textContent=a===0?'Sem ajuste':(a>0?'Letra ':'Letra ')+(Math.abs(a)/1000).toFixed(1).replace('.',',')+' s '+(a>0?'mais cedo':'mais tarde')+' nesta música';
+  if(document.activeElement!==$('ltFino')){ var v=Math.round((I.ajuste||0)/100); $('ltFino').value=v; mostrarFino(v); }
 }
 function atualizarLegendador(){
   if(!$('lgBox')) return; var G; try{ G=JSON.parse(T.legendador()); }catch(x){ return; }

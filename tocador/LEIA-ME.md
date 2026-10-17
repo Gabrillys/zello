@@ -31,7 +31,7 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - Se não achar, a seção **Letra da música** mostra exatamente o que foi procurado.
 - Cada linha aparece **meio segundo antes** de ser cantada, para dar tempo de ler, e um degradê dourado percorre a linha no ritmo da música.
 - O botão **Letra / Animação**, no alto do palco, alterna entre as duas vistas: a **letra sozinha**, rolando em letras grandes como a letra do YouTube, ou a **animação sozinha**, sem letra. A escolha fica guardada. Na vista da letra a animação para de vez e não gasta bateria.
-- Em **Áudio e legendas → Letra da música** dá para desligar a letra e corrigir o tempo em passos de meio segundo ("Letra atrasada" / "Letra adiantada"). A correção fica guardada para aquela música.
+- Em **Áudio e legendas → Letra da música** dá para desligar a letra e fazer o **ajuste fino da sincronia**: uma barra de −1 s (letra mais tarde) a +1 s (letra mais cedo), em passos de 0,1 s, com botões −0,1 / +0,1 e "Zerar ajuste". O ajuste vale na hora e fica guardado para aquela música.
 - Vídeos nunca recebem essa letra; ela é só para músicas sem imagem.
 
 ## Biblioteca: listas M3U, M3U8 e PLS

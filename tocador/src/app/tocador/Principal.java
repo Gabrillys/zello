@@ -544,7 +544,8 @@ public class Principal extends Activity {
     /** Criar a letra com o Whisper quando nenhum catálogo tiver (liga por padrão; só roda com o Whisper já baixado). */
     private boolean letraIaAuto() { return ajustes.getBoolean("letraIaAuto", true); }
 
-    private int ajusteLetra() { return ajustes.getInt("letraAjuste:" + letraChave, 0); }
+    /** Ajuste fino da letra nesta música: de -1 s (mais tarde) a +1 s (mais cedo), em passos de 0,1 s. */
+    private int ajusteLetra() { return Math.max(-1000, Math.min(1000, ajustes.getInt("letraAjuste:" + letraChave, 0))); }
 
     /**
      * Uma vez por segundo: se uma música (só áudio, com duração) toca no player VLC, busca a letra uma vez
@@ -1719,12 +1720,12 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void letraIaAutomatica(boolean sim) { ajustes.edit().putBoolean("letraIaAuto", sim).apply(); }
 
-        /** Letra adiantada demais (+) ou atrasada (-) em relação ao canto: corrige e guarda para esta música. */
+        /** Ajuste fino escolhido na gaveta (ms; + = letra mais cedo, - = mais tarde): guarda para esta música. */
         @JavascriptInterface
-        public void letraAjustar(final int deltaMs) {
+        public void letraDefinirAjuste(final int ms) {
             naTela(new Runnable() { public void run() {
                 if (letraChave.length() == 0) return;
-                int a = Math.max(-15000, Math.min(15000, ajusteLetra() + deltaMs));
+                int a = Math.max(-1000, Math.min(1000, Math.round(ms / 100f) * 100));
                 ajustes.edit().putInt("letraAjuste:" + letraChave, a).apply();
                 if (letraDados != null) try { letraDados.put("ajuste", a); } catch (Exception e) { }
                 empurrarLetra();
@@ -1974,7 +1975,7 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void copiarDiagnostico() {
             naTela(new Runnable() { public void run() {
-                String t = Diagnostico.texto() + "\nVersão: 4.2 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
+                String t = Diagnostico.texto() + "\nVersão: 4.3 · Android " + Build.VERSION.RELEASE + " · " + Build.MANUFACTURER + " " + Build.MODEL + " · modo=" + Controle.modo;
                 ((ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE)).setPrimaryClip(ClipData.newPlainText("Diagnóstico do Tocador", t));
             } });
         }
