@@ -78,6 +78,13 @@ Falta no celular:
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
 
+## Versão 4.5: legendas voltam a funcionar (erro do 4.4) e letras com diagnóstico, falta testar no celular
+
+- **Corrigido (causa confirmada):** no 4.4, ao dividir a gaveta "Áudio e legendas", o código da gaveta Legendas passou a mexer num elemento (`lgDubBox`) que agora só existe na gaveta Dublar. Dava erro de script ao abrir **Legendas**, e isso parava a montagem da gaveta: a lista de legendas ficava vazia, o botão **Baixar legenda como texto** ficava sem função e o **Gerar legenda** não mostrava andamento nem o botão de baixar o resultado. Reproduzido no Chromium; `ferramentas/fluxo.mjs` agora abre a gaveta Legendas (arquivo no VLC e YouTube), confere a lista e o botão de baixar, e **falha** se houver qualquer erro de script. Com o painel do 4.4 ele falha; com o 4.5, passa.
+- **Letras só em algumas músicas (causa não confirmada):** não dá para chamar os catálogos reais daqui (rede bloqueada). Mudanças feitas e testadas com servidor falso: (1) o título "Música - Artista" (ordem trocada) agora acha a letra; antes era recusado; (2) cada busca grava no diagnóstico uma linha com o resultado de cada catálogo (LRCLIB com quantos resultados vieram e a melhor nota; os outros com "nada" ou o erro).
+- **O que o usuário precisa mandar:** tocar umas 5 músicas que ficaram sem letra e enviar o texto de **Copiar diagnóstico**. As linhas `Letras "Artista — Música" …` dizem qual catálogo falhou e por quê. Com isso dá para saber se o problema é o catálogo (bloqueio, ficha do Musixmatch negada, endereço mudou) ou o casamento do nome.
+- Falta no celular: abrir **Legendas** num vídeo do YouTube e baixar o .txt; **Gerar legenda** num arquivo do aparelho até o botão de baixar aparecer.
+
 ## Versão 4.4: interface nova (abas, player em tela inteira), falta testar no celular
 
 - Testada só no Chromium com dados simulados (`ferramentas/banca.mjs` e `ferramentas/fluxo.mjs`): 24 cenas cabem na tela, 12 passos sem erro. No celular, conferir principalmente: o "minimizar" no modo site (recolhe o painel), o mini player, o cartão de dublagem no YouTube e a área segura das bordas no Android 16.

@@ -122,19 +122,28 @@ public final class Letras {
         List<String> falhas = new ArrayList<String>();
         boolean algumRespondeu = false;
         String simples = "";
+        String[] nomes = { "LRCLIB", "Musixmatch", "NetEase", "Kugou" };
+        StringBuilder relato = new StringBuilder();
         try {
             // os catálogos em ordem; o primeiro com letra sincronizada da mesma gravação vence
             for (int f = 0; f < 4 && !r.has("linhas"); f++) {
+                detalhe.set("");
+                String res;
                 try {
                     JSONObject x = f == 0 ? doLrclib(artista, musica, duracaoSeg) : f == 1 ? doMusixmatch(artista, musica, duracaoSeg)
                             : f == 2 ? doNetease(artista, musica, duracaoSeg) : doKugou(artista, musica, duracaoSeg);
                     algumRespondeu = true;
-                    if (x != null && x.has("linhas")) r = x;
-                    else if (x != null && x.optString("texto").length() > 0 && simples.length() == 0) simples = x.optString("texto");
+                    if (x != null && x.has("linhas")) { r = x; res = "achou"; }
+                    else if (x != null && x.optString("texto").length() > 0) { res = "só letra sem horários"; if (simples.length() == 0) simples = x.optString("texto"); }
+                    else res = "nada" + (detalhe.get().length() > 0 ? " (" + detalhe.get() + ")" : "");
                 } catch (Exception e) {
-                    falhas.add(e.getMessage() == null ? e.toString() : e.getMessage());
+                    String m = e.getMessage() == null ? e.toString() : e.getMessage();
+                    falhas.add(m);
+                    res = "falhou: " + m;
                 }
+                relato.append(relato.length() > 0 ? " · " : "").append(nomes[f]).append(": ").append(res);
             }
+            Diagnostico.anotar("Letras \"" + artista + " — " + musica + "\" (" + Math.round(duracaoSeg) + " s) → " + relato);
             if (!r.has("linhas")) {
                 if (!algumRespondeu) { r.put("erro", falhas.isEmpty() ? "sem rede" : falhas.get(0)); return r; } // sem rede: não guarda
                 r.put("erro", "sem letra");
@@ -154,11 +163,24 @@ public final class Letras {
                 .put("duracao", dur).put("fonte", fonte).put("diferenca", duracaoSeg > 0 && dur > 0 ? Math.round(dur - duracaoSeg) : 0);
     }
 
-    /** Nota de um candidato (menor é melhor): diferença de duração, mais multas se artista ou nome não batem. */
+    /** Por que a última busca não deu em nada (só para o diagnóstico); um valor por linha de execução. */
+    private static final ThreadLocal<String> detalhe = new ThreadLocal<String>();
+
+    /**
+     * Nota de um candidato (menor é melhor): diferença de duração, mais multas se artista ou nome não batem.
+     * Aceita também o título escrito ao contrário ("Música - Artista"), com uma multa pequena para a ordem certa ganhar o empate.
+     */
     private static double nota(String artC, String musC, double durC, String artista, String musica, double duracaoSeg) {
-        double n = duracaoSeg > 0 && durC > 0 ? Math.abs(durC - duracaoSeg) : 3;
+        double base = duracaoSeg > 0 && durC > 0 ? Math.abs(durC - duracaoSeg) : 3;
+        double n = base;
         if (artista.length() > 0 && !mesmoArtista(artC, artista)) n += 30;
         if (!parecido(musC, musica)) n += 40;
+        if (n >= LIMITE && artista.length() > 0) {
+            double t = base + 1;
+            if (!mesmoArtista(artC, musica)) t += 30;
+            if (!parecido(musC, artista)) t += 40;
+            n = Math.min(n, t);
+        }
         return n;
     }
 
@@ -187,17 +209,22 @@ public final class Letras {
         Exception falha = null;
         boolean respondeu = false;
         JSONObject melhor = null;
-        double melhorNota = LIMITE;
+        double melhorNota = LIMITE, menorNota = 1000;
+        int comHorario = 0;
         for (String b : buscas) {
             try { juntar(l, new JSONArray(baixar(servidor + b, null, null))); respondeu = true; } catch (Exception e) { falha = e; }
+            comHorario = 0;
             for (JSONObject c : l) {
                 if (c.isNull("syncedLyrics") || c.optString("syncedLyrics", "").length() == 0) continue;
+                comHorario++;
                 double n = nota(c.optString("artistName"), c.optString("trackName"), c.optDouble("duration", 0), artista, musica, duracaoSeg);
+                menorNota = Math.min(menorNota, n);
                 if (n < melhorNota) { melhorNota = n; melhor = c; }
             }
             if (melhor != null && melhorNota <= 8) break;
         }
         if (!respondeu && falha != null) throw falha;
+        if (melhor == null) detalhe.set(l.size() + " resultados, " + comHorario + " com horários" + (comHorario > 0 ? ", melhor nota " + Math.round(menorNota) + " de no máximo " + Math.round(LIMITE) : ""));
         if (melhor != null) {
             JSONArray linhas = linhasBoas(melhor.optString("syncedLyrics"));
             if (linhas != null) return achado("LRCLIB", linhas, melhor.optString("artistName"), melhor.optString("trackName"), melhor.optDouble("duration", 0), duracaoSeg);

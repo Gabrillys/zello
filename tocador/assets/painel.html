@@ -1116,9 +1116,11 @@ function atualizarLetraGaveta(){
   if(document.activeElement!==$('ltFino')){ var v=Math.round((I.ajuste||0)/100); $('ltFino').value=v; mostrarFino(v); }
 }
 function atualizarLegendador(){
-  if(!$('lgBox')) return; var G; try{ G=JSON.parse(T.legendador()); }catch(x){ return; }
+  // O legendador mora na gaveta Legendas e a legenda da dublagem na gaveta Dublar: só uma delas existe por vez.
+  if(!$('lgBox')&&!$('lgDubBox')) return; var G; try{ G=JSON.parse(T.legendador()); }catch(x){ return; }
+  if($('lgDubBox')) $('lgDubBox').classList.toggle('oculto',!G.dublagem);
+  if(!$('lgBox')) return;
   $('lgBox').classList.toggle('oculto',!G.vlc||!G.whisper);
-  $('lgDubBox').classList.toggle('oculto',!G.dublagem);
   var trab=!!G.trabalhando;
   $('lgIr').classList.toggle('oculto',trab); $('lgCancelar').classList.toggle('oculto',!trab);
   $('lgIr').disabled=!G.disponivel; $('lgTradLinha').classList.toggle('oculto',trab);
