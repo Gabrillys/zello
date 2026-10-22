@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 33,
-  versionName: '4.9',
+  versionCode: 34,
+  versionName: '4.10',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],

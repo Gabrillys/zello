@@ -64,7 +64,7 @@ public class Principal extends Activity {
     private LinearLayout coluna;
     private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
-    static final String VERSAO = "4.9";
+    static final String VERSAO = "4.10";
     private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;

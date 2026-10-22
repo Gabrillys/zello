@@ -78,6 +78,16 @@ Falta no celular:
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
 
+## Versão 4.10: a Baleia abre no ONNX Runtime do app
+
+- **Erro no celular (Gerar legenda com a Baleia):** `Load model from …/whisper/turbo/encoder_model_quantized.onnx failed: Unsupported model IR version: 10, max supported IR version: 9`. O download funcionou (os nomes `_quantized` estavam certos); o arquivo é que vem no formato ONNX IR 10, e o ONNX Runtime 1.17.3 do app abre até o 9.
+- **Por que não atualizar o ONNX Runtime:** a 1.17 é a última que o dx (Java 8) converte, e o APK já está perto do limite de 100 MB do GitHub.
+- **Correção:** `Whisper.compatibilizarIr` lê os dois primeiros bytes do modelo (campo `ir_version`, `08 0A`) e, se a versão for maior que 9, troca para 9 no próprio arquivo, antes de abrir. A IR 10 só acrescentou tipos de 4 bits, que modelos int8 não usam. Não precisa baixar o modelo de novo. O diagnóstico registra `Whisper: modelo no formato IR 10 ajustado para 9`.
+- **Testado aqui com o ONNX Runtime 1.17.3 (desktop):** erro reproduzido idêntico; depois do ajuste, modelos IR 10 e 11 com `MatMulInteger` int8 abrem e calculam certo; só o byte da versão muda; IR 9 e arquivos que não começam com o campo ficam intactos; o construtor do Whisper abre modelos IR 10. Espectrograma e telas sem mudança.
+- **Próximo erro possível:** se o modelo usar um opset acima de 20, o ONNX Runtime 1.17 recusa com outra mensagem ("opset"). Não deu para conferir o opset do arquivo daqui (Hugging Face bloqueado). Se aparecer, mandar a captura.
+- **Entrega:** o APK também foi mandado direto na conversa, fora do GitHub.
+- Notas da tela quebram linhas longas (caminhos de arquivo não passam mais da borda).
+
 ## Versão 4.9: configurações do Whisper acessíveis sem vídeo aberto
 
 - **Problema:** até a 4.8, o seletor de modelo e o botão **Baixar o modelo agora** ficavam escondidos quando não havia um vídeo de site aberto (YouTube etc.). Em *Ajustes → Dublagem e Whisper* só aparecia o aviso "abra um vídeo", e não dava para baixar o modelo (nem a Baleia) sem antes abrir um vídeo.

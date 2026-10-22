@@ -114,8 +114,31 @@ public final class Whisper implements AutoCloseable {
         op.setOptimizationLevel(OrtSession.SessionOptions.OptLevel.ALL_OPT);
         op.setSessionLogLevel(ai.onnxruntime.OrtLoggingLevel.ORT_LOGGING_LEVEL_ERROR);
         op.setIntraOpNumThreads(Math.max(1, threads));
+        int ir = Math.max(compatibilizarIr(encoderOnnx), compatibilizarIr(decoderOnnx));
+        if (ir > IR_MAXIMO) Diagnostico.anotar("Whisper: modelo no formato IR " + ir + " ajustado para " + IR_MAXIMO + " (o ONNX Runtime do app abre até " + IR_MAXIMO + ")");
         codificador = env.createSession(encoderOnnx, op);
         decodificador = env.createSession(decoderOnnx, op);
+    }
+
+    /** Maior versão do formato ONNX (IR) que o ONNX Runtime do app (1.17) abre. */
+    static final int IR_MAXIMO = 9;
+
+    /**
+     * Modelos salvos com o pacote onnx mais novo (como o large-v3-turbo da Baleia) saem com IR 10, que o ONNX Runtime 1.17
+     * recusa ("Unsupported model IR version: 10"), embora não usem nada dela: a IR 10 só acrescentou tipos de 4 bits,
+     * que modelos int8 não têm. A versão é o primeiro campo do arquivo (bytes 08 0A): troca para 9 ali mesmo, sem copiar o modelo.
+     * Devolve a versão encontrada, ou 0 se o arquivo não começa com esse campo (aí não mexe em nada).
+     */
+    static int compatibilizarIr(String caminho) throws java.io.IOException {
+        int tag, versao;
+        java.io.RandomAccessFile f = new java.io.RandomAccessFile(caminho, "r");
+        try { tag = f.read(); versao = f.read(); } finally { f.close(); }
+        if (tag != 0x08 || versao < 0 || versao >= 0x80) return 0; // não é o campo ir_version (número de 1 byte)
+        if (versao > IR_MAXIMO) {
+            f = new java.io.RandomAccessFile(caminho, "rw");
+            try { f.seek(1); f.write(IR_MAXIMO); } finally { f.close(); }
+        }
+        return versao;
     }
 
     // ------------------------------------------------------------ espectrograma (igual ao whisper/audio.py)
