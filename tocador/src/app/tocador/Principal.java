@@ -64,7 +64,7 @@ public class Principal extends Activity {
     private LinearLayout coluna;
     private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
-    static final String VERSAO = "4.7";
+    static final String VERSAO = "4.8";
     private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;
@@ -657,11 +657,15 @@ public class Principal extends Activity {
         final Legendador lg = Legendador.de(this);
         if (!whisperDisponivel()) { if (pedido) avisar("Criar a letra precisa do Whisper, que pede um celular de 64 bits."); return; }
         if (lg.trabalhando()) { if (pedido) avisar("O Whisper está ocupado com outra legenda. Tente quando terminar."); return; }
-        final String mod = Dublador.de(this).modelo();
+        String escolhido = Dublador.de(this).modelo();
+        // Automático: só com um Whisper já baixado (o escolhido, ou outro que já esteja no aparelho).
+        if (!pedido && !Modelos.pronto(this, escolhido)) escolhido = Modelos.prontoAlternativo(this, escolhido);
+        if (escolhido == null) return;
+        final String mod = escolhido;
         if (!Modelos.pronto(this, mod)) {
-            if (!pedido) return; // automático só com o Whisper já baixado
+            if (!pedido) return;
             if (!Modelos.baixando()) Modelos.baixar(this, mod, null);
-            avisar("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
+            avisar("Baixando o Whisper " + Modelos.apelido(mod) + " (só na primeira vez" + (Modelos.ehTurbo(mod) ? "; é grande, use o Wi-Fi" : "") + "). Toque de novo quando terminar.");
             return;
         }
         letraEstado = "criando";
@@ -1028,7 +1032,7 @@ public class Principal extends Activity {
             if (!Modelos.baixando()) Modelos.baixar(this, mod, new Modelos.Fim() { public void pronto(boolean ok, String erro) {
                 Diagnostico.anotar("Whisper " + mod + (ok ? " baixado" : " não baixado: " + erro));
             } });
-            d.definirEstado("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
+            d.definirEstado("Baixando o Whisper " + Modelos.apelido(mod) + " (só na primeira vez" + (Modelos.ehTurbo(mod) ? "; é grande, use o Wi-Fi" : "") + "). Toque de novo quando terminar.");
             return;
         }
         d.iniciarWhisper(nav, idVideoAtual(), preparar);
@@ -1249,7 +1253,7 @@ public class Principal extends Activity {
         final String mod = Dublador.de(this).modelo();
         if (!Modelos.pronto(this, mod)) {
             if (!Modelos.baixando()) Modelos.baixar(this, mod, null);
-            avisar("Baixando o Whisper (só na primeira vez). Toque de novo quando terminar.");
+            avisar("Baixando o Whisper " + Modelos.apelido(mod) + " (só na primeira vez" + (Modelos.ehTurbo(mod) ? "; é grande, use o Wi-Fi" : "") + "). Toque de novo quando terminar.");
             return;
         }
         final String url = motor.url();
@@ -1573,7 +1577,7 @@ public class Principal extends Activity {
                 for (String[] v : VozNeural.VOZES) vozes.put(new JSONObject().put("chave", v[0]).put("nome", v[1]));
                 vozes.put(new JSONObject().put("chave", Dublador.VOZ_ANDROID).put("nome", "Voz do Android (sem internet)"));
                 JSONArray modelos = new JSONArray();
-                for (String[] m : Modelos.OPCOES) modelos.put(new JSONObject().put("chave", m[0]).put("nome", m[1]).put("pronto", Modelos.pronto(Principal.this, m[0])));
+                for (String[] m : Modelos.OPCOES) modelos.put(new JSONObject().put("chave", m[0]).put("nome", m[1]).put("pronto", Modelos.pronto(Principal.this, m[0])).put("cabe", Modelos.cabe(Principal.this, m[0])));
                 return new JSONObject().put("ativo", d.ativo()).put("modo", d.modo()).put("estado", d.estado())
                         .put("volume", d.volumeOriginal()).put("disponivel", web).put("yt", web && p.optBoolean("yt"))
                         .put("temLegenda", web && legs != null && legs.length() > 0)

@@ -26,7 +26,7 @@ public final class Transcritor {
     private final Ouvido ouvido;
     private final Saida saida;
     private final int alvo;                  // tamanho preferido da janela, em amostras
-    private volatile String idioma;          // null = detectar (e fixar na primeira janela com fala)
+    private volatile String idioma;          // null = detectar; é fixado só quando o Whisper está confiante (ver travarIdioma)
     private float[] buf = new float[40 * TAXA];
     private int n;
     /** Âncoras: amostra do buffer → tempo do vídeo (ms) e velocidade (x1000). */
@@ -34,6 +34,9 @@ public final class Transcritor {
     /** Pontos onde o vídeo pulou (avanço/volta): a janela não atravessa um corte. */
     private final ArrayList<Integer> cortes = new ArrayList<Integer>();
     private boolean descarregar, ativo;
+    /** Votos de idioma das janelas com fala (soma da confiança de cada uma), enquanto o idioma não está fixo. */
+    private final java.util.HashMap<String, Double> votos = new java.util.HashMap<String, Double>();
+    private int janelasComFala;
     private Thread linha;
     private long processadoMs, gastoMs;
 
@@ -162,6 +165,7 @@ public final class Transcritor {
                 trabalhando = true;
             }
             int consumir = fim;
+            String idiomaJanela = "";
             List<Roteiro.Fala> falas = new ArrayList<Roteiro.Fala>();
             try {
                 if (fim >= TAXA / 2 && normalizar(janela)) {
@@ -169,8 +173,9 @@ public final class Transcritor {
                     Whisper.Resultado r = ouvido.transcrever(janela, idioma);
                     long gasto = System.currentTimeMillis() - t0;
                     synchronized (this) { gastoMs += gasto; processadoMs += fim * 1000L / TAXA; }
+                    idiomaJanela = r.idioma;
                     if (!r.silencio()) {
-                        if (idioma == null && !r.segmentos.isEmpty()) idioma = r.idioma;
+                        if (idioma == null && !r.segmentos.isEmpty()) travarIdioma(r);
                         if (!fechar && fim >= alvo) {
                             int c = (int) Math.min(fim, r.consumidoMs * (TAXA / 1000));
                             // Sobra pequena demais para avançar: aceita tudo para não travar.
@@ -193,7 +198,33 @@ public final class Transcritor {
                 if (descarregar && n == 0) descarregar = false;
                 trabalhando = false;
             }
-            if (!falas.isEmpty()) saida.falas(falas, idioma == null ? "" : idioma);
+            if (!falas.isEmpty()) saida.falas(falas, idioma != null ? idioma : idiomaJanela);
+        }
+    }
+
+    /** Confiança mínima do Whisper no idioma e texto mínimo (caracteres) para fixar o idioma já na primeira janela. */
+    static final double CONFIANCA_IDIOMA = 0.85;
+    static final int TEXTO_MINIMO = 24;
+    /** Sem confiança, depois de tantas janelas com fala fixa o idioma que somou mais confiança. */
+    static final int JANELAS_PARA_FIXAR = 3;
+
+    /**
+     * Fixa o idioma do vídeo só quando há confiança. Antes, a primeira janela com fala decidia sozinha: uma introdução
+     * com música ou uma frase curta podia fixar o idioma errado e o vídeo inteiro saía com palavras erradas.
+     */
+    private void travarIdioma(Whisper.Resultado r) {
+        if (r.idioma == null || r.idioma.length() == 0) return;
+        Double v = votos.get(r.idioma);
+        votos.put(r.idioma, (v == null ? 0 : v) + r.idiomaProb);
+        janelasComFala++;
+        int letras = 0;
+        for (Whisper.Segmento sg : r.segmentos) letras += sg.texto.trim().length();
+        if (r.idiomaProb >= CONFIANCA_IDIOMA && letras >= TEXTO_MINIMO) { idioma = r.idioma; return; }
+        if (janelasComFala >= JANELAS_PARA_FIXAR) {
+            String melhor = null;
+            double mv = -1;
+            for (java.util.Map.Entry<String, Double> e : votos.entrySet()) if (e.getValue() > mv) { mv = e.getValue(); melhor = e.getKey(); }
+            idioma = melhor;
         }
     }
 

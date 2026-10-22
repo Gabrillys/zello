@@ -6,7 +6,6 @@ import ai.onnxruntime.OrtSession;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
-import java.io.DataInputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
@@ -46,11 +45,13 @@ public final class Whisper implements AutoCloseable {
         public long consumidoMs;
         /** Chance de não haver fala nenhuma (0 a 1) e média do log da probabilidade dos tokens escolhidos. */
         public double semFala, logprobMedia;
+        /** Confiança do Whisper no idioma detectado (0 a 1); 1 quando o idioma foi informado. */
+        public double idiomaProb;
         /** Regra do próprio Whisper para descartar janelas sem fala (evita "Obrigado." inventado no silêncio). */
         public boolean silencio() { return semFala > 0.6 && logprobMedia < -1.0; }
     }
 
-    public static final int TAXA = 16000, AMOSTRAS = 480000, N_FFT = 400, SALTO = 160, QUADROS = 3000, MELS = 80;
+    public static final int TAXA = 16000, AMOSTRAS = 480000, N_FFT = 400, SALTO = 160, QUADROS = 3000;
 
     static final String[] IDIOMAS = ("en,zh,de,es,ru,ko,fr,ja,pt,tr,pl,ca,nl,ar,sv,it,id,hi,fi,vi,he,uk,el,ms,cs,ro,da,hu,ta,no,th,ur,hr,bg,lt,la,mi,ml,cy,sk,te,fa,lv,bn,sr,az,sl,kn,et,mk,br,eu,is,hy,ne,mn,bs,kk,sq,sw,gl,mr,pa,si,km,sn,yo,so,af,oc,ka,be,tg,sd,gu,am,yi,lo,uz,fo,ht,ps,tk,nn,mt,sa,lb,my,bo,tl,mg,as,tt,haw,ln,ha,ba,jw,su,yue").split(",");
 
@@ -60,12 +61,13 @@ public final class Whisper implements AutoCloseable {
 
     private final OrtEnvironment env;
     private final OrtSession codificador, decodificador;
-    private final float[][] filtros;  // 80 x 201
+    private final int nMels;          // 80 (tiny a large-v2) ou 128 (large-v3 e turbo)
+    private final float[][] filtros;  // nMels x 201
     private final byte[][] tokens;    // bytes de cada token de texto (tiktoken)
     private final float[] janela, cosT, senT;
 
     /**
-     * @param mel    conteúdo de assets/whisper/mel80.bin (80x201 float32)
+     * @param mel    conteúdo de assets/whisper/mel80.bin (80x201 float32) ou mel128.bin (128x201), conforme o modelo
      * @param vocab  assets/whisper/multilingual.tiktoken
      * @param tamanhoVocab 51865 (tiny/base/small/medium/large-v2) ou 51866 (large-v3/turbo)
      */
@@ -77,12 +79,12 @@ public final class Whisper implements AutoCloseable {
         semHorarios = traduzir + 5;
         horario0 = traduzir + 6;
 
-        filtros = new float[MELS][201];
-        DataInputStream d = new DataInputStream(mel);
-        byte[] b = new byte[MELS * 201 * 4];
-        d.readFully(b);
+        byte[] b = lerTudo(mel);
+        nMels = b.length / (201 * 4);
+        if ((nMels != 80 && nMels != 128) || b.length != nMels * 201 * 4) throw new IllegalArgumentException("banco de filtros mel inesperado: " + b.length + " bytes");
+        filtros = new float[nMels][201];
         ByteBuffer bb = ByteBuffer.wrap(b).order(ByteOrder.LITTLE_ENDIAN);
-        for (int i = 0; i < MELS; i++) for (int j = 0; j < 201; j++) filtros[i][j] = bb.getFloat();
+        for (int i = 0; i < nMels; i++) for (int j = 0; j < 201; j++) filtros[i][j] = bb.getFloat();
 
         ArrayList<byte[]> l = new ArrayList<byte[]>();
         BufferedReader r = new BufferedReader(new InputStreamReader(vocab, "UTF-8"));
@@ -118,7 +120,7 @@ public final class Whisper implements AutoCloseable {
 
     // ------------------------------------------------------------ espectrograma (igual ao whisper/audio.py)
 
-    /** log-Mel de 80 faixas x 3000 quadros a partir de até 30 s de áudio 16 kHz (completa com silêncio). */
+    /** log-Mel de 80 ou 128 faixas x 3000 quadros a partir de até 30 s de áudio 16 kHz (completa com silêncio). */
     public float[] logMel(float[] audio) {
         float[] x = new float[AMOSTRAS];
         System.arraycopy(audio, 0, x, 0, Math.min(audio.length, AMOSTRAS));
@@ -126,7 +128,7 @@ public final class Whisper implements AutoCloseable {
         float[] p = new float[AMOSTRAS + 2 * pad];
         for (int i = 0; i < AMOSTRAS; i++) p[i + pad] = x[i];
         for (int i = 0; i < pad; i++) { p[pad - 1 - i] = x[i + 1]; p[pad + AMOSTRAS + i] = x[AMOSTRAS - 2 - i]; } // reflexão
-        float[] mel = new float[MELS * QUADROS];
+        float[] mel = new float[nMels * QUADROS];
         float[] potencia = new float[201];
         float[] q = new float[N_FFT];
         float max = -Float.MAX_VALUE;
@@ -139,7 +141,7 @@ public final class Whisper implements AutoCloseable {
                 for (int n = 0; n < N_FFT; n++) { re += q[n] * cosT[base + n]; im -= q[n] * senT[base + n]; }
                 potencia[k] = re * re + im * im;
             }
-            for (int m = 0; m < MELS; m++) {
+            for (int m = 0; m < nMels; m++) {
                 float s = 0;
                 float[] fl = filtros[m];
                 for (int k = 0; k < 201; k++) s += fl[k] * potencia[k];
@@ -162,7 +164,7 @@ public final class Whisper implements AutoCloseable {
         if (fechado) throw new IllegalStateException("Whisper fechado");
         Resultado res = new Resultado();
         float[] mel = logMel(audio);
-        OnnxTensor entrada = OnnxTensor.createTensor(env, FloatBuffer.wrap(mel), new long[] { 1, MELS, QUADROS });
+        OnnxTensor entrada = OnnxTensor.createTensor(env, FloatBuffer.wrap(mel), new long[] { 1, nMels, QUADROS });
         OnnxTensor hidden;
         try {
             String saida = codificador.getOutputNames().iterator().next(); // last_hidden_state (as atenções não interessam)
@@ -182,11 +184,12 @@ public final class Whisper implements AutoCloseable {
             int idIdioma;
             float[] lg = dec.avancar(new long[] { sot });
             res.semFala = Math.exp(logSoftmax(lg, semFala));
-            if (idioma != null && indiceIdioma(idioma) >= 0) idIdioma = idioma0 + indiceIdioma(idioma);
+            if (idioma != null && indiceIdioma(idioma) >= 0) { idIdioma = idioma0 + indiceIdioma(idioma); res.idiomaProb = 1; }
             else {
                 int melhor = idioma0;
                 for (int t = idioma0; t < idioma0 + numIdiomas; t++) if (lg[t] > lg[melhor]) melhor = t;
                 idIdioma = melhor;
+                res.idiomaProb = probIdioma(lg, idioma0, numIdiomas, melhor);
             }
             res.idioma = IDIOMAS[idIdioma - idioma0];
 
@@ -386,6 +389,24 @@ public final class Whisper implements AutoCloseable {
         double s = 0;
         for (float x : v) if (x > Float.NEGATIVE_INFINITY) s += Math.exp(x - m);
         return v[i] - m - Math.log(s);
+    }
+
+    /** Probabilidade do idioma escolhido entre os idiomas (como o detect_language do Whisper: softmax só sobre os tokens de idioma). */
+    static double probIdioma(float[] lg, int ini, int n, int escolhido) {
+        double m = Double.NEGATIVE_INFINITY;
+        for (int t = ini; t < ini + n; t++) m = Math.max(m, lg[t]);
+        double soma = 0;
+        for (int t = ini; t < ini + n; t++) soma += Math.exp(lg[t] - m);
+        return Math.exp(lg[escolhido] - m) / soma;
+    }
+
+    private static byte[] lerTudo(InputStream in) throws Exception {
+        ByteArrayOutputStream o = new ByteArrayOutputStream();
+        byte[] buf = new byte[8192];
+        int k;
+        while ((k = in.read(buf)) > 0) o.write(buf, 0, k);
+        in.close();
+        return o.toByteArray();
     }
 
     private static int argmax(float[] v) { int m = 0; for (int i = 1; i < v.length; i++) if (v[i] > v[m]) m = i; return m; }

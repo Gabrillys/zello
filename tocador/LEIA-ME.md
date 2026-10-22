@@ -91,7 +91,11 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - **Whisper: ouvir o vídeo inteiro antes** (sincronia perfeita): o Whisper, a inteligência artificial de reconhecimento de fala da OpenAI (código aberto), roda no próprio celular. Ele ouve o vídeo do começo ao fim, na velocidade escolhida (1x é mais preciso; 2x é mais rápido). Depois o vídeo recomeça dublado, com cada frase na hora certa. A dublagem fica guardada: da próxima vez, aparece **Dublagem já preparada deste vídeo**.
   - **Whisper ao vivo**: dubla enquanto o vídeo toca. A voz vem alguns segundos depois da fala original.
   - O Whisper funciona **em vídeos sem legenda** e em qualquer site com vídeo, não só no YouTube.
-  - Na primeira vez, o app baixa o modelo do Whisper: **Rápido** (base, cerca de 80 MB) ou **Mais preciso** (small, cerca de 250 MB). Escolha em *Ajustes do Whisper*.
+  - **Níveis do Whisper** (com os nomes do TurboScribe), em *Ajustes do Whisper → Nível*. Na primeira vez que o nível é usado, o app baixa o modelo:
+    - **Guepardo** (Whisper base, cerca de 80 MB): o mais rápido, mas erra bem mais as palavras.
+    - **Golfinho** (Whisper small, cerca de 250 MB): equilibrado e preciso. É o padrão.
+    - **Baleia** (Whisper large-v3-turbo, cerca de 1 GB): a melhor precisão, mas bem mais lenta (pode levar mais tempo do que o próprio vídeo). Pede um celular com uns 6 GB de memória; em celulares com menos, o app usa o Golfinho. Prefira "ouvir o vídeo inteiro antes" (o ao vivo não acompanha) e deixe a tela apagar: o serviço em segundo plano mantém o trabalho andando.
+  - **Idioma do vídeo:** se você sabe o idioma, escolha em *Ajustes do Whisper*. Em *Automático*, o app só fixa o idioma quando o Whisper está confiante (ou depois de três trechos), para uma introdução com música não fazer o vídeo inteiro sair no idioma errado.
   - O app ouve o som do vídeo dentro do próprio navegador interno: **não pede nenhuma autorização** e não grava nada. O som não sai do celular; só o texto vai para a tradução.
   - Alguns sites protegem o arquivo de vídeo e não deixam o app ouvir o som (o app avisa). No YouTube funciona.
   - **Voz**: vozes neurais da Microsoft, as mesmas do "Ler em voz alta" do Edge: Francisca, Antônio e Thalita (Brasil), Raquel e Duarte (Portugal). Elas precisam de internet. Toque em **Ouvir a voz** para comparar. Se o serviço falhar, o app usa a voz do Android.
@@ -159,7 +163,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Arquivos`: salvar na pasta Download;
   - `EqSistema`: equalizador do Android;
   - `Diagnostico`: registro para suporte.
-- `assets/whisper/`: filtros de frequência e vocabulário do Whisper (licença MIT, do pacote `openai-whisper`).
+- `assets/whisper/`: filtros de frequência (80 faixas para Guepardo e Golfinho, 128 para a Baleia) e vocabulário do Whisper (licença MIT, do pacote `openai-whisper`).
 - `assets/painel.html`: painel (início, player, gavetas de legendas, qualidade e equalizador).
 - `assets/controles.html`: controles sobre o vídeo (toque duplo, progresso, legenda na tela cheia).
 - `ferramentas/empacotar.mjs`: monta o manifesto, compacta e assina o APK (assinatura v2).

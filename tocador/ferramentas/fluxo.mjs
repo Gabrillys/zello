@@ -12,7 +12,7 @@ await p.addInitScript(() => {
     if (k === 'estado') return JSON.stringify(window.__modo === 'vlc' ? { modo: 'vlc', situacao: 'tocando', tocando: true, titulo: 'Garota de Ipanema', video: false, busca: true, duracao: 318000, tempo: 12000, posicao: .04, volume: 100, url: 'file:///x.mp3' } : { modo: 'web', situacao: 'tocando', tocando: true, titulo: 'Vídeo do YouTube', busca: true, duracao: 600000, tempo: 1000, posicao: .01, podeCheio: true, expandido: true, qualidade: '1080p' });
     if (k === 'letraInfo') return JSON.stringify({ ligada: true, estado: 'pronta', titulo: 'Tom Jobim — Garota de Ipanema', ajuste: 300, ia: true, iaAuto: true });
     if (k === 'listas') return JSON.stringify({ listas: [{ id: 'a', nome: 'Bossa Nova Essencial', tipo: 'musica', n: 42 }, { id: 'b', nome: 'Rádios do Brasil', tipo: 'radio', n: 318 }, { id: 'c', nome: 'Músicas baixadas', tipo: 'musica', n: 17, baixada: true, doApp: 17 }] });
-    if (k === 'dublagem') return JSON.stringify({ disponivel: true, yt: true, temLegenda: true, whisper: true, vozes: [{ chave: 'f', nome: 'Francisca (neural)' }], voz: 'f', modelos: [{ chave: 'base', nome: 'Base', pronto: true }], modelo: 'base', volume: 20 });
+    if (k === 'dublagem') return JSON.stringify({ disponivel: true, yt: true, temLegenda: true, whisper: true, vozes: [{ chave: 'f', nome: 'Francisca (neural)' }], voz: 'f', modelos: [{ chave: 'base', nome: 'Guepardo: rápido, erra mais (Whisper base, cerca de 80 MB)', pronto: true, cabe: true }, { chave: 'small', nome: 'Golfinho: equilibrado e preciso (Whisper small, cerca de 250 MB)', pronto: false, cabe: true }, { chave: 'turbo', nome: 'Baleia: o melhor, bem mais lento (Whisper large-v3-turbo, cerca de 1 GB)', pronto: false, cabe: false }], modelo: 'small', volume: 20 });
     if (k === 'downloads') return JSON.stringify({ disponivel: true, versao: '2026.08.19' });
     if (k === 'anuncios') return JSON.stringify({ ligado: true, bloqueados: 132 });
     if (k === 'legendas') return JSON.stringify(window.__modo === 'vlc' ? { fonte: 'vlc', itens: [{ chave: 'vlc:1', nome: 'Português' }], podeBaixar: false, arquivos: [] } : { fonte: 'youtube', itens: [{ chave: 'yt:en', nome: 'Inglês' }, { chave: 'yt:pt', nome: 'Português' }], podeBaixar: true, podeTraduzir: true, arquivos: [] });
@@ -53,6 +53,15 @@ await passo('13-legendas-youtube', async () => {
   await p.click('#legBaixar');
   const feitas = await p.evaluate(() => window.__chamadas.filter((c) => c.startsWith('baixarLegenda(')));
   if (!feitas.length) throw new Error('"Baixar legenda como texto" não chamou o app');
+});
+// Ajustes do Whisper: os três níveis (Guepardo, Golfinho, Baleia), a Baleia desligada se faltar memória e a explicação do nível escolhido.
+await passo('14-whisper-niveis', async () => {
+  await p.click('#gFechar'); await p.waitForTimeout(300); await p.evaluate(() => abrirDublar()); await p.waitForTimeout(900);
+  const ops = await p.locator('#dubModelo option').allTextContents();
+  if (ops.length !== 3 || !/^Guepardo/.test(ops[0]) || !/^Golfinho/.test(ops[1]) || !/^Baleia/.test(ops[2])) throw new Error('níveis errados: ' + JSON.stringify(ops));
+  if (!(await p.locator('#dubModelo option').nth(2).isDisabled())) throw new Error('a Baleia deveria estar desligada sem memória');
+  const dica = await p.textContent('#dubModeloDica');
+  if (!/Golfinho/.test(dica)) throw new Error('falta a explicação do nível: ' + dica);
 });
 console.log('chamadas:', JSON.stringify(await p.evaluate(() => window.__chamadas)));
 console.log('erros:', JSON.stringify(erros));

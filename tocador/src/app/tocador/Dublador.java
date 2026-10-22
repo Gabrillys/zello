@@ -127,7 +127,11 @@ final class Dublador implements TextToSpeech.OnInitListener {
 
     String voz() { return prefs.getString("voz", VozNeural.VOZES[0][0]); }
     void definirVoz(String v) { prefs.edit().putString("voz", v).apply(); }
-    String modelo() { return prefs.getString("modelo", "base"); }
+    /** O modelo escolhido (padrão: Golfinho). Se o celular não tem memória para ele (Baleia), usa o Golfinho. */
+    String modelo() {
+        String m = prefs.getString("modelo", "small");
+        return Modelos.cabe(ctx, m) ? m : "small";
+    }
     void definirModelo(String m) { prefs.edit().putString("modelo", m).apply(); }
     String idiomaFonte() { return prefs.getString("idiomaFonte", ""); }
     void definirIdiomaFonte(String i) { prefs.edit().putString("idiomaFonte", i).apply(); }
@@ -280,8 +284,8 @@ final class Dublador implements TextToSpeech.OnInitListener {
         if (!Modelos.pronto(ctx, mod)) throw new Exception("o modelo " + mod + " não foi baixado");
         int nucleos = Runtime.getRuntime().availableProcessors();
         whisper = new Whisper(Modelos.encoder(ctx, mod).getPath(), Modelos.decoder(ctx, mod).getPath(),
-                ctx.getAssets().open("whisper/mel80.bin"), ctx.getAssets().open("whisper/multilingual.tiktoken"),
-                51865, Math.max(2, Math.min(4, nucleos / 2)));
+                ctx.getAssets().open(Modelos.filtroMel(mod)), ctx.getAssets().open("whisper/multilingual.tiktoken"),
+                Modelos.vocab(mod), Math.max(2, Math.min(4, nucleos / 2)));
         return whisper;
     }
 

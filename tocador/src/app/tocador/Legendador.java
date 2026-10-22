@@ -82,8 +82,8 @@ final class Legendador {
             Whisper w = null;
             try {
                 w = new Whisper(Modelos.encoder(ctx, modelo).getPath(), Modelos.decoder(ctx, modelo).getPath(),
-                        ctx.getAssets().open("whisper/mel80.bin"), ctx.getAssets().open("whisper/multilingual.tiktoken"),
-                        51865, Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 2)));
+                        ctx.getAssets().open(Modelos.filtroMel(modelo)), ctx.getAssets().open("whisper/multilingual.tiktoken"),
+                        Modelos.vocab(modelo), Math.max(2, Math.min(4, Runtime.getRuntime().availableProcessors() / 2)));
                 List<Roteiro.Fala> r = transcrever(w, endereco);
                 if (cancelar) { estado = "Cancelado."; return; }
                 if (r.isEmpty()) { estado = "O Whisper não encontrou falas neste arquivo."; return; }
