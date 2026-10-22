@@ -12,7 +12,7 @@ await p.addInitScript(() => {
     if (k === 'estado') return JSON.stringify(window.__modo === 'vlc' ? { modo: 'vlc', situacao: 'tocando', tocando: true, titulo: 'Garota de Ipanema', video: false, busca: true, duracao: 318000, tempo: 12000, posicao: .04, volume: 100, url: 'file:///x.mp3' } : { modo: 'web', situacao: 'tocando', tocando: true, titulo: 'Vídeo do YouTube', busca: true, duracao: 600000, tempo: 1000, posicao: .01, podeCheio: true, expandido: true, qualidade: '1080p' });
     if (k === 'letraInfo') return JSON.stringify({ ligada: true, estado: 'pronta', titulo: 'Tom Jobim — Garota de Ipanema', ajuste: 300, ia: true, iaAuto: true });
     if (k === 'listas') return JSON.stringify({ listas: [{ id: 'a', nome: 'Bossa Nova Essencial', tipo: 'musica', n: 42 }, { id: 'b', nome: 'Rádios do Brasil', tipo: 'radio', n: 318 }, { id: 'c', nome: 'Músicas baixadas', tipo: 'musica', n: 17, baixada: true, doApp: 17 }] });
-    if (k === 'dublagem') return JSON.stringify({ disponivel: true, yt: true, temLegenda: true, whisper: true, vozes: [{ chave: 'f', nome: 'Francisca (neural)' }], voz: 'f', modelos: [{ chave: 'base', nome: 'Guepardo: rápido, erra mais (Whisper base, cerca de 80 MB)', pronto: true, cabe: true }, { chave: 'small', nome: 'Golfinho: equilibrado e preciso (Whisper small, cerca de 250 MB)', pronto: false, cabe: true }, { chave: 'turbo', nome: 'Baleia: o melhor, bem mais lento (Whisper large-v3-turbo, cerca de 1 GB)', pronto: false, cabe: false }], modelo: 'small', volume: 20 });
+    if (k === 'dublagem') return JSON.stringify({ disponivel: window.__modo === 'web', yt: true, temLegenda: true, whisper: true, vozes: [{ chave: 'f', nome: 'Francisca (neural)' }], voz: 'f', modelos: [{ chave: 'base', nome: 'Guepardo: rápido, erra mais (Whisper base, cerca de 80 MB)', pronto: true, cabe: true }, { chave: 'small', nome: 'Golfinho: equilibrado e preciso (Whisper small, cerca de 250 MB)', pronto: false, cabe: true }, { chave: 'turbo', nome: 'Baleia: o melhor, bem mais lento (Whisper large-v3-turbo, cerca de 1 GB)', pronto: false, cabe: false }], modelo: 'small', volume: 20 });
     if (k === 'downloads') return JSON.stringify({ disponivel: true, versao: '2026.08.19' });
     if (k === 'anuncios') return JSON.stringify({ ligado: true, bloqueados: 132 });
     if (k === 'legendas') return JSON.stringify(window.__modo === 'vlc' ? { fonte: 'vlc', itens: [{ chave: 'vlc:1', nome: 'Português' }], podeBaixar: false, arquivos: [] } : { fonte: 'youtube', itens: [{ chave: 'yt:en', nome: 'Inglês' }, { chave: 'yt:pt', nome: 'Português' }], podeBaixar: true, podeTraduzir: true, arquivos: [] });
@@ -62,6 +62,20 @@ await passo('14-whisper-niveis', async () => {
   if (!(await p.locator('#dubModelo option').nth(2).isDisabled())) throw new Error('a Baleia deveria estar desligada sem memória');
   const dica = await p.textContent('#dubModeloDica');
   if (!/Golfinho/.test(dica)) throw new Error('falta a explicação do nível: ' + dica);
+});
+// Sem nenhum vídeo de site aberto (só música no VLC): o nível do Whisper e o botão de baixar o modelo precisam continuar à mão.
+await passo('15-whisper-sem-video', async () => {
+  await p.click('#gFechar'); await p.waitForTimeout(300);
+  await p.evaluate(() => { window.__modo = 'vlc'; }); await p.waitForTimeout(900);
+  await p.evaluate(() => abrirDublar()); await p.waitForTimeout(900);
+  if (!(await p.locator('#dubVazio').isVisible())) throw new Error('faltou o aviso de que dublar pede um vídeo de site');
+  if (await p.locator('#dubEscolha').isVisible()) throw new Error('a escolha de dublar não deveria aparecer sem vídeo');
+  await p.evaluate(() => { document.querySelector('#gConteudo details.mais').open = true; }); // "Ajustes do Whisper" vem recolhido
+  if (!(await p.locator('#dubModelo').isVisible())) throw new Error('o seletor de modelo sumiu sem vídeo aberto');
+  if (!(await p.locator('#dubBaixar').isVisible())) throw new Error('o botão Baixar o modelo agora sumiu sem vídeo aberto');
+  await p.click('#dubBaixar');
+  const feitas = await p.evaluate(() => window.__chamadas.filter((c) => c.startsWith('baixarModelo(')));
+  if (!feitas.length) throw new Error('"Baixar o modelo agora" não chamou o app');
 });
 console.log('chamadas:', JSON.stringify(await p.evaluate(() => window.__chamadas)));
 console.log('erros:', JSON.stringify(erros));

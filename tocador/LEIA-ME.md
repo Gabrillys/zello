@@ -91,7 +91,7 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   - **Whisper: ouvir o vídeo inteiro antes** (sincronia perfeita): o Whisper, a inteligência artificial de reconhecimento de fala da OpenAI (código aberto), roda no próprio celular. Ele ouve o vídeo do começo ao fim, na velocidade escolhida (1x é mais preciso; 2x é mais rápido). Depois o vídeo recomeça dublado, com cada frase na hora certa. A dublagem fica guardada: da próxima vez, aparece **Dublagem já preparada deste vídeo**.
   - **Whisper ao vivo**: dubla enquanto o vídeo toca. A voz vem alguns segundos depois da fala original.
   - O Whisper funciona **em vídeos sem legenda** e em qualquer site com vídeo, não só no YouTube.
-  - **Níveis do Whisper** (com os nomes do TurboScribe), em *Ajustes do Whisper → Nível*. Na primeira vez que o nível é usado, o app baixa o modelo:
+  - **Modelos do Whisper** (com os nomes do TurboScribe), em *Ajustes → Dublagem e Whisper → Ajustes do Whisper → Escolher modelo* (não precisa ter um vídeo aberto). Toque em **Escolher modelo** para ver a lista, escolha e, se ainda não estiver baixado, toque em **Baixar o modelo agora** (ou ele baixa na primeira vez que for usado):
     - **Guepardo** (Whisper base, cerca de 80 MB): o mais rápido, mas erra bem mais as palavras.
     - **Golfinho** (Whisper small, cerca de 250 MB): equilibrado e preciso. É o padrão.
     - **Baleia** (Whisper large-v3-turbo, cerca de 1 GB): a melhor precisão, mas bem mais lenta (pode levar mais tempo do que o próprio vídeo). Pede um celular com uns 6 GB de memória; em celulares com menos, o app usa o Golfinho. Prefira "ouvir o vídeo inteiro antes" (o ao vivo não acompanha) e deixe a tela apagar: o serviço em segundo plano mantém o trabalho andando.

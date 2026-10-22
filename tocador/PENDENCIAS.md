@@ -78,6 +78,11 @@ Falta no celular:
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
 
+## Versão 4.9: configurações do Whisper acessíveis sem vídeo aberto
+
+- **Problema:** até a 4.8, o seletor de modelo e o botão **Baixar o modelo agora** ficavam escondidos quando não havia um vídeo de site aberto (YouTube etc.). Em *Ajustes → Dublagem e Whisper* só aparecia o aviso "abra um vídeo", e não dava para baixar o modelo (nem a Baleia) sem antes abrir um vídeo.
+- **Feito:** voz, volume, modelo e idioma ficam sempre à mão; só a escolha do que dublar (e o botão Dublar) continua pedindo um vídeo de site aberto. O rótulo do seletor agora é **Escolher modelo**. `ferramentas/fluxo.mjs` (passo 15) abre a gaveta sem vídeo, expande "Ajustes do Whisper", confere o seletor e o botão de baixar; falha na 4.8, passa na 4.9.
+
 ## Versão 4.8: níveis Guepardo, Golfinho e Baleia e idioma mais seguro, falta testar no celular
 
 - **Motivo:** a dublagem saía com palavras erradas. O padrão era o Whisper **base**, que no TurboScribe equivale ao nível mais fraco (Guepardo). O pedido foi chegar perto do nível mais alto deles, a **Baleia** (segundo o [blog do TurboScribe](https://turboscribe.ai/blog/transcription-modes-explained), o Golfinho usa o Whisper small e a Baleia o large-v2; a página é antiga e o serviço pode ter ajustes próprios).

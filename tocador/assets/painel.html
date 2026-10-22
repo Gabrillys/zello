@@ -1011,7 +1011,7 @@ var HTML_LEG=function(){ return '<div id="audBox" class="oculto"><h2>Áudio</h2>
     '<div id="lgBaixar" class="oculto"><div class="linha mt"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div>'+
     '<div class="linha mt"><button data-f="txt" data-o="0">'+IC.baixar+'<span>.txt português</span></button><button data-f="txt" data-o="1">'+IC.baixar+'<span>.txt original</span></button></div></div>'+
     '<div style="height:14px"></div></div>'; };
-var HTML_DUB=function(){ return '<div id="dubBox" class="oculto">'+
+var HTML_DUB=function(){ return '<div class="nota oculto" id="dubVazio">A dublagem funciona com vídeos abertos no modo Site (YouTube e outros). Abra um vídeo para dublar em português.</div>'+'<div id="dubBox">'+
     '<div id="dubEscolha"><div class="nota" style="margin-top:0">De onde vem o texto falado:</div><div id="dubModos"></div>'+
     '<button class="pri" id="dubBotao" style="width:100%;margin-top:6px"></button></div>'+
     '<div id="dubAtivo" class="oculto"><div class="nota" id="dubEstado" style="white-space:pre-line"></div>'+
@@ -1022,14 +1022,14 @@ var HTML_DUB=function(){ return '<div id="dubBox" class="oculto">'+
     '<div class="chave-linha"><span>Voz</span><select id="dubVoz"></select></div>'+
     '<div class="linha"><button id="dubOuvir">Ouvir a voz</button><button id="dubVozAndroid" class="oculto">Ajustes da voz do Android</button></div>'+
     '<details class="mais"><summary>Ajustes do Whisper</summary>'+
-    '<div class="chave-linha"><span>Nível<br><small style="color:var(--fraco);font-weight:400">Guepardo, Golfinho, Baleia</small></span><select id="dubModelo"></select></div>'+
+    '<div class="chave-linha"><span>Escolher modelo<br><small style="color:var(--fraco);font-weight:400">Guepardo, Golfinho, Baleia</small></span><select id="dubModelo"></select></div>'+
     '<div class="nota" id="dubModeloDica"></div>'+
     '<div class="nota" id="dubModeloEstado"></div><button id="dubBaixar" class="oculto" style="width:100%">Baixar o modelo agora</button>'+
     '<div class="chave-linha"><span>Idioma do vídeo</span><select id="dubIdioma"></select></div>'+
     '<div class="nota">Se você sabe o idioma do vídeo, escolha aqui: o Whisper erra bem menos do que quando precisa adivinhar.</div>'+
     '<div class="chave-linha"><span>Velocidade ao preparar</span><select id="dubVel"><option value="1">1x (mais preciso)</option><option value="1.5">1,5x</option><option value="2">2x (mais rápido)</option></select></div>'+
     '<div class="nota">O Whisper (OpenAI, código aberto) roda no próprio celular: ouve o som do vídeo e escreve o que é falado, mesmo em vídeos sem legenda. O texto é traduzido para português e lido por uma voz neural. Na primeira vez, o modelo é baixado (só com Wi-Fi é melhor).</div></details>'+
-    '</div>'+'<div id="lgDubBox" class="oculto"><h2>Legenda gerada pela dublagem</h2><div class="linha"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div></div>'+'<div class="nota oculto" id="dubVazio">A dublagem funciona com vídeos abertos no modo Site (YouTube e outros). Abra um vídeo para dublar em português.</div>'; };
+    '</div>'+'<div id="lgDubBox" class="oculto"><h2>Legenda gerada pela dublagem</h2><div class="linha"><button data-f="srt" data-o="0">'+IC.baixar+'<span>.srt português</span></button><button data-f="srt" data-o="1">'+IC.baixar+'<span>.srt original</span></button></div></div>'+''; };
 function abrirLegendas(){ abrirGaveta('leg','Áudio e legendas',HTML_LEG()); ligarAudioGavetas(); }
 function abrirDublar(){ abrirGaveta('dub','Dublar em português',HTML_DUB()); ligarAudioGavetas(); }
 function abrirLetra(){ abrirGaveta('letra','Letra da música',HTML_LETRA()); ligarAudioGavetas(); }
@@ -1081,7 +1081,7 @@ var dubModosAnt='';
 function atualizarDublagem(){
   if(!$('dubBox')) return;
   var d; try{ d=JSON.parse(T.dublagem()); }catch(x){ return; }
-  $('dubBox').classList.toggle('oculto',!d.disponivel&&!d.ativo);
+  // As configurações (voz, nível do Whisper, idioma) ficam sempre à mostra; só a escolha do que dublar precisa de um vídeo de site aberto.
   if($('dubVazio')) $('dubVazio').classList.toggle('oculto',!!(d.disponivel||d.ativo));
   var modos=[];
   if(d.pronta) modos.push({chave:'pronta',nome:'Dublagem já preparada deste vídeo (sincronizada)'});
@@ -1091,7 +1091,7 @@ function atualizarDublagem(){
   var k=JSON.stringify(modos)+dubModo;
   if(k!==dubModosAnt){ dubModosAnt=k; $('dubModos').innerHTML=modos.length?opcoes(modos,dubModo):'<div class="vazio">'+(d.disponivel?'Abra um vídeo para dublar.':'A dublagem funciona com vídeos abertos no modo Site (o que está tocando agora usa o player VLC).')+'</div>';
     [].forEach.call($('dubModos').querySelectorAll('.opcao'),function(b){ b.onclick=function(){ dubModo=b.dataset.c; dubModosAnt=''; atualizarDublagem(); }; }); }
-  $('dubEscolha').classList.toggle('oculto',!!d.ativo);
+  $('dubEscolha').classList.toggle('oculto',!!d.ativo||!(d.disponivel||d.ativo));
   $('dubAtivo').classList.toggle('oculto',!d.ativo);
   $('dubBotao').classList.toggle('oculto',!modos.length);
   $('dubBotao').innerHTML=IC.play+'<span>'+(dubModo==='preparar'?'Preparar a dublagem':dubModo==='pronta'?'Assistir dublado':'Dublar em português')+'</span>';
