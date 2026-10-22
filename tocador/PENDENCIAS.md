@@ -80,6 +80,8 @@ Falta no celular:
 
 ## Versão 4.10: a Baleia abre no ONNX Runtime do app
 
+- **Confirmado no celular:** com a 4.10, **Gerar legenda** com a Baleia funcionou, e a qualidade da legenda melhorou bastante (relato do usuário). O opset do modelo não deu problema.
+
 - **Erro no celular (Gerar legenda com a Baleia):** `Load model from …/whisper/turbo/encoder_model_quantized.onnx failed: Unsupported model IR version: 10, max supported IR version: 9`. O download funcionou (os nomes `_quantized` estavam certos); o arquivo é que vem no formato ONNX IR 10, e o ONNX Runtime 1.17.3 do app abre até o 9.
 - **Por que não atualizar o ONNX Runtime:** a 1.17 é a última que o dx (Java 8) converte, e o APK já está perto do limite de 100 MB do GitHub.
 - **Correção:** `Whisper.compatibilizarIr` lê os dois primeiros bytes do modelo (campo `ir_version`, `08 0A`) e, se a versão for maior que 9, troca para 9 no próprio arquivo, antes de abrir. A IR 10 só acrescentou tipos de 4 bits, que modelos int8 não usam. Não precisa baixar o modelo de novo. O diagnóstico registra `Whisper: modelo no formato IR 10 ajustado para 9`.
