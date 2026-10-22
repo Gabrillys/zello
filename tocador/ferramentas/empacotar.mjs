@@ -16,8 +16,8 @@ const RAIZ = path.resolve(AQUI, '..');
 const CONFIG = {
   nome: 'Tocador',
   pacote: 'app.tocador',
-  versionCode: 29,
-  versionName: '4.5',
+  versionCode: 30,
+  versionName: '4.6',
   minSdk: 24,
   targetSdk: 34,
   abis: ['arm64-v8a', 'armeabi-v7a'],
@@ -65,6 +65,8 @@ function manifesto(o) {
     perm('android.permission.WAKE_LOCK'),
     perm('android.permission.FOREGROUND_SERVICE'),
     perm('android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK'),
+    // Downloads com a tela apagada: serviço em primeiro plano do tipo "sincronização de dados" (Android 14 exige a permissão).
+    perm('android.permission.FOREGROUND_SERVICE_DATA_SYNC'),
     perm('android.permission.POST_NOTIFICATIONS'),
     perm('android.permission.MODIFY_AUDIO_SETTINGS'),
     // Animação da rádio: o Android só entrega o espectro do som (Visualizer) com esta permissão.
@@ -86,6 +88,8 @@ function manifesto(o) {
       ]),
       // foregroundServiceType 0x2 = mediaPlayback
       el('service', [A('name', 'str', 'app.tocador.Servico'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x2)]),
+      // foregroundServiceType 0x1 = dataSync (downloads)
+      el('service', [A('name', 'str', 'app.tocador.ServicoDownload'), A('exported', 'bool', false), A('foregroundServiceType', 'hex', 0x1)]),
     ]),
   ]);
 

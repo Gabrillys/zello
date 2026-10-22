@@ -78,6 +78,15 @@ Falta no celular:
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
 
+## Versão 4.6: downloads com a tela apagada, falta testar no celular
+
+- **Problema:** o download rodava numa thread comum do app (com o Python como processo filho) e nada o mantinha vivo. Sem música tocando, o serviço em primeiro plano não existia; com a tela apagada o Android suspendia CPU e rede e podia matar o processo.
+- **Feito:** `ServicoDownload` (serviço em primeiro plano, tipo `dataSync`, permissão `FOREGROUND_SERVICE_DATA_SYNC` por causa do Android 14). Sobe em `Baixador.baixar`, segura um wake lock parcial (renovado a cada segundo, prazo de 10 min, para um serviço travado não prender o aparelho) e um Wi-Fi lock, e mostra notificação com andamento e botão **Cancelar**. Só encerra depois de guardar na Biblioteca; deixa uma notificação final com o resultado. É separado do serviço de reprodução: parar a música não derruba o download.
+- **Testado aqui:** compila; manifesto binário decodificado do APK (permissão e serviço com tipo `0x1`); conta do andamento da playlist; tela da aba Baixar. **Não testado:** o serviço em si (não há Android aqui).
+- **Testar no celular:** (1) baixar uma playlist de ~10 músicas, apagar a tela e esperar o tempo ocioso: ao ligar, a notificação deve mostrar "de 10" avançando ou o aviso final; (2) tocar **Cancelar** na notificação com a tela apagada; (3) baixar com música tocando e parar a música: o download deve seguir; (4) Android 13+: negar a permissão de notificações e ver se o download ainda segue (deve seguir, só sem a notificação).
+- **Se ainda parar:** mandar o **Copiar diagnóstico** (a linha `Download: o serviço em primeiro plano não subiu` indica recusa do Android) e o modelo do celular. Fabricantes como Xiaomi e Samsung podem exigir "sem restrição" de bateria; se for preciso, o app pode pedir essa isenção.
+- **Fora desta versão (mesmo problema, ainda sem proteção):** o download do modelo do Whisper, o **Gerar legenda** e o preparo da dublagem também podem parar com a tela apagada. O `ServicoDownload` pode ser reaproveitado para eles.
+
 ## Versão 4.5: legendas voltam a funcionar (erro do 4.4) e letras com diagnóstico, falta testar no celular
 
 - **Corrigido (causa confirmada):** no 4.4, ao dividir a gaveta "Áudio e legendas", o código da gaveta Legendas passou a mexer num elemento (`lgDubBox`) que agora só existe na gaveta Dublar. Dava erro de script ao abrir **Legendas**, e isso parava a montagem da gaveta: a lista de legendas ficava vazia, o botão **Baixar legenda como texto** ficava sem função e o **Gerar legenda** não mostrava andamento nem o botão de baixar o resultado. Reproduzido no Chromium; `ferramentas/fluxo.mjs` agora abre a gaveta Legendas (arquivo no VLC e YouTube), confere a lista e o botão de baixar, e **falha** se houver qualquer erro de script. Com o painel do 4.4 ele falha; com o 4.5, passa.

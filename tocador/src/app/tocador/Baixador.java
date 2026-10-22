@@ -93,6 +93,7 @@ final class Baixador {
         cancelado = false;
         estado = "Preparando o motor de download…";
         titulo = ""; erro = ""; atual = 0; total = 0; feitos = 0; falhas = 0; pct = 0;
+        ServicoDownload.iniciar(ctx); // mantém o download vivo com a tela apagada
         new Thread(new Runnable() { public void run() {
             final List<String[]> salvos = new ArrayList<String[]>();
             String nomeLista = null;
@@ -143,7 +144,8 @@ final class Baixador {
                 trabalhando = false;
                 proc = null;
             }
-            if (!salvos.isEmpty() && pronto != null) pronto.terminou(nomeLista, tipo, url, salvos);
+            try { if (!salvos.isEmpty() && pronto != null) pronto.terminou(nomeLista, tipo, url, salvos); }
+            finally { ServicoDownload.encerrar(ctx, estado); }
         } }, "tocador-download").start();
     }
 
