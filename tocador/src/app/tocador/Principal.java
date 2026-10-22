@@ -17,6 +17,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
 import android.provider.Settings;
 import android.view.SurfaceView;
 import android.view.View;
@@ -63,7 +64,7 @@ public class Principal extends Activity {
     private LinearLayout coluna;
     private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
-    static final String VERSAO = "4.6";
+    static final String VERSAO = "4.7";
     private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;
@@ -505,6 +506,7 @@ public class Principal extends Activity {
             if (telaLigada) getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             else getWindow().clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
             try { cuidarDaLetra(); } catch (Exception e) { }
+            if (ServicoTrabalho.ocupado() && hasWindowFocus()) sugerirSemRestricaoBateria();
             h.postDelayed(this, 1000);
         }
     };
@@ -1176,6 +1178,33 @@ public class Principal extends Activity {
         if (id.equals(filaLista)) { filaLista = null; filaIndice = -1; }
         listas().apagar(id);
         avisar("Lista \"" + l.nome + "\" apagada" + (arquivos ? " (" + apagados + " arquivo(s) removidos do aparelho)" : "") + ".");
+    }
+
+    // ------------------------------------------------------------ economia de bateria
+
+    /** O Android não corta nem atrasa um app que o usuário liberou da economia de bateria (importante com a tela apagada). */
+    private boolean semRestricaoBateria() {
+        if (Build.VERSION.SDK_INT < 23) return true;
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        return pm != null && pm.isIgnoringBatteryOptimizations(getPackageName());
+    }
+
+    /** Abre a janela do sistema que pergunta se o Tocador pode ficar sem restrição de bateria; quem decide é o usuário. */
+    private void pedirSemRestricaoBateria() {
+        if (semRestricaoBateria()) return;
+        try { startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:" + getPackageName()))); }
+        catch (Exception e) {
+            try { startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); }
+            catch (Exception x) { try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (Exception y) { } }
+        }
+    }
+
+    /** Na primeira vez que um trabalho longo (download, legenda, Whisper) roda com o app à frente, pergunta uma vez só. */
+    private void sugerirSemRestricaoBateria() {
+        if (ajustes.getBoolean("bateriaPerguntada", false) || semRestricaoBateria()) return;
+        ajustes.edit().putBoolean("bateriaPerguntada", true).apply();
+        Diagnostico.anotar("Bateria: pedindo para o Tocador ficar sem restrição");
+        pedirSemRestricaoBateria();
     }
 
     // ------------------------------------------------------------ downloads
@@ -1967,9 +1996,15 @@ public class Principal extends Activity {
             } catch (Exception e) { return ""; }
         }
 
+        /** O Tocador já está liberado da economia de bateria? */
+        @JavascriptInterface
+        public boolean bateriaLiberada() { return semRestricaoBateria(); }
+
+        /** Pede a liberação; se já estiver liberado, abre a lista do sistema (de onde dá para desfazer). */
         @JavascriptInterface
         public void bateria() {
             naTela(new Runnable() { public void run() {
+                if (!semRestricaoBateria()) { pedirSemRestricaoBateria(); return; }
                 try { startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)); }
                 catch (Exception e) { try { startActivity(new Intent(Settings.ACTION_SETTINGS)); } catch (Exception x) { } }
             } });

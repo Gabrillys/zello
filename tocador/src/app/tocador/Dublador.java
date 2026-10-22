@@ -64,6 +64,19 @@ final class Dublador implements TextToSpeech.OnInitListener {
     private volatile boolean ativo;
     private volatile String estado = "", modo = "";
     private volatile int volumeOriginal;
+
+    /**
+     * O que o serviço em primeiro plano mostra enquanto o Whisper trabalha na dublagem. Importa porque, quando o
+     * Whisper fica para trás, o vídeo é pausado para ele alcançar: sem música tocando, a CPU poderia dormir.
+     */
+    private final ServicoTrabalho.Tarefa tarefaWhisper = new ServicoTrabalho.Tarefa() {
+        public String nome() { return "dublagem"; }
+        public String titulo() { return "preparar".equals(modo) ? "Preparando a dublagem" : "Dublando com o Whisper"; }
+        public String texto() { return estado; }
+        public int andamento() { long d = duracao, t = tempoLido; return "preparar".equals(modo) && d > 0 ? (int) Math.max(0, Math.min(100, t * 100 / d)) : -1; }
+        public void cancelar() { h.post(new Runnable() { public void run() { parar("Dublagem cancelada."); } }); }
+    };
+
     private Roteiro roteiro;
     private Navegador nav;
     private String video = "";
@@ -174,6 +187,7 @@ final class Dublador implements TextToSpeech.OnInitListener {
         parar(null);
         comecar(n, idVideo, preparar ? "preparar" : "aovivo", new Roteiro(new ArrayList<Roteiro.Fala>()));
         estado = "Carregando o Whisper…";
+        ServicoTrabalho.iniciar(ctx, tarefaWhisper); // mantém o Whisper andando com a tela apagada
         String fixo = idiomaFonte();
         idiomaVideo = fixo;
         final String mod = modelo();
@@ -250,6 +264,7 @@ final class Dublador implements TextToSpeech.OnInitListener {
         liberarWhisper();
         modo = "";
         estado = motivo == null ? "" : motivo;
+        ServicoTrabalho.encerrar(ctx, tarefaWhisper, motivo);
     }
 
     void definirVolumeOriginal(int v) {
@@ -336,6 +351,7 @@ final class Dublador implements TextToSpeech.OnInitListener {
             roteiro.reposicionar(0);
             fila.clear();
             estado = "Pronto! Assistindo dublado, com sincronia.";
+            ServicoTrabalho.encerrar(ctx, tarefaWhisper, "Dublagem preparada. Volte ao Tocador para assistir dublado.");
             nav.evaluateJavascript(jsMidia("m.playbackRate=1;m.currentTime=0;var r=m.play();if(r&&r.catch)r.catch(function(){});"), null);
             aplicarVolume(volumeOriginal / 100.0);
         } }, 500);

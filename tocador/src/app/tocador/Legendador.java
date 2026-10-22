@@ -41,6 +41,15 @@ final class Legendador {
     private volatile boolean traduzida;
     private volatile File srt;
 
+    /** O que o serviço em primeiro plano mostra na notificação enquanto legenda (também usado para criar letras). */
+    private final ServicoTrabalho.Tarefa tarefa = new ServicoTrabalho.Tarefa() {
+        public String nome() { return "legenda"; }
+        public String titulo() { return "Legendando"; }
+        public String texto() { return estado; }
+        public int andamento() { return progresso; }
+        public void cancelar() { Legendador.this.cancelar(); }
+    };
+
     private Legendador(Context c) { ctx = c; }
 
     boolean trabalhando() { return trabalhando; }
@@ -68,6 +77,7 @@ final class Legendador {
         idioma = "";
         progresso = 0;
         estado = "Carregando o Whisper…";
+        ServicoTrabalho.iniciar(ctx, tarefa); // mantém a legenda andando com a tela apagada
         new Thread(new Runnable() { public void run() {
             Whisper w = null;
             try {
@@ -107,6 +117,7 @@ final class Legendador {
             } finally {
                 if (w != null) w.close();
                 trabalhando = false;
+                ServicoTrabalho.encerrar(ctx, tarefa, estado);
             }
         } }, "tocador-legendador").start();
     }

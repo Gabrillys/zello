@@ -23,6 +23,16 @@ final class Modelos {
 
     private static volatile String baixando;   // nome do modelo em download
     private static volatile String andamento = "";
+    private static volatile boolean cancelado;
+
+    /** O que o serviço em primeiro plano mostra na notificação enquanto o modelo baixa. */
+    private static final ServicoTrabalho.Tarefa TAREFA = new ServicoTrabalho.Tarefa() {
+        public String nome() { return "modelo do Whisper"; }
+        public String titulo() { return "Baixando o Whisper"; }
+        public String texto() { return andamento; }
+        public int andamento() { return -1; }
+        public void cancelar() { cancelado = true; }
+    };
 
     private Modelos() { }
 
@@ -49,7 +59,9 @@ final class Modelos {
     static synchronized void baixar(final Context c, final String modelo, final Fim fim) {
         if (baixando != null) return;
         baixando = modelo;
+        cancelado = false;
         andamento = "Baixando o Whisper…";
+        ServicoTrabalho.iniciar(c, TAREFA); // mantém o download vivo com a tela apagada
         new Thread(new Runnable() { public void run() {
             String erro = null;
             try {
@@ -63,18 +75,19 @@ final class Modelos {
                     for (int tentativa = 0; tentativa < 6 && !ok; tentativa++) {
                         String base = String.format(ORIGENS[tentativa % ORIGENS.length], modelo);
                         try { baixarArquivo(base + ARQUIVOS[i], destino, "parte " + (i + 1) + " de " + ARQUIVOS.length); ok = true; }
-                        catch (Exception e) { ultimo = e; try { Thread.sleep(1500L * (tentativa + 1)); } catch (InterruptedException x) { } }
+                        catch (Exception e) { ultimo = e; if (cancelado) break; try { Thread.sleep(1500L * (tentativa + 1)); } catch (InterruptedException x) { } }
                     }
                     if (!ok) throw ultimo;
                 }
                 andamento = "";
             } catch (Exception e) {
                 erro = e.getMessage();
-                andamento = "Falha ao baixar o Whisper: " + erro;
+                andamento = cancelado ? "Download do Whisper cancelado. O que já veio fica guardado para continuar depois." : "Falha ao baixar o Whisper: " + erro;
                 Diagnostico.anotar("Whisper: download falhou: " + erro);
             }
             baixando = null;
-            if (fim != null) fim.pronto(erro == null, erro);
+            try { if (fim != null) fim.pronto(erro == null, erro); }
+            finally { ServicoTrabalho.encerrar(c, TAREFA, erro == null ? "Whisper baixado e pronto." : andamento); }
         } }, "tocador-modelo").start();
     }
 
@@ -110,6 +123,7 @@ final class Modelos {
             int n;
             long ultimo = 0;
             while ((n = in.read(b)) > 0) {
+                if (cancelado) throw new Exception("cancelado");
                 out.write(b, 0, n);
                 feito += n;
                 if (feito - ultimo > 512 * 1024) {

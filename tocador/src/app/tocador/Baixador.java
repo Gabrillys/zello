@@ -55,6 +55,15 @@ final class Baixador {
     private volatile double pct;
     private volatile Process proc;
 
+    /** O que o serviço em primeiro plano mostra na notificação enquanto baixa. */
+    private final ServicoTrabalho.Tarefa tarefa = new ServicoTrabalho.Tarefa() {
+        public String nome() { return "download"; }
+        public String titulo() { return total > 1 ? "Baixando playlist: " + ServicoTrabalho.andamento(atual, total, pct) + "%" : "Baixando"; }
+        public String texto() { return estado; }
+        public int andamento() { return pct <= 0 && atual == 0 ? -1 : ServicoTrabalho.andamento(atual, total, pct); }
+        public void cancelar() { Baixador.this.cancelar(); }
+    };
+
     private Baixador(Context c) {
         ctx = c;
         base = new File(Build.VERSION.SDK_INT >= 21 ? c.getNoBackupFilesDir() : c.getFilesDir(), "ytdlp");
@@ -93,7 +102,7 @@ final class Baixador {
         cancelado = false;
         estado = "Preparando o motor de download…";
         titulo = ""; erro = ""; atual = 0; total = 0; feitos = 0; falhas = 0; pct = 0;
-        ServicoDownload.iniciar(ctx); // mantém o download vivo com a tela apagada
+        ServicoTrabalho.iniciar(ctx, tarefa); // mantém o download vivo com a tela apagada
         new Thread(new Runnable() { public void run() {
             final List<String[]> salvos = new ArrayList<String[]>();
             String nomeLista = null;
@@ -145,7 +154,7 @@ final class Baixador {
                 proc = null;
             }
             try { if (!salvos.isEmpty() && pronto != null) pronto.terminou(nomeLista, tipo, url, salvos); }
-            finally { ServicoDownload.encerrar(ctx, estado); }
+            finally { ServicoTrabalho.encerrar(ctx, tarefa, estado); }
         } }, "tocador-download").start();
     }
 

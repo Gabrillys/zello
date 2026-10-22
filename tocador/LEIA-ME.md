@@ -54,7 +54,8 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - **Música (áudio)**: m4a na melhor qualidade, com artista e título, em **Música/Tocador/<nome da playlist>**.
 - **Vídeo**: mp4 até 1080p (vídeo e áudio juntados no próprio celular), em **Filmes/Tocador**.
 - O que for baixado vira uma lista na **Biblioteca**, pronta para tocar em sequência.
-- **Com a tela apagada (versão 4.6):** o download continua mesmo com a tela apagando por tempo ocioso. Enquanto baixa, o app mantém um serviço em primeiro plano, com CPU e Wi-Fi acordados, e mostra uma notificação com o andamento (em playlists, "de 20") e o botão **Cancelar**. No fim, outra notificação diz o resultado. Se o seu celular ainda cortar o download (Xiaomi, Samsung…), deixe o Tocador **sem restrição** de bateria (*Dicas → Ajuste de bateria*).
+- **Com a tela apagada (versões 4.6 e 4.7):** os trabalhos longos continuam mesmo com a tela apagando por tempo ocioso: **download** de vídeos, músicas e playlists, **Gerar legenda**, **download do modelo do Whisper** e o **preparo da dublagem** com o Whisper. Enquanto rodam, o app mantém um serviço em primeiro plano, com CPU e Wi-Fi acordados, e mostra uma notificação com o andamento (em playlists, "de 20") e um botão **Cancelar** para cada trabalho. No fim de cada um, outra notificação diz o resultado.
+- **Economia de bateria:** na primeira vez que um desses trabalhos roda com o app à frente, o Tocador abre a janela do Android que pergunta se ele pode ficar **sem restrição de bateria** (uma vez só). Em **Ajustes → Tocar e baixar com a tela apagada** dá para ver se já está liberado e pedir de novo. Em Xiaomi, Samsung e Motorola essa liberação costuma ser o que faltava.
 - O motor é o **yt-dlp** (código aberto, o mesmo de sites como o Cobalt), rodando no celular com Python, QuickJS e FFmpeg do projeto youtubedl-android. Se o YouTube mudar algo e os downloads falharem, toque em *Motor de download → Atualizar o motor*: o app baixa o yt-dlp mais novo do PyPI.
 - Só em celulares de 64 bits. Na primeira vez, o motor é instalado (leva alguns segundos).
 - Baixar vídeos do YouTube contraria os termos de uso do YouTube; use para fins pessoais.
@@ -153,7 +154,7 @@ Não precisa do Android SDK. Basta ter Java 11+, Node 22+, Python 3 com Pillow e
   - `Anuncios`: bloqueio de anúncios;
   - `Visualizador` + `Estacoes`: animação da rádio (espectro pelo Visualizer do Android) e dados da rádio (Radio Browser);
   - `Baixador`: downloads com o yt-dlp (Python/QuickJS/FFmpeg do youtubedl-android, wheels do PyPI);
-  - `ServicoDownload`: mantém o download vivo com a tela apagada (serviço em primeiro plano, wake lock, notificação com Cancelar);
+  - `ServicoTrabalho`: mantém downloads, legendas e o Whisper vivos com a tela apagada (serviço em primeiro plano, wake lock, notificação com Cancelar);
   - `AgenteCH`: Client Hints da versão para computador;
   - `Arquivos`: salvar na pasta Download;
   - `EqSistema`: equalizador do Android;

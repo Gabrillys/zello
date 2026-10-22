@@ -389,7 +389,7 @@ body.baixo #palco #rEtq,body.baixo #palco #rDesc{display:none}
       <div class="grupo">
         <button class="item" id="ajDub"><i></i><span class="txt">Dublagem e Whisper<small>Voz, modelo, idioma do vídeo</small></span></button>
         <button class="item" id="ajEq"><i></i><span class="txt">Equalizador<small>10 bandas no player VLC</small></span></button>
-        <button class="item" id="bateria"><i></i><span class="txt">Tocar com a tela apagada<small>Liberar o app da economia de bateria</small></span></button>
+        <button class="item" id="bateria"><i></i><span class="txt">Tocar e baixar com a tela apagada<small id="bateriaInfo">Liberar o app da economia de bateria</small></span></button>
         <button class="item" id="diag"><i></i><span class="txt">Copiar diagnóstico<small>Para enviar ao suporte</small></span></button>
       </div>
       <div class="grupo" style="padding:4px 16px 12px">
@@ -819,7 +819,9 @@ function mostrarAnuncios(){ if(!T) return; var A; try{ A=JSON.parse(T.anuncios()
 $('adChk').onchange=function(){ T&&T.bloquearAnuncios(this.checked); avisar(this.checked?'Bloqueio de anúncios ligado. A página foi recarregada.':'Bloqueio de anúncios desligado.'); setTimeout(mostrarAnuncios,300); };
 
 // ------------------------------------------------ ajustes
-function mostrarAjustes(){ if(!T) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ I={}; }
+function mostrarBateria(){ if(!T||!T.bateriaLiberada) return; var ok=false; try{ ok=T.bateriaLiberada()===true; }catch(x){}
+  $('bateriaInfo').textContent=ok?'Liberado: downloads, legendas e música seguem com a tela apagada':'Toque para liberar o app da economia de bateria'; }
+function mostrarAjustes(){ if(!T) return; var I; try{ I=JSON.parse(T.letraInfo()); }catch(x){ I={}; } mostrarBateria();
   if(document.activeElement!==$('ajLetra')) $('ajLetra').checked=I.ligada!==false;
   if(document.activeElement!==$('ajLetraIa')) $('ajLetraIa').checked=!!I.iaAuto;
   $('ajLetraIa').closest('.chave-linha').classList.toggle('oculto',I.ia===false);
@@ -928,6 +930,7 @@ function atualizar(){
   ['inicio','pBiblioteca','pBaixar','pAjustes'].forEach(function(id){ $(id).classList.toggle('on',!verPlayer&&aba===id); });
   $('player').classList.toggle('on',verPlayer);
   [].forEach.call(document.querySelectorAll('#abas button'),function(b){ b.classList.toggle('on',b.dataset.aba===aba); });
+  if(!verPlayer&&aba==='pAjustes') mostrarBateria();
   $('mini').classList.toggle('oculto',nada||verPlayer);
   var nomeSit=NOMES[sit]||sit; if(sit==='carregando'&&e.buffer>0&&e.buffer<100) nomeSit='carregando '+e.buffer+'%';
   $('chip').textContent=nada?'pronto':nomeSit; $('chip').classList.toggle('on',tocando);
