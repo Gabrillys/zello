@@ -632,7 +632,9 @@ function montarBaixar(sugestao){
   $('baixarConteudo').innerHTML=('<div class="heroi" style="padding:16px"><div id="dlForm"><input class="campo" id="dlUrl" placeholder="Link do vídeo, da playlist ou do canal" autocapitalize="off" autocorrect="off" spellcheck="false" value="'+esc(u)+'">'+
     '<div class="chips" id="dlTipo"><button data-t="audio" class="sel">'+IC.musica+'<span>Música</span></button><button data-t="video">'+IC.tv+'<span>Vídeo 1080p</span></button></div>'+
     '<div class="chave-linha"><span>Playlist ou canal inteiro<br><small style="color:var(--fraco);font-weight:400">Todas as músicas de um cantor: use a playlist ou o canal dele</small></span><label class="chave"><input type="checkbox" id="dlLista"><span></span></label></div>'+
-    '<div class="linha"><button id="dlColar">'+IC.colar+'<span>Colar</span></button><button class="pri" id="dlIr">'+IC.baixar+'<span>Baixar</span></button></div></div>'+
+    '<div class="linha"><button id="dlColar">'+IC.colar+'<span>Colar</span></button><button class="pri" id="dlIr">'+IC.baixar+'<span>Baixar</span></button></div>'+
+    '<button id="dlPlaylist" style="width:100%;margin-top:8px">'+IC.musica+'<span>Criar playlist (só os links, sem baixar)</span></button>'+
+    '<div class="nota">Criar playlist: lê o canal, a playlist ou o álbum (YouTube e YouTube Music), põe as músicas na Biblioteca e salva um arquivo .m3u em <b>Download/Tocador</b>. Na hora de tocar, o app busca só o áudio de cada música.</div></div>'+
     '<div id="dlAndamento" class="oculto"><div class="nota" id="dlEstado" style="margin-top:0"></div><div class="medidor"><i id="dlProg"></i></div><div class="nota">Pode apagar a tela ou trocar de app: o download continua e o andamento fica na notificação.</div><button id="dlCancelar" style="width:100%">Cancelar</button></div>'+
     '<div class="nota" id="dlFim"></div>'+
     '<details class="mais"><summary>Motor de download</summary><div class="nota" id="dlVersao"></div><button id="dlAtualizar" style="width:100%">Atualizar o motor (yt-dlp)</button>'+
@@ -642,6 +644,7 @@ function montarBaixar(sugestao){
   [].forEach.call($('dlTipo').children,function(b){ b.onclick=function(){ tipo=b.dataset.t; [].forEach.call($('dlTipo').children,function(x){ x.classList.toggle('sel',x===b); }); }; });
   $('dlColar').onclick=function(){ var c=T.colar(); if(c){ $('dlUrl').value=c; $('dlLista').checked=ehLista(c); } };
   $('dlIr').onclick=function(){ var v=$('dlUrl').value.trim(); if(!v){ $('dlUrl').focus(); return; } T.baixar(v,tipo,$('dlLista').checked); setTimeout(atualizarDownloads,400); };
+  $('dlPlaylist').onclick=function(){ var v=$('dlUrl').value.trim(); if(!v){ var c=T.colar(); if(c){ $('dlUrl').value=c; v=c; } } if(!v){ $('dlUrl').focus(); return; } T.criarPlaylist(v); setTimeout(atualizarDownloads,400); };
   $('dlCancelar').onclick=function(){ T.cancelarDownload(); };
   $('dlAtualizar').onclick=function(){ T.atualizarMotor(); avisar('Procurando a versão mais nova…'); setTimeout(atualizarDownloads,400); };
   atualizarDownloads();

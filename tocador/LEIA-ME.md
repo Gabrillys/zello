@@ -47,6 +47,13 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
 - Em *Gerenciar lista*: renomear, trocar o estilo e **atualizar** (baixa de novo do mesmo endereço).
 - Se o endereço for de uma transmissão (um único canal `.m3u8`), ele toca direto.
 
+## Criar playlist com os links de um canal (versão 4.11)
+
+- Na aba **Baixar**, cole o link de um **canal**, **playlist** ou **álbum** do YouTube ou do YouTube Music e toque em **Criar playlist (só os links, sem baixar)**.
+- O app lê a lista com o yt-dlp (`--flat-playlist`, sem baixar nada). Num canal sem aba escolhida, ele lê a aba **Vídeos**. Abas, álbuns e playlists que aparecem dentro do link também são abertos.
+- A playlist entra na **Biblioteca** como lista de **Músicas** e é salva como arquivo `.m3u` em **Download/Tocador**, no formato `#EXTM3U` / `#EXTINF:-1,Título` / link.
+- Ao tocar, o app busca só o **áudio** de cada música e toca no player VLC, seguindo sozinho para a próxima. Música indisponível é pulada.
+
 ## Baixar músicas, vídeos e playlists
 
 - Na tela inicial, toque em **Baixar músicas, vídeos e playlists**. No player, use **Baixar este vídeo ou playlist**.

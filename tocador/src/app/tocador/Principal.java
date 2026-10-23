@@ -64,7 +64,7 @@ public class Principal extends Activity {
     private LinearLayout coluna;
     private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
-    static final String VERSAO = "4.10";
+    static final String VERSAO = "4.11";
     private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;
@@ -203,7 +203,8 @@ public class Principal extends Activity {
         // Instagram (sempre) e outras redes quando a pessoa escolhe "Player VLC": busca o vídeo antes e toca do cache.
         if (url.startsWith("http") && (("auto".equals(modo) && INSTAGRAM.matcher(hostLink).find())
                 || ("vlc".equals(modo) && REDE_PARA_VLC.matcher(hostLink).find() && !DIRETO.matcher(url).matches()))) {
-            abrirPorCache(url);
+            Listas.Lista lf = abrindoDaFila && filaLista != null ? listas().porId(filaLista) : null;
+            abrirPorCache(url, lf != null && "musica".equals(lf.tipo));
             return;
         }
         if ("auto".equals(modo)) {
@@ -254,12 +255,13 @@ public class Principal extends Activity {
     }
 
     /** Busca o vídeo (sem conta) com o yt-dlp e, pronto, toca no player VLC a partir do cache do app. */
-    private void abrirPorCache(final String url) {
+    private void abrirPorCache(final String url, final boolean soAudio) {
         if (!Baixador.disponivel()) { avisar("Tocar redes sociais no player VLC precisa de um celular de 64 bits. Abrindo o site."); abrirNoModo(url, "web"); return; }
         if ("web".equals(Controle.modo)) Navegador.comandar("pausar");
         motor.parar();
-        avisar("Buscando o vídeo… em instantes ele toca no player VLC.");
-        Baixador.de(this).paraCache(url, new Baixador.ProntoCache() {
+        avisar(soAudio ? "Buscando a música…" : "Buscando o vídeo… em instantes ele toca no player VLC.");
+        final String lista = filaLista;
+        Baixador.de(this).paraCache(url, soAudio, new Baixador.ProntoCache() {
             public void pronto(final java.io.File f, final String titulo) {
                 runOnUiThread(new Runnable() { public void run() {
                     abrirNoModo(Uri.fromFile(f).toString(), "vlc");
@@ -269,6 +271,12 @@ public class Principal extends Activity {
             public void falhou(final String motivo) {
                 runOnUiThread(new Runnable() { public void run() {
                     if ("cancelado".equals(motivo)) return;
+                    if (soAudio && lista != null && lista.equals(filaLista)) {
+                        // Música de playlist indisponível (removida, bloqueada…): segue para a próxima.
+                        avisar("Música indisponível (" + motivo + "). Indo para a próxima.");
+                        proximoDaFila(1, false);
+                        return;
+                    }
                     avisar("Não consegui buscar o vídeo (" + motivo + "). Abrindo no site.");
                     abrirNoModo(url, "web");
                 } });
@@ -1226,6 +1234,41 @@ public class Principal extends Activity {
         avisar("Download iniciado. Acompanhe em Downloads.");
     }
 
+    /**
+     * Cria uma playlist com os links de um canal, playlist ou álbum (YouTube e YouTube Music), sem baixar as músicas:
+     * vira uma lista de Músicas na Biblioteca e um arquivo .m3u em Download/Tocador.
+     */
+    void criarPlaylist(String texto) {
+        String url = extrairLink(texto == null ? "" : texto);
+        if (url == null) { avisar("Cole o link do canal, da playlist ou do álbum."); return; }
+        if (!Baixador.disponivel()) { avisar("Criar playlists precisa de um celular de 64 bits."); return; }
+        if (!permissaoGravar()) return;
+        Baixador.de(this).extrairLinks(url, new Baixador.ProntoLinks() {
+            public void terminou(String nome, String origem, java.util.List<String[]> itens) {
+                final String titulo = nome != null && nome.length() > 0 ? nome : "Playlist do YouTube";
+                java.util.List<Listas.Item> lista = new java.util.ArrayList<Listas.Item>();
+                StringBuilder m3u = new StringBuilder("#EXTM3U\n#PLAYLIST:").append(titulo).append('\n');
+                for (String[] a : itens) {
+                    String n = a[0].replace('\n', ' ').replace('\r', ' ');
+                    lista.add(new Listas.Item(n, a[1], "", ""));
+                    m3u.append("#EXTINF:-1,").append(n).append('\n').append(a[1]).append('\n');
+                }
+                final Listas.Lista l = listas().adicionar(titulo, "youtube:" + origem, "musica", lista);
+                String arquivo;
+                try { arquivo = Arquivos.salvar(Principal.this, titulo, ".m3u", "audio/x-mpegurl", m3u.toString()); }
+                catch (Exception e) { arquivo = null; Diagnostico.anotar("Playlist: não consegui salvar o .m3u: " + e); }
+                final String onde = arquivo;
+                Diagnostico.anotar("Playlist criada: " + itens.size() + " links de " + Diagnostico.curto(origem));
+                runOnUiThread(new Runnable() { public void run() {
+                    js(painel, "window.listaImportada&&listaImportada(" + JSONObject.quote(l.id) + ")");
+                    avisar("Playlist \"" + titulo + "\": " + l.itens.size() + " músicas na Biblioteca"
+                            + (onde != null ? " e em " + onde : "") + ".");
+                } });
+            }
+        });
+        avisar("Lendo o link… a playlist aparece na Biblioteca.");
+    }
+
     /** O que foi baixado vira uma lista na Biblioteca (playlist com o nome dela; vídeos avulsos em "Baixados"). */
     private void guardarNaBiblioteca(String nome, String tipo, String origem, java.util.List<String[]> arquivos) {
         boolean audio = "audio".equals(tipo);
@@ -1799,6 +1842,11 @@ public class Principal extends Activity {
         @JavascriptInterface
         public void baixar(final String url, final String tipo, final boolean playlist) {
             naTela(new Runnable() { public void run() { Principal.this.baixar(url, tipo, playlist); } });
+        }
+
+        @JavascriptInterface
+        public void criarPlaylist(final String url) {
+            naTela(new Runnable() { public void run() { Principal.this.criarPlaylist(url); } });
         }
 
         /** Salva no aparelho o vídeo que está tocando da pasta temporária (sem baixar de novo). */
