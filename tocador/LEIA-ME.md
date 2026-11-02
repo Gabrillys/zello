@@ -2,7 +2,7 @@
 
 Aplicativo Android para assistir e ouvir **vídeos do YouTube e de outros sites**, **rádios, TVs e câmeras de listas M3U**, e **vídeos e músicas do próprio aparelho**. Ele continua tocando **em segundo plano e com a tela apagada**, tem **tela cheia só com o vídeo**, **qualidade máxima**, **toque duplo para voltar e avançar**, **legendas** (com download em texto puro) e **equalizador**.
 
-Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celulares arm64 e arm32 com Android 7 ou mais novo. As versões novas instalam por cima das antigas.
+Arquivo para instalar: o `Tocador.apk` é entregue **direto na conversa com o Claude** a cada versão (desde a 4.12 ele não fica mais no GitHub). Para gerar você mesmo, rode `./construir.sh` (sai em `dist/Tocador.apk`). Funciona em celulares arm64 e arm32 com Android 7 ou mais novo. As versões novas instalam por cima das antigas.
 
 ## Como usar
 

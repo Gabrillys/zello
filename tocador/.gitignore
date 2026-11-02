@@ -1,1 +1,3 @@
 .cache/
+# O APK é entregue direto na conversa com o Claude, não vai para o GitHub.
+dist/
