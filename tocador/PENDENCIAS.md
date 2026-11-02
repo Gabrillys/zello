@@ -1,5 +1,38 @@
 # Pendências do Tocador
 
+## Próximo passo: versão para Windows (.exe) — pedido em 02/11/2026, ainda não começado
+
+O usuário quer uma versão do Tocador 4.12 para Windows, em `.exe`, o mais igual possível à do celular. Combinado: anotar como próximo passo; **começar só quando ele pedir**.
+
+**Ponto de partida (medido na 4.12):**
+- Reaproveitável sem reescrever: a tela inteira (`assets/painel.html`, `controles.html`, `letreiro.js`, cerca de 1.600 linhas; no Android ela roda num WebView, que usa o motor do Chrome) e cerca de 2.500 linhas de Java puro: `Whisper`, `Transcritor`, `Roteiro`, `Legendas`, `Listas`, `Fila`, `Tradutor`, `VozNeural`, `Estacoes`, `JwOrg`, `Diagnostico`, mais `Letras` (só usa `android.util.Base64`) e boa parte de `Modelos`.
+- Presos ao Android (cerca de 6.400 linhas): `Principal` (janela e a ponte com a tela, 75 métodos `@JavascriptInterface`), `Motor`, `Navegador`, `Baixador`, `Legendador`, `Dublador`, `Servico`, `ServicoTrabalho`, `Visualizador`, `EqSistema`, `Anuncios`, `AgenteCH`, `Arquivos`, `Controle`.
+
+**Equivalentes no Windows:**
+
+| No Android | No Windows |
+|---|---|
+| Janela (`Principal`) e a ponte `window.Tocador` | Janela com Chromium embutido (JCEF) e a mesma ponte reimplementada. A tela chama a ponte de forma síncrona (`JSON.parse(T.estado())`); o JCEF só tem chamada assíncrona, então a ponte precisa de um intermediário (o Java manda o estado para a página e as leituras respondem do que já chegou; as ações vão assíncronas). |
+| Player VLC (libVLC do Android) | O mesmo VLC, pela biblioteca vlcj (equalizador de 10 bandas e espectro para a animação) |
+| Modo site, bloqueio de anúncios, qualidade, legendas da página (`Navegador`, `Anuncios`, `AgenteCH`) | Chromium embutido com os mesmos scripts injetados e filtro de pedidos |
+| Downloads (yt-dlp em Python no celular) | `yt-dlp.exe` oficial e FFmpeg |
+| Gerar legenda (`MediaCodec`/`MediaExtractor`) | FFmpeg para decodificar o áudio |
+| Whisper com ONNX Runtime 1.17.3 (limite do dx) | ONNX Runtime atual do Windows (abre modelos IR 10 sem o ajuste de `compatibilizarIr`) |
+| Notificação, fones, tela de bloqueio (`Servico`) | Teclas de mídia e controles de mídia do Windows |
+| Tela apagada e isenção de bateria (`ServicoTrabalho`) | Impedir que o PC suspenda enquanto toca, baixa ou legenda |
+| Compartilhar do app do YouTube | Colar o link ou arrastar arquivos |
+| Gravar em Música/Filmes/Download (`MediaStore`) | Pastas Músicas, Vídeos e Downloads do Windows |
+
+**Plano (etapas, cada uma entregue e testada):**
+1. Separar o Java puro num módulo comum ao Android e ao Windows (uma correção vale para os dois). O Android não pode mudar: provar como na 4.12 (compilar antes e depois, comparar as classes sem números de linha e os arquivos do APK; rodar `ferramentas/fluxo.mjs`, `banca.mjs` e os testes de Java).
+2. Casca Windows: janela com JCEF carregando o `painel.html` e a ponte reimplementada.
+3. Player (vlcj), modo site, Whisper (Legendador, Dublador, Baleia), downloads (`yt-dlp.exe`).
+4. Instalador `.exe` com o `jpackage` (já inclui o Java). Os modelos do Whisper continuam sendo baixados dentro do app. Estimativa do instalador: 250 a 350 MB (não medido).
+
+**Limites a lembrar:**
+- "Igual" vale para a tela e as funções; notificação, Compartilhar e bateria viram os equivalentes do PC. A tela foi desenhada para celular: no PC abre numa janela estreita, a menos que se adapte o layout para tela larga.
+- O `jpackage` só gera instalador para o sistema em que roda, e as sessões rodam num Linux na nuvem. **Decisão pendente com o usuário:** compilar e testar no computador dele com Windows (pelo Controle Remoto do Claude, se ele ativar) ou numa máquina Windows do GitHub Actions. O `.exe` é entregue na conversa, como o APK (ver `CLAUDE.md`).
+
 ## Aguardando informação do usuário
 
 - **Qualidade travada (YouTube e jw.org)** — desde a versão 2.2.
