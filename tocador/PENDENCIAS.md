@@ -86,6 +86,7 @@ Falta no celular:
 - **Causa:** o único disparo automático era a letra das músicas criada pelo Whisper (`letraIaAuto`), que vinha **ligada por padrão** e rodava pelo ciclo de 1 s mesmo com a tela apagada (com a Baleia, bem pesado). Gerar legenda e Criar letra no botão já eram manuais.
 - **Feito:** `letraIaAuto` agora vem **desligado**. Ligado, só começa com a tela à vista (`visivel`, entre onStart e onStop); se a tela apagar com uma letra sendo criada sozinha, ela é cancelada e volta a tentar com a tela ligada. O que a pessoa pede no botão continua até o fim com a tela apagada. Textos dos interruptores explicam isso.
 - **Testado aqui:** compila; telas sem erro. **Não testado no celular:** o cancelamento ao apagar a tela.
+- **Confirmado no celular (02/11/2026):** a 4.12 foi instalada e funcionou (relato do usuário). O cancelamento da letra automática ao apagar a tela não foi conferido à parte.
 
 ## Versão 4.10: a Baleia abre no ONNX Runtime do app
 
