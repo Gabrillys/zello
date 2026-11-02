@@ -78,7 +78,9 @@ Falta no celular:
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
 
-## Versão 4.11: legenda só quando a pessoa pedir
+## Versão 4.12: legenda só quando a pessoa pedir (e junção com a 4.11 das playlists)
+
+- **Duas "4.11":** em 23/10 outra sessão publicou nesta branch a 4.11 "criar playlist com os links de canal, playlist ou álbum do YouTube"; esta sessão fez, sem saber, outra 4.11 (a da legenda) e chegou a mandar esse APK na conversa. Juntei as duas (merge) e numerei como **4.12**, que tem as duas coisas. O APK 4.11 da legenda, mandado antes da junção, não tem as playlists: usar a 4.12.
 
 - **Pedido:** o app gerava legenda sozinho e gastava bateria; o usuário ouve muito com a tela apagada, quando a legenda nem aparece. Ele quer escolher quando gerar.
 - **Causa:** o único disparo automático era a letra das músicas criada pelo Whisper (`letraIaAuto`), que vinha **ligada por padrão** e rodava pelo ciclo de 1 s mesmo com a tela apagada (com a Baleia, bem pesado). Gerar legenda e Criar letra no botão já eram manuais.

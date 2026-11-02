@@ -158,6 +158,97 @@ final class Baixador {
         } }, "tocador-download").start();
     }
 
+    // ------------------------------------------------------------ criar playlist (só os links, sem baixar)
+
+    interface ProntoLinks { void terminou(String nome, String origem, List<String[]> itens); }
+
+    /**
+     * Lê um canal, playlist ou álbum (YouTube e YouTube Music) e devolve título e endereço de cada vídeo,
+     * sem baixar nada (yt-dlp --flat-playlist). Abas de canal e álbuns de artista viram uma segunda leitura.
+     */
+    synchronized void extrairLinks(final String url, final ProntoLinks pronto) {
+        if (trabalhando) return;
+        trabalhando = true;
+        cancelado = false;
+        estado = "Preparando o motor…";
+        titulo = ""; erro = ""; atual = 0; total = 0; feitos = 0; falhas = 0; pct = 0;
+        ServicoTrabalho.iniciar(ctx, tarefa);
+        new Thread(new Runnable() { public void run() {
+            final List<String[]> itens = new ArrayList<String[]>();
+            String nome = null;
+            try {
+                preparar();
+                java.util.Set<String> vistos = new java.util.HashSet<String>();
+                List<String> pendentes = new ArrayList<String>();
+                pendentes.add(enderecoDeCanal(url));
+                for (int volta = 0; volta < 3 && !pendentes.isEmpty() && !cancelado; volta++) {
+                    List<String> c = new ArrayList<String>();
+                    String nativas = ctx.getApplicationInfo().nativeLibraryDir;
+                    c.add(nativas + "/libpython.so"); c.add("-m"); c.add("yt_dlp");
+                    c.add("--js-runtimes"); c.add("quickjs:" + nativas + "/libqjs.so");
+                    c.add("--cache-dir"); c.add(new File(ctx.getCacheDir(), "ytdlp").getPath());
+                    c.add("--no-colors"); c.add("--ignore-errors"); c.add("--flat-playlist"); c.add("--yes-playlist");
+                    c.add("--print"); c.add("TOCLINK\t%(url)s\t%(playlist_title|)s\t%(title|)s");
+                    c.addAll(pendentes);
+                    pendentes = new ArrayList<String>();
+                    estado = volta == 0 ? "Lendo o canal ou a playlist…" : "Lendo as abas e os álbuns…";
+                    Diagnostico.anotar("Playlist: lendo " + Diagnostico.curto(c.get(c.size() - 1)) + " (volta " + (volta + 1) + ")");
+                    ProcessBuilder pb = new ProcessBuilder(c).redirectErrorStream(true);
+                    ambiente(pb.environment());
+                    proc = pb.start();
+                    BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
+                    String l;
+                    while ((l = r.readLine()) != null) {
+                        if (l.startsWith("TOCLINK\t")) {
+                            String[] p = l.split("\t", 4);
+                            if (p.length < 4 || p[1].length() == 0 || "NA".equals(p[1])) continue;
+                            String u = p[1];
+                            if (nome == null && p[2].length() > 0 && !"NA".equals(p[2])) nome = p[2];
+                            if (!vistos.add(u)) continue;
+                            if (ehVideo(u)) {
+                                itens.add(new String[] { p[3].length() > 0 && !"NA".equals(p[3]) ? p[3] : u, u });
+                                estado = itens.size() + " música(s) encontradas…";
+                            } else pendentes.add(u); // aba do canal, álbum ou outra playlist: abre na próxima volta
+                        } else if (l.startsWith("ERROR:")) {
+                            erro = l.substring(6).trim();
+                            Diagnostico.anotar("yt-dlp: " + Diagnostico.curto(erro));
+                        }
+                    }
+                    proc.waitFor();
+                    proc = null;
+                }
+                if (cancelado) estado = "Cancelado.";
+                else if (itens.isEmpty()) estado = "Não encontrei vídeos neste link" + (erro.length() > 0 ? ": " + erro : ".") + " Se o YouTube mudou algo, toque em Atualizar o motor.";
+                else estado = "Playlist pronta: " + itens.size() + " música(s).";
+            } catch (Throwable e) {
+                Diagnostico.anotar("Criar playlist falhou: " + e);
+                estado = "Não consegui ler o link: " + (e.getMessage() == null ? e.toString() : e.getMessage());
+            } finally {
+                trabalhando = false;
+                proc = null;
+            }
+            try { if (!cancelado && !itens.isEmpty() && pronto != null) pronto.terminou(nomeLimpo(nome), url, itens); }
+            finally { ServicoTrabalho.encerrar(ctx, tarefa, estado); }
+        } }, "tocador-playlist").start();
+    }
+
+    /** Endereço de um vídeo (e não de uma aba, álbum ou playlist)? */
+    static boolean ehVideo(String u) {
+        return u.contains("watch?v=") || u.contains("youtu.be/") || u.contains("/shorts/") || !u.contains("youtube.com/");
+    }
+
+    /** Canal do YouTube sem aba escolhida: lê a aba Vídeos (a raiz do canal traz Vídeos, Shorts e Ao vivo misturados). */
+    static String enderecoDeCanal(String u) {
+        java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(https?://(?:www\\.|m\\.)?youtube\\.com/(?:@[^/?#]+|channel/[^/?#]+|c/[^/?#]+|user/[^/?#]+))/?(?:featured)?/?([?#].*)?$").matcher(u);
+        return m.matches() ? m.group(1) + "/videos" : u;
+    }
+
+    /** "Cantor - Videos" vira "Cantor". */
+    static String nomeLimpo(String n) {
+        if (n == null) return null;
+        return n.replaceAll("\\s+-\\s+(Videos|Vídeos|Shorts|Live|Home|Início|Songs|Músicas)$", "").trim();
+    }
+
     // ------------------------------------------------------------ tocar no VLC sem login (Instagram, TikTok…)
 
     interface ProntoCache { void pronto(File arquivo, String titulo); void falhou(String motivo); }
@@ -185,8 +276,11 @@ final class Baixador {
      * Busca o vídeo de uma rede social (sem conta, como visitante) e guarda numa pasta temporária do app,
      * para o player VLC tocar dali. O mesmo link, aberto de novo, toca na hora.
      */
-    synchronized void paraCache(final String url, final ProntoCache cb) {
-        final String chave = Dublador.hash(url);
+    synchronized void paraCache(final String url, final ProntoCache cb) { paraCache(url, false, cb); }
+
+    /** soAudio: músicas de playlist; busca só o áudio (m4a), bem mais rápido e leve que o vídeo. */
+    synchronized void paraCache(final String url, final boolean soAudio, final ProntoCache cb) {
+        final String chave = Dublador.hash(url) + (soAudio ? "a" : "");
         final File pasta = pastaCache();
         File[] ja = pasta.listFiles();
         if (ja != null) for (File f : ja) if (f.getName().startsWith(chave + ".") && !f.getName().endsWith(".part") && !f.getName().endsWith(".titulo") && !f.getName().endsWith(".ytdl") && f.length() > 0) {
@@ -214,8 +308,11 @@ final class Baixador {
                 c.add("--ffmpeg-location"); c.add(nativas + "/libffmpeg.so");
                 c.add("--cache-dir"); c.add(new File(ctx.getCacheDir(), "ytdlp").getPath());
                 c.add("--no-colors"); c.add("--newline"); c.add("--progress"); c.add("--no-playlist"); c.add("--no-mtime");
-                c.add("-f"); c.add("bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[ext=mp4]/b");
-                c.add("--merge-output-format"); c.add("mp4");
+                if (soAudio) { c.add("-f"); c.add("bestaudio[ext=m4a]/bestaudio/best"); }
+                else {
+                    c.add("-f"); c.add("bv*[height<=1080][ext=mp4]+ba[ext=m4a]/bv*[height<=1080]+ba/b[ext=mp4]/b");
+                    c.add("--merge-output-format"); c.add("mp4");
+                }
                 c.add("-o"); c.add(pasta.getPath() + "/" + chave + ".%(ext)s");
                 c.add("--progress-template"); c.add("download:TOC|1|1|%(progress._percent_str)s|%(info.title)s");
                 c.add("--print"); c.add("after_move:TOCFIM|%(filepath)s|%(title)s|");
@@ -230,7 +327,7 @@ final class Baixador {
                     if (l.startsWith("TOC|")) {
                         String[] p = l.split("\\|", 5);
                         try { cachePct = Double.parseDouble(p[3].replace("%", "").trim()); } catch (Exception e) { }
-                        cacheEstado = "Preparando o vídeo… " + Math.round(cachePct) + "%";
+                        cacheEstado = (soAudio ? "Preparando a música… " : "Preparando o vídeo… ") + Math.round(cachePct) + "%";
                     } else if (l.startsWith("TOCFIM|")) {
                         String[] p = l.split("\\|", 4);
                         achado = new File(p[1]);
