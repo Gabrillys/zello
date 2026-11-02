@@ -28,7 +28,7 @@ Arquivo para instalar: [`dist/Tocador.apk`](dist/Tocador.apk). Funciona em celul
   1. letra já achada ou criada antes (fica guardada no aparelho, funciona sem internet);
   2. arquivo **.lrc** com o mesmo nome da música, na mesma pasta;
   3. catálogos na internet: **LRCLIB**, **Musixmatch** (o maior, forte em música brasileira), **NetEase Cloud Music** e **Kugou**;
-  4. se nenhum tiver, o **Whisper** ouve a música no próprio celular e **cria a letra** com os horários. Acontece sozinho quando o Whisper já está baixado (dá para desligar), ou pelo botão **Criar letra** no palco.
+  4. se nenhum tiver, o **Whisper** ouve a música no próprio celular e **cria a letra** com os horários. Só acontece quando você pede, pelo botão **Criar letra** no palco (ou em **Letra da música**). Para criar sem pedir, ligue **Criar a letra sozinho com o Whisper** em Ajustes: mesmo assim, só roda com a tela ligada; se a tela apagar no meio, ele para e volta a tentar quando ela ligar. Criar letra e **Gerar legenda** pedidos no botão continuam até o fim com a tela apagada.
 - Artista e música vêm dos metadados do arquivo ou do título; número da faixa ("01 - ") e marcas de versão ("- Remastered 2009", "- 2015 Mix", "(Live)") são ignorados. Títulos escritos como "Música - Artista" também são reconhecidos. Covers e gravações de duração muito diferente são descartados.
 - Em **Dicas → Copiar diagnóstico**, cada música procurada deixa uma linha dizendo o que cada catálogo respondeu (achou, nada, ou o erro).
 - Se não achar, a seção **Letra da música** mostra exatamente o que foi procurado.

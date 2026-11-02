@@ -78,6 +78,13 @@ Falta no celular:
 - Letra guardada em `files/letras/<hash>.json`; `.lrc` ao lado só para caminhos file:// (content:// não).
 - Letra pelo Whisper: usa o Legendador (aparece também na gaveta de legendas). Qualidade depende do modelo e da mistura voz/instrumento; o modelo tiny erra bastante em música.
 
+## Versão 4.11: legenda só quando a pessoa pedir
+
+- **Pedido:** o app gerava legenda sozinho e gastava bateria; o usuário ouve muito com a tela apagada, quando a legenda nem aparece. Ele quer escolher quando gerar.
+- **Causa:** o único disparo automático era a letra das músicas criada pelo Whisper (`letraIaAuto`), que vinha **ligada por padrão** e rodava pelo ciclo de 1 s mesmo com a tela apagada (com a Baleia, bem pesado). Gerar legenda e Criar letra no botão já eram manuais.
+- **Feito:** `letraIaAuto` agora vem **desligado**. Ligado, só começa com a tela à vista (`visivel`, entre onStart e onStop); se a tela apagar com uma letra sendo criada sozinha, ela é cancelada e volta a tentar com a tela ligada. O que a pessoa pede no botão continua até o fim com a tela apagada. Textos dos interruptores explicam isso.
+- **Testado aqui:** compila; telas sem erro. **Não testado no celular:** o cancelamento ao apagar a tela.
+
 ## Versão 4.10: a Baleia abre no ONNX Runtime do app
 
 - **Confirmado no celular:** com a 4.10, **Gerar legenda** com a Baleia funcionou, e a qualidade da legenda melhorou bastante (relato do usuário). O opset do modelo não deu problema.

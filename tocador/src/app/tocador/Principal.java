@@ -64,7 +64,7 @@ public class Principal extends Activity {
     private LinearLayout coluna;
     private SurfaceView superficie, superficieLegendas;
     private Navegador nav;
-    static final String VERSAO = "4.10";
+    static final String VERSAO = "4.11";
     private WebView painel, controles;
     private WebChromeClient.CustomViewCallback cbTelaCheia;
     private volatile boolean expandido, cheio;
@@ -522,6 +522,7 @@ public class Principal extends Activity {
     @Override
     protected void onStart() {
         super.onStart();
+        visivel = true;
         if ("vlc".equals(Controle.modo)) motor.anexar(superficie, superficieLegendas, superficie.getWidth(), superficie.getHeight());
         if (vizQuer) ligarAnimacao(true); // a tela voltou: a animação volta junto
     }
@@ -533,6 +534,16 @@ public class Principal extends Activity {
         if ("vlc".equals(Controle.modo)) motor.desanexar();
         visualizador.desligar(); // a animação não gasta bateria com a tela apagada; volta sozinha ao reabrir
         vizLigada = false;
+        visivel = false;
+        // Letra que o Whisper criava sozinho: com a tela apagada ninguém a vê, então para (volta a tentar com a tela ligada).
+        // O que a pessoa pediu no botão (Criar letra, Gerar legenda) continua.
+        Legendador lg = Legendador.seExistir();
+        if (letraIaSozinha && "criando".equals(letraEstado) && lg != null && lg.trabalhando()) {
+            lg.cancelar();
+            letraEstado = "sem-letra";
+            letraIaTentada.remove(letraChave);
+            Diagnostico.anotar("Letra: criação automática parada (tela apagada)");
+        }
         super.onStop();
     }
 
@@ -544,8 +555,16 @@ public class Principal extends Activity {
 
     private boolean letrasLigadas() { return ajustes.getBoolean("letras", true); }
 
-    /** Criar a letra com o Whisper quando nenhum catálogo tiver (liga por padrão; só roda com o Whisper já baixado). */
-    private boolean letraIaAuto() { return ajustes.getBoolean("letraIaAuto", true); }
+    /**
+     * Criar a letra com o Whisper sozinho quando nenhum catálogo tiver. Desligado por padrão: gasta bateria, e quem ouve
+     * com a tela apagada nem vê a letra. Ligado, só roda com a tela ligada e o Whisper já baixado.
+     */
+    private boolean letraIaAuto() { return ajustes.getBoolean("letraIaAuto", false); }
+
+    /** A tela do app está à vista (entre onStart e onStop). Com a tela apagada, nada de criar letra sozinho. */
+    private volatile boolean visivel;
+    /** A letra que o Whisper está criando agora começou sozinha (não foi pedida no botão). */
+    private boolean letraIaSozinha;
 
     /** Ajuste fino da letra nesta música: de -1 s (mais tarde) a +1 s (mais cedo), em passos de 0,1 s. */
     private int ajusteLetra() { return Math.max(-1000, Math.min(1000, ajustes.getInt("letraAjuste:" + letraChave, 0))); }
@@ -564,7 +583,7 @@ public class Principal extends Activity {
             letraEstado = "ia-falhou";
             letraIaErro = Legendador.de(this).estado();
         }
-        if ("sem-letra".equals(letraEstado) && letraIaAuto() && !letraIaTentada.contains(letraChave)) criarLetraComIA(false);
+        if ("sem-letra".equals(letraEstado) && letraIaAuto() && visivel && !letraIaTentada.contains(letraChave)) criarLetraComIA(false);
         JSONObject m = motor.meta();
         String artista = m.optString("artista"), musica = m.optString("tituloFaixa");
         if (musica.length() == 0) musica = motor.estado().optString("titulo");
@@ -653,10 +672,11 @@ public class Principal extends Activity {
     private void criarLetraComIA(boolean pedido) {
         final String chave = letraChave;
         if (chave.length() == 0) return;
-        letraIaTentada.add(chave);
         final Legendador lg = Legendador.de(this);
-        if (!whisperDisponivel()) { if (pedido) avisar("Criar a letra precisa do Whisper, que pede um celular de 64 bits."); return; }
+        // Ocupado (inclusive terminando de cancelar): o automático tenta de novo no próximo ciclo.
         if (lg.trabalhando()) { if (pedido) avisar("O Whisper está ocupado com outra legenda. Tente quando terminar."); return; }
+        letraIaTentada.add(chave);
+        if (!whisperDisponivel()) { if (pedido) avisar("Criar a letra precisa do Whisper, que pede um celular de 64 bits."); return; }
         String escolhido = Dublador.de(this).modelo();
         // Automático: só com um Whisper já baixado (o escolhido, ou outro que já esteja no aparelho).
         if (!pedido && !Modelos.pronto(this, escolhido)) escolhido = Modelos.prontoAlternativo(this, escolhido);
@@ -670,6 +690,7 @@ public class Principal extends Activity {
         }
         letraEstado = "criando";
         letraIaErro = "";
+        letraIaSozinha = !pedido;
         Diagnostico.anotar("Letra: criando com o Whisper para \"" + letraProcurada + "\"");
         lg.iniciar(chave, letraProcurada, false, mod, new Legendador.Pronto() {
             public void legenda(File srt) {
